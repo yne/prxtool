@@ -8,8 +8,8 @@
 #ifndef __SERIALIZEPRX_H__
 #define __SERIALIZEPRX_H__
 
-#include "types.h"
-#include "types.h"
+
+
 #include "ProcessPrx.h"
 
 enum {
@@ -22,47 +22,46 @@ enum {
 };
 
 /** Base class for serializing a prx file */
-class CSerializePrx 
-{
+class CSerializePrx {
 protected:
 	/** Called when the output file is started */
-	virtual bool StartFile()											= 0;
+	virtual int StartFile()											= 0;
 	/** Called when the output file is ended */
-	virtual bool EndFile()												= 0;
+	virtual int EndFile()												= 0;
 	/** Called when a new prx is about to be serialized */
-	virtual bool StartPrx(const char *szFilename, const PspModule *mod, u32 iSMask)			= 0;
-	virtual bool EndPrx()												= 0;
+	virtual int StartPrx(const char *szFilename, const PspModule *mod, uint32_t iSMask)			= 0;
+	virtual int EndPrx()												= 0;
 	/** Called when we are about to start serializing the sections */
-	virtual bool StartSects()											= 0;
+	virtual int StartSects()											= 0;
 	/** Called when we want to serialize a section */
-	virtual bool SerializeSect(int index, ElfSection &sect)				= 0;
+	virtual int SerializeSect(int index, ElfSection &sect)				= 0;
 	/** Called when have finished serializing the sections */
-	virtual bool EndSects()												= 0;
-	virtual bool StartImports()											= 0;
-	virtual bool SerializeImport(int index, const PspLibImport *imp)	= 0;
-	virtual bool EndImports()											= 0;
-	virtual bool StartExports()											= 0;
-	virtual bool SerializeExport(int index, const PspLibExport *exp)	= 0;
-	virtual bool EndExports()											= 0;
-	virtual bool StartRelocs()											= 0;
+	virtual int EndSects()												= 0;
+	virtual int StartImports()											= 0;
+	virtual int SerializeImport(int index, const PspLibImport *imp)	= 0;
+	virtual int EndImports()											= 0;
+	virtual int StartExports()											= 0;
+	virtual int SerializeExport(int index, const PspLibExport *exp)	= 0;
+	virtual int EndExports()											= 0;
+	virtual int StartRelocs()											= 0;
 	/* Called with a list of relocs for a single segment */
-	virtual bool SerializeReloc(int count, const ElfReloc *rel)		= 0;
-	virtual bool EndRelocs()											= 0;
+	virtual int SerializeReloc(int count, const ElfReloc *rel)		= 0;
+	virtual int EndRelocs()											= 0;
 
 	/** Pointer to the current prx, if the functions need it for what ever reason */
 	CProcessPrx* m_currPrx;
-	bool m_blStarted;
+	int m_blStarted;
 
 	void DoSects(CProcessPrx &prx);
 	void DoImports(CProcessPrx &prx);
-	void DoExports(CProcessPrx &prx, bool blDoSyslib);
+	void DoExports(CProcessPrx &prx, int blDoSyslib);
 	void DoRelocs(CProcessPrx &prx);
 public:
 	CSerializePrx();
 	virtual ~CSerializePrx();
-	bool Begin();
-	bool SerializePrx(CProcessPrx &prx, u32 iSMask);
-	bool End();
+	int Begin();
+	int SerializePrx(CProcessPrx &prx, uint32_t iSMask);
+	int End();
 };
 
 #endif

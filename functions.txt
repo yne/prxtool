@@ -6,7 +6,7 @@ _sceKernelExitThread|void|void
 _sceKernelReturnFromCallback|void|void
 _sceKernelReturnFromTimerHandler|void|void
 fdprintf|int fd, const char *format, ...|int
-sceAtracDecodeData|int atracID, u16 *outSamples, int *outN, int *outEnd, int *outRemainFrame|int
+sceAtracDecodeData|int atracID, uint16_t *outSamples, int *outN, int *outEnd, int *outRemainFrame|int
 sceAtracGetBitrate|int atracID, int *outBitrate|int
 sceAtracGetMaxSample|int atracID, int *outMax|int
 sceAtracGetNextSample|int atracID, int *outN|int
@@ -76,9 +76,9 @@ sceGeUnsetCallback|int cbid|int
 sceHprmIsHeadphoneExist|void|int
 sceHprmIsMicrophoneExist|void|int
 sceHprmIsRemoteExist|void|int
-sceHprmPeekCurrentKey|u32 *key|int
-sceHprmPeekLatch|u32 *latch|int
-sceHprmReadLatch|u32 *latch|int
+sceHprmPeekCurrentKey|uint32_t *key|int
+sceHprmPeekLatch|uint32_t *latch|int
+sceHprmReadLatch|uint32_t *latch|int
 sceIoAddDrv|PspIoDrv *drv|int
 sceIoAssign|const char *dev1, const char *dev2, const char *dev3, int mode, void* unk1, long unk2|int
 sceIoCancel|SceUID fd|int
@@ -139,7 +139,7 @@ sceKernelChangeThreadPriority|SceUID thid, int priority|int
 sceKernelCheckCallback|void|int
 sceKernelCheckThreadKernelStack|void|int
 sceKernelCheckThreadStack|void|int
-sceKernelClearEventFlag|SceUID evid, u32 bits|int
+sceKernelClearEventFlag|SceUID evid, uint32_t bits|int
 sceKernelCpuResumeIntr|unsigned int flags|void
 sceKernelCpuResumeIntrWithSync|unsigned int flags|void
 sceKernelCpuSuspendIntr|void|unsigned int
@@ -212,7 +212,7 @@ sceKernelGetVTimerBase|SceUID uid, SceKernelSysClock *base|int
 sceKernelGetVTimerBaseWide|SceUID uid|SceInt64
 sceKernelGetVTimerTime|SceUID uid, SceKernelSysClock *time|int
 sceKernelGetVTimerTimeWide|SceUID uid|SceInt64
-sceKernelGzipDecompress|u8 *dest, u32 destSize, const u8 *src, u32 unknown|int
+sceKernelGzipDecompress|uint8_t *dest, uint32_t destSize, const uint8_t *src, uint32_t unknown|int
 sceKernelIcacheClearAll|void|void
 sceKernelIcacheInvalidateAll|void|void
 sceKernelIcacheInvalidateRange|const void *addr, unsigned int size|void
@@ -235,7 +235,7 @@ sceKernelModuleCount|void|int
 sceKernelNotifyCallback|SceUID cb, int arg2|int
 sceKernelPartitionMaxFreeMemSize|int pid|SceSize
 sceKernelPartitionTotalFreeMemSize|int pid|SceSize
-sceKernelPollEventFlag|int evid, u32 bits, u32 wait, u32 *outBits|int
+sceKernelPollEventFlag|int evid, uint32_t bits, uint32_t wait, uint32_t *outBits|int
 sceKernelPollMbx|SceUID mbxid, void **pmessage|int
 sceKernelPollSema|SceUID semaid, int signal|int
 sceKernelQueryMemoryPartitionInfo|int pid, PspSysmemPartitionInfo *info|int
@@ -279,7 +279,7 @@ sceKernelSendMsgPipe|SceUID uid, void *message, unsigned int size, int unk1, voi
 sceKernelSendMsgPipeCB|SceUID uid, void *message, unsigned int size, int unk1, void *unk2, unsigned int *timeout|int
 sceKernelSetAlarm|SceUInt clock, SceKernelAlarmHandler handler, void *common|SceUID
 sceKernelSetDdrMemoryProtection|void *addr, int size, int prot|int
-sceKernelSetEventFlag|SceUID evid, u32 bits|int
+sceKernelSetEventFlag|SceUID evid, uint32_t bits|int
 sceKernelSetSysClockAlarm|SceKernelSysClock *clock, SceKernelAlarmHandler handler, void *common|SceUID
 sceKernelSetVTimerHandler|SceUID uid, SceKernelSysClock *time, SceKernelVTimerHandler handler, void *common|int
 sceKernelSetVTimerHandlerWide|SceUID uid, SceInt64 time, SceKernelVTimerHandlerWide handler, void *common|int
@@ -318,17 +318,17 @@ sceKernelUSec2SysClock|unsigned int usec, SceKernelSysClock *clock|int
 sceKernelUSec2SysClockWide|unsigned int usec|SceInt64
 sceKernelUnloadModule|SceUID modid|int
 sceKernelUtilsMd5BlockInit|SceKernelUtilsMd5Context *ctx|int
-sceKernelUtilsMd5BlockResult|SceKernelUtilsMd5Context *ctx, u8 *digest|int
-sceKernelUtilsMd5BlockUpdate|SceKernelUtilsMd5Context *ctx, u8 *data, u32 size|int
-sceKernelUtilsMd5Digest|u8 *data, u32 size, u8 *digest|int
-sceKernelUtilsMt19937Init|SceKernelUtilsMt19937Context *ctx, u32 seed|int
-sceKernelUtilsMt19937UInt|SceKernelUtilsMt19937Context *ctx|u32
+sceKernelUtilsMd5BlockResult|SceKernelUtilsMd5Context *ctx, uint8_t *digest|int
+sceKernelUtilsMd5BlockUpdate|SceKernelUtilsMd5Context *ctx, uint8_t *data, uint32_t size|int
+sceKernelUtilsMd5Digest|uint8_t *data, uint32_t size, uint8_t *digest|int
+sceKernelUtilsMt19937Init|SceKernelUtilsMt19937Context *ctx, uint32_t seed|int
+sceKernelUtilsMt19937UInt|SceKernelUtilsMt19937Context *ctx|uint32_t
 sceKernelUtilsSha1BlockInit|SceKernelUtilsSha1Context *ctx|int
-sceKernelUtilsSha1BlockResult|SceKernelUtilsSha1Context *ctx, u8 *digest|int
-sceKernelUtilsSha1BlockUpdate|SceKernelUtilsSha1Context *ctx, u8 *data, u32 size|int
-sceKernelUtilsSha1Digest|u8 *data, u32 size, u8 *digest|int
-sceKernelWaitEventFlag|int evid, u32 bits, u32 wait, u32 *outBits, SceUInt *timeout|int
-sceKernelWaitEventFlagCB|int evid, u32 bits, u32 wait, u32 *outBits, SceUInt *timeout|int
+sceKernelUtilsSha1BlockResult|SceKernelUtilsSha1Context *ctx, uint8_t *digest|int
+sceKernelUtilsSha1BlockUpdate|SceKernelUtilsSha1Context *ctx, uint8_t *data, uint32_t size|int
+sceKernelUtilsSha1Digest|uint8_t *data, uint32_t size, uint8_t *digest|int
+sceKernelWaitEventFlag|int evid, uint32_t bits, uint32_t wait, uint32_t *outBits, SceUInt *timeout|int
+sceKernelWaitEventFlagCB|int evid, uint32_t bits, uint32_t wait, uint32_t *outBits, SceUInt *timeout|int
 sceKernelWaitSema|SceUID semaid, int signal, SceUInt *timeout|int
 sceKernelWaitSemaCB|SceUID semaid, int signal, SceUInt *timeout|int
 sceKernelWaitThreadEnd|SceUID thid, SceUInt *timeout|int
@@ -362,11 +362,11 @@ sceMpegUnRegistStream|SceMpeg Mpeg, SceMpegStream* pStream|SceVoid
 sceNandGetPageSize|void|int
 sceNandGetPagesPerBlock|void|int
 sceNandGetTotalBlocks|void|int
-sceNandIsBadBlock|u32 ppn|int
+sceNandIsBadBlock|uint32_t ppn|int
 sceNandLock|int writeFlag|int
-sceNandReadBlockWithRetry|u32 ppn, void *buf, void *buf2|int
+sceNandReadBlockWithRetry|uint32_t ppn, void *buf, void *buf2|int
 sceNandReadId|void *buf, SceSize size|int
-sceNandReadPages|u32 ppn, void *buf, void *buf2, u32 count|int
+sceNandReadPages|uint32_t ppn, void *buf, void *buf2, uint32_t count|int
 sceNandReadStatus|void|int
 sceNandReset|int flag|int
 sceNandSetWriteProtect|int protectFlag|int
@@ -468,34 +468,34 @@ sceRegFlushCategory|REGHANDLE hd|int
 sceRegOpenCategory|REGHANDLE h, const char *name, int mode, REGHANDLE *hd|int
 sceRegRemoveCategory|REGHANDLE h, const char *name|int
 sceRtcCheckValid|const pspTime* date|int
-sceRtcCompareTick|const u64* tick1, const u64* tick2|int
-sceRtcConvertLocalTimeToUTC|const u64* tickLocal, u64* tickUTC|int
-sceRtcConvertUtcToLocalTime|const u64* tickUTC, u64* tickLocal|int
+sceRtcCompareTick|const uint64_t* tick1, const uint64_t* tick2|int
+sceRtcConvertLocalTimeToUTC|const uint64_t* tickLocal, uint64_t* tickUTC|int
+sceRtcConvertUtcToLocalTime|const uint64_t* tickUTC, uint64_t* tickLocal|int
 sceRtcGetCurrentClock|pspTime *time, int tz|int
 sceRtcGetCurrentClockLocalTime|pspTime *time|int
-sceRtcGetCurrentTick|u64 *tick|int
+sceRtcGetCurrentTick|uint64_t *tick|int
 sceRtcGetDayOfWeek|int year, int month, int day|int
 sceRtcGetDaysInMonth|int year, int month|int
-sceRtcGetDosTime|pspTime* date, u32 dosTime|int
-sceRtcGetTick|const pspTime* date, u64 *tick|int
-sceRtcGetTickResolution||u32
+sceRtcGetDosTime|pspTime* date, uint32_t dosTime|int
+sceRtcGetTick|const pspTime* date, uint64_t *tick|int
+sceRtcGetTickResolution||uint32_t
 sceRtcGetTime_t|const pspTime* date, time_t time|int
-sceRtcGetWin32FileTime|pspTime* date, u64* win32Time|int
+sceRtcGetWin32FileTime|pspTime* date, uint64_t* win32Time|int
 sceRtcIsLeapYear|int year|int
-sceRtcParseDateTime|u64 *destTick, const char *dateString|int
-sceRtcSetDosTime|pspTime* date, u32 dosTime|int
-sceRtcSetTick|pspTime* date, const u64* tick|int
+sceRtcParseDateTime|uint64_t *destTick, const char *dateString|int
+sceRtcSetDosTime|pspTime* date, uint32_t dosTime|int
+sceRtcSetTick|pspTime* date, const uint64_t* tick|int
 sceRtcSetTime_t|pspTime* date, const time_t time|int
-sceRtcSetWin32FileTime|pspTime* date, u64* win32Time|int
-sceRtcTickAddDays|u64* destTick, const u64* srcTick, int numDays|int
-sceRtcTickAddHours|u64* destTick, const u64* srcTick, int numHours|int
-sceRtcTickAddMicroseconds|u64* destTick, const u64* srcTick, u64 numMS|int
-sceRtcTickAddMinutes|u64* destTick, const u64* srcTick, u64 numMins|int
-sceRtcTickAddMonths|u64* destTick, const u64* srcTick, int numMonths|int
-sceRtcTickAddSeconds|u64* destTick, const u64* srcTick, u64 numSecs|int
-sceRtcTickAddTicks|u64* destTick, const u64* srcTick, u64 numTicks|int
-sceRtcTickAddWeeks|u64* destTick, const u64* srcTick, int numWeeks|int
-sceRtcTickAddYears|u64* destTick, const u64* srcTick, int numYears|int
+sceRtcSetWin32FileTime|pspTime* date, uint64_t* win32Time|int
+sceRtcTickAddDays|uint64_t* destTick, const uint64_t* srcTick, int numDays|int
+sceRtcTickAddHours|uint64_t* destTick, const uint64_t* srcTick, int numHours|int
+sceRtcTickAddMicroseconds|uint64_t* destTick, const uint64_t* srcTick, uint64_t numMS|int
+sceRtcTickAddMinutes|uint64_t* destTick, const uint64_t* srcTick, uint64_t numMins|int
+sceRtcTickAddMonths|uint64_t* destTick, const uint64_t* srcTick, int numMonths|int
+sceRtcTickAddSeconds|uint64_t* destTick, const uint64_t* srcTick, uint64_t numSecs|int
+sceRtcTickAddTicks|uint64_t* destTick, const uint64_t* srcTick, uint64_t numTicks|int
+sceRtcTickAddWeeks|uint64_t* destTick, const uint64_t* srcTick, int numWeeks|int
+sceRtcTickAddYears|uint64_t* destTick, const uint64_t* srcTick, int numYears|int
 sceSircsSend|struct sircs_data* sd, int count|int
 sceSuspendForUser_3E0271D3|int unk, void **ptr, int *size|int
 sceSuspendForUser_A14F40B2|int unk, void **ptr, int *size|int
@@ -513,8 +513,8 @@ sceUmdActivate|int unit, const char *drive|int
 sceUmdCheckMedium|int a|int
 sceUmdRegisterUMDCallBack|int cbid|int
 sceUmdWaitDriveStat|int stat|int
-sceUsbActivate|u32 pid|int
-sceUsbDeactivate|u32 pid|int
+sceUsbActivate|uint32_t pid|int
+sceUsbDeactivate|uint32_t pid|int
 sceUsbGetDrvState|const char* driverName|int
 sceUsbGetState|void|int
 sceUsbStart|const char* driverName, int size, void *args|int
@@ -526,9 +526,9 @@ sceUsbbdReqRecv|struct UsbdDeviceReq *req|int
 sceUsbbdReqSend|struct UsbdDeviceReq *req|int
 sceUsbbdStall|struct UsbEndpoint *endp|int
 sceUsbbdUnregister|struct UsbDriver *drv|int
-sceUsbstorBootRegisterNotify|u32 eventFlag|int
-sceUsbstorBootSetCapacity|u32 size|int
-sceUsbstorBootUnregisterNotify|u32 eventFlag|int
+sceUsbstorBootRegisterNotify|uint32_t eventFlag|int
+sceUsbstorBootSetCapacity|uint32_t size|int
+sceUsbstorBootUnregisterNotify|uint32_t eventFlag|int
 sceUtilityCheckNetParam|int id|int
 sceUtilityGetNetParam|int conf, int param, netData *data|int
 sceUtilityGetSystemParamInt|int id, int *value|int

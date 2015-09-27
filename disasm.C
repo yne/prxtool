@@ -7,8 +7,24 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "disasm.h"
 
+#define DISASM_OPT_MAX       8
+#define DISASM_OPT_HEXINTS   'x'
+#define DISASM_OPT_MREGS     'r'
+#define DISASM_OPT_SYMADDR   's'
+#define DISASM_OPT_MACRO     'm'
+#define DISASM_OPT_PRINTREAL 'p'
+#define DISASM_OPT_PRINTREGS 'g'
+#define DISASM_OPT_PRINTSWAP 'w'
+#define DISASM_OPT_SIGNEDHEX 'd'
+
+//typedef std::map<unsigned int, SymbolEntry*> SymbolMap;
+//typedef std::map<unsigned int, ImmEntry *> ImmMap;
+
+#define INSTR_TYPE_PSP    1
+#define INSTR_TYPE_B      2
+#define INSTR_TYPE_JUMP   4
+#define INSTR_TYPE_JAL    8
 /* Format codes
  * %d - Rd
  * %t - Rt
@@ -69,8 +85,7 @@
 #define VI5(op)  ((op >> 16) & 0x1F)
 #define VI8(op)  ((op >> 16) & 0xFF)
 
-struct Instruction
-{
+struct Instruction{
 	const char *name;
 	unsigned int opcode;
 	unsigned int mask;
@@ -91,16 +106,14 @@ struct Instruction
 #define ADDR_TYPE_26   2
 #define ADDR_TYPE_REG  3
 
-static const char *regName[32] =
-{
+static const char *regName[32] ={
     "zr", "at", "v0", "v1", "a0", "a1", "a2", "a3",
     "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", 
     "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
     "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"
 };
 
-struct Instruction g_macro[] = 
-{
+struct Instruction g_macro[] = {
 	/* Macro instructions */
 	{ "nop",		0x00000000, 0xFFFFFFFF, "" 			, ADDR_TYPE_NONE, 0 },
 	{ "li",     	0x24000000, 0xFFE00000, "%t, %i" 	, ADDR_TYPE_NONE, 0 },
@@ -120,8 +133,7 @@ struct Instruction g_macro[] =
 	{ "jalr",		0x0000F809, 0xFC1FFFFF,	"%J", ADDR_TYPE_REG, INSTR_TYPE_JAL },
 };
 
-static struct Instruction g_inst[] = 
-{
+static struct Instruction g_inst[] = {
 	/* MIPS instructions */
 	{ "add",		0x00000020, 0xFC0007FF, "%d, %s, %t", ADDR_TYPE_NONE, 0 },
 	{ "addi",		0x20000000, 0xFC000000, "%t, %s, %i", ADDR_TYPE_NONE, 0 },
@@ -553,16 +565,14 @@ static struct Instruction g_inst[] =
 
 extern const char *regName[32];
 
-static const char *cop0_regs[32] = 
-{
+static const char *cop0_regs[32] = {
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
 	"BadVaddr", "Count", NULL, "Compare", "Status", "Cause", "EPC", "PrID",
 	"Config", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	NULL, "EBase", NULL, NULL, "TagLo", "TagHi", "ErrorPC", NULL
 };
 
-static const char * dr_regs[16] = 
-{
+static const char * dr_regs[16] = {
 	"DRCNTL", "DEPC", "DDATA0", "DDATA1", "IBC", "DBC", NULL, NULL, 
 	"IBA", "IBAM", NULL, NULL, "DBA", "DBAM", "DBD", "DBDM"
 };
@@ -581,8 +591,7 @@ static int g_signedhex = 0;
 static int g_xmloutput = 0;
 static SymbolMap *g_syms = NULL;
 
-struct DisasmOpt
-{
+struct DisasmOpt{
 	char opt;
 	int *value;
 	const char *name;
@@ -599,16 +608,13 @@ struct DisasmOpt g_disopts[DISASM_OPT_MAX] = {
 	{ DISASM_OPT_SIGNEDHEX, &g_signedhex, "Signed Hex" },
 };
 
-SymbolType disasmResolveSymbol(unsigned int PC, char *name, int namelen)
-{
+SymbolType disasmResolveSymbol(unsigned int PC, char *name, int namelen){
 	SymbolEntry *s;
 	SymbolType type = SYMBOL_NOSYM;
 
-	if(g_syms)
-	{
+	if(g_syms){
 		s = (*g_syms)[PC];
-		if(s)
-		{
+		if(s){
 			type = s->type;
 			snprintf(name, namelen, "%s", s->name.c_str());
 		}
@@ -617,23 +623,18 @@ SymbolType disasmResolveSymbol(unsigned int PC, char *name, int namelen)
 	return type;
 }
 
-SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen)
-{
+SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
 	SymbolEntry *s;
 	SymbolType type = SYMBOL_NOSYM;
 
-	if(g_syms)
-	{
+	if(g_syms){
 		s = (*g_syms)[PC];
-		if((s) && (s->imported.size() > 0))
-		{
+		if((s) && (s->imported.size() > 0)){
 			unsigned int nid = 0;
 			PspLibImport *pImp = s->imported[0];
 
-			for(int i = 0; i < pImp->f_count; i++)
-			{
-				if(strcmp(s->name.c_str(), pImp->funcs[i].name) == 0)
-				{
+			for(int i = 0; i < pImp->f_count; i++){
+				if(strcmp(s->name.c_str(), pImp->funcs[i].name) == 0){
 					nid = pImp->funcs[i].nid;
 					break;
 				}
@@ -646,34 +647,28 @@ SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen)
 	return type;
 }
 
-SymbolEntry* disasmFindSymbol(unsigned int PC)
-{
+SymbolEntry* disasmFindSymbol(unsigned int PC){
 	SymbolEntry *s = NULL;
 
-	if(g_syms)
-	{
+	if(g_syms){
 		s = (*g_syms)[PC];
 	}
 
 	return s;
 }
 
-int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget)
-{
+int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget){
 	int i;
 	int size;
 	int type = 0;
 
 	size = sizeof(g_inst) / sizeof(Instruction);
-	for(i = 0; i < size; i++)
-	{
-		if(((opcode & g_inst[i].mask) == g_inst[i].opcode) && (g_inst[i].type & INSTR_TYPE_BRANCH))
-		{
+	for(i = 0; i < size; i++){
+		if(((opcode & g_inst[i].mask) == g_inst[i].opcode) && (g_inst[i].type & INSTR_TYPE_BRANCH)){
 			unsigned int addr;
 			int ofs;
 
-			switch(g_inst[i].addrtype)
-			{
+			switch(g_inst[i].addrtype){
 				case ADDR_TYPE_16: ofs = (signed short) (opcode & 0xFFFF);
 								   addr = PC + 4 + ofs * 4;
 								   break;
@@ -684,13 +679,11 @@ int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget)
 						 break;
 			};
 
-			if(addr == 0xFFFFFFFF)
-			{
+			if(addr == 0xFFFFFFFF){
 				break;
 			}
 
-			if(dwTarget)
-			{
+			if(dwTarget){
 				*dwTarget = addr;
 			}
 			type = g_inst[i].type;
@@ -700,8 +693,7 @@ int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget)
 	return type;
 }
 
-void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, SymbolMap &syms)
-{
+void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, SymbolMap &syms){
 	SymbolType type;
 	int insttype;
 	unsigned int addr;
@@ -709,22 +701,17 @@ void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, SymbolMap &sym
 	char buf[128];
 
 	insttype = disasmIsBranch(opcode, PC, &addr);
-	if(insttype != 0)
-	{
-		if(insttype & (INSTR_TYPE_B | INSTR_TYPE_JUMP))
-		{
+	if(insttype != 0){
+		if(insttype & (INSTR_TYPE_B | INSTR_TYPE_JUMP)){
 			snprintf(buf, sizeof(buf), "loc_%08X", addr);
 			type = SYMBOL_LOCAL;
-		}
-		else
-		{
+		}else{
 			snprintf(buf, sizeof(buf), "sub_%08X", addr);
 			type = SYMBOL_FUNC;
 		}
 
 		s = syms[addr];
-		if(s == NULL)
-		{
+		if(s == NULL){
 			s = new SymbolEntry;
 			s->addr = addr;
 			s->type = type;
@@ -732,11 +719,8 @@ void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, SymbolMap &sym
 			s->name = buf;
 			s->refs.insert(s->refs.end(), PC);
 			syms[addr] = s;
-		}
-		else
-		{
-			if((s->type != SYMBOL_FUNC) && (type == SYMBOL_FUNC))
-			{
+		}else{
+			if((s->type != SYMBOL_FUNC) && (type == SYMBOL_FUNC)){
 				s->type = SYMBOL_FUNC;
 			}
 			s->refs.insert(s->refs.end(), PC);
@@ -744,103 +728,81 @@ void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, SymbolMap &sym
 	}
 }
 
-void disasmSetHexInts(int hexints)
-{
+void disasmSetHexInts(int hexints){
 	g_hexints = hexints;
 }
 
-void disasmSetMRegs(int mregs)
-{
+void disasmSetMRegs(int mregs){
 	g_mregs = mregs;
 }
 
-void disasmSetSymAddr(int symaddr)
-{
+void disasmSetSymAddr(int symaddr){
 	g_symaddr = symaddr;
 }
 
-void disasmSetMacro(int macro)
-{
+void disasmSetMacro(int macro){
 	g_macroon = macro;
 }
 
-void disasmSetPrintReal(int printreal)
-{
+void disasmSetPrintReal(int printreal){
 	g_printreal = printreal;
 }
 
-void disasmSetSymbols(SymbolMap *syms)
-{
+void disasmSetSymbols(SymbolMap *syms){
 	g_syms = syms;
 }
 
-void disasmSetOpts(const char *opts, int set)
-{
-	while(*opts)
-	{
+void disasmSetOpts(const char *opts, int set){
+	while(*opts){
 		char ch;
 		int i;
 
 		ch = *opts++;
-		for(i = 0; i < DISASM_OPT_MAX; i++)
-		{
-			if(ch == g_disopts[i].opt)
-			{
+		for(i = 0; i < DISASM_OPT_MAX; i++){
+			if(ch == g_disopts[i].opt){
 				*g_disopts[i].value = set;
 				break;
 			}
 		}
-		if(i == DISASM_OPT_MAX)
-		{
+		if(i == DISASM_OPT_MAX){
 			printf("Unknown disassembler option '%c'\n", ch);
 		}
 	}
 }
 
-void disasmPrintOpts(void)
-{
+void disasmPrintOpts(void){
 	int i;
 
 	printf("Disassembler Options:\n");
-	for(i = 0; i < DISASM_OPT_MAX; i++)
-	{
+	for(i = 0; i < DISASM_OPT_MAX; i++){
 		printf("%c : %-3s - %s \n", g_disopts[i].opt, *g_disopts[i].value ? "on" : "off", 
 				g_disopts[i].name);
 	}
 }
 
-static char *print_cpureg(int reg, char *output)
-{
+static char *print_cpureg(int reg, char *output){
 	int len;
 
-	if(!g_mregs)
-	{
+	if(!g_mregs){
 		len = sprintf(output, "$%s", regName[reg]);
-	}
-	else
-	{
-		if(reg > 0)
-		{
+	}else{
+		if(reg > 0){
 			len = sprintf(output, "r%d", reg);
-		}
-		else
-		{
+		}else{
 			*output = '0';
 			*(output+1) = 0;
 			len = 1;
 		}
 	}
 
-	if(g_printregs)
-	{
+	if(g_printregs){
 		g_regmask |= (1 << reg);
 	}
 
 	return output + len;
 }
 
-static char *print_int(int i, char *output)
-{
+static char *print_int(int i, char *output){
 	int len;
 
 	len = sprintf(output, "%d", i);
@@ -848,8 +810,7 @@ static char *print_int(int i, char *output)
 	return output + len;
 }
 
-static char *print_hex(int i, char *output)
-{
+static char *print_hex(int i, char *output){
 	int len;
 
 	len = sprintf(output, "0x%X", i);
@@ -857,72 +818,53 @@ static char *print_hex(int i, char *output)
 	return output + len;
 }
 
-static char *print_imm(int ofs, char *output)
-{
+static char *print_imm(int ofs, char *output){
 	int len;
 
-	if(g_hexints)
-	{
-		if((g_signedhex) && (ofs < 0))
-		{
+	if(g_hexints){
+		if((g_signedhex) && (ofs < 0)){
 			int real;
 
 			real = -ofs;
 			len = sprintf(output, "-0x%X", real);
-		}
-		else
-		{
+		}else{
 			unsigned int val = ofs;
 			val &= 0xFFFF;
 			len = sprintf(output, "0x%X", val);
 		}
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "%d", ofs);
 	}
 
 	return output + len;
 }
 
-static char *print_jump(unsigned int addr, char *output)
-{
+static char *print_jump(unsigned int addr, char *output){
 	int len;
 	char symbol[128];
 	int symfound = 0;
 
-	if(g_syms)
-	{
+	if(g_syms){
 		symfound = disasmResolveSymbol(addr, symbol, sizeof(symbol));
 	}
 
-	if(symfound)
-	{
-		if(g_xmloutput)
-		{
+	if(symfound){
+		if(g_xmloutput){
 			len = sprintf(output, "<a href=\"#%s\">%s</a>", symbol, symbol);
-		}
-		else
-		{
+		}else{
 			len = sprintf(output, "%s", symbol);
 		}
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "0x%08X", addr);
 	}
 
 	return output + len;
 }
 
-static char *print_ofs(int ofs, int reg, char *output, unsigned int *realregs)
-{
-	if((g_printreal) && (realregs))
-	{
+static char *print_ofs(int ofs, int reg, char *output, unsigned int *realregs){
+	if((g_printreal) && (realregs)){
 		output = print_jump(realregs[reg] + ofs, output);
-	}
-	else
-	{
+	}else{
 		output = print_imm(ofs, output);
 		*output++ = '(';
 
@@ -933,25 +875,21 @@ static char *print_ofs(int ofs, int reg, char *output, unsigned int *realregs)
 	return output;
 }
 
-static char *print_pcofs(int ofs, unsigned int PC, char *output)
-{
+static char *print_pcofs(int ofs, unsigned int PC, char *output){
 	ofs = ofs * 4;
 
 	return print_jump(PC + 4 + ofs, output);
 }
 
-static char *print_jumpr(int reg, char *output, unsigned int *realregs)
-{
-	if((g_printreal) && (realregs))
-	{
+static char *print_jumpr(int reg, char *output, unsigned int *realregs){
+	if((g_printreal) && (realregs)){
 		return print_jump(realregs[reg], output);
 	}
 
 	return print_cpureg(reg, output);
 }
 
-static char *print_syscall(unsigned int syscall, char *output)
-{
+static char *print_syscall(unsigned int syscall, char *output){
 	int len;
 
 	len = sprintf(output, "0x%X", syscall);
@@ -959,24 +897,19 @@ static char *print_syscall(unsigned int syscall, char *output)
 	return output + len;
 }
 
-static char *print_cop0(int reg, char *output)
-{
+static char *print_cop0(int reg, char *output){
 	int len;
 
-	if(cop0_regs[reg])
-	{
+	if(cop0_regs[reg]){
 		len = sprintf(output, "%s", cop0_regs[reg]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "$%d", reg);
 	}
 
 	return output + len;
 }
 
-static char *print_cop1(int reg, char *output)
-{
+static char *print_cop1(int reg, char *output){
 	int len;
 
 	len = sprintf(output, "$fcr%d", reg);
@@ -985,8 +918,7 @@ static char *print_cop1(int reg, char *output)
 }
 
 // [hlide] added vfpu_extra_regs
-static const char * const vfpu_extra_regs[] =
-{
+static const char * const vfpu_extra_regs[] ={
 	"VFPU_PFXS",
 	"VFPU_PFXT",
 	"VFPU_PFXD",
@@ -1006,16 +938,12 @@ static const char * const vfpu_extra_regs[] =
 };
 
 // [hlide] added print_cop2
-static char *print_cop2(int reg, char *output)
-{
+static char *print_cop2(int reg, char *output){
 	int len;
 
-	if ((reg >= 128) && (reg < 128+16) && (vfpu_extra_regs[reg - 128]))
-	{
+	if ((reg >= 128) && (reg < 128+16) && (vfpu_extra_regs[reg - 128])){
 		len = sprintf(output, "%s", vfpu_extra_regs[reg - 128]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "$%d", reg);
 	}
 
@@ -1023,8 +951,7 @@ static char *print_cop2(int reg, char *output)
 }
 
 // [hlide] added vfpu_cond_names
-static const char * const vfpu_cond_names[16] =
-{
+static const char * const vfpu_cond_names[16] ={
   "FL",  "EQ",  "LT",  "LE",
   "TR",  "NE",  "GE",  "GT",
   "EZ",  "EN",  "EI",  "ES",
@@ -1032,16 +959,12 @@ static const char * const vfpu_cond_names[16] =
 };
 
 // [hlide] added print_vfpu_cond
-static char *print_vfpu_cond(int cond, char *output)
-{
+static char *print_vfpu_cond(int cond, char *output){
 	int len;
 
-	if ((cond >= 0) && (cond < 16))
-	{
+	if ((cond >= 0) && (cond < 16)){
 		len = sprintf(output, "%s", vfpu_cond_names[cond]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "%d", cond);
 	}
 
@@ -1049,8 +972,7 @@ static char *print_vfpu_cond(int cond, char *output)
 }
 
 // [hlide] added vfpu_const_names
-static const char * const vfpu_const_names[20] =
-{
+static const char * const vfpu_const_names[20] ={
   "",
   "VFPU_HUGE",
   "VFPU_SQRT2",
@@ -1074,16 +996,12 @@ static const char * const vfpu_const_names[20] =
 };
 
 // [hlide] added print_vfpu_const
-static char *print_vfpu_const(int k, char *output)
-{
+static char *print_vfpu_const(int k, char *output){
 	int len;
 
-	if ((k > 0) && (k < 20))
-	{
+	if ((k > 0) && (k < 20)){
 		len = sprintf(output, "%s", vfpu_const_names[k]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "%d", k);
 	}
 
@@ -1100,13 +1018,11 @@ static char *print_vfpu_const(int k, char *output)
 #define VFPU_MASK_FLOAT16_FRAC	0x3ff
 
 // [hlide] added print_vfpu_halffloat
-static char *print_vfpu_halffloat(int l, char *output)
-{
+static char *print_vfpu_halffloat(int l, char *output){
 	int len;
 
 	/* Convert a VFPU 16-bit floating-point number to IEEE754. */
-	union float2int
-	{
+	union float2int{
 		unsigned int i;
 		float f;
 	} float2int;
@@ -1116,23 +1032,17 @@ static char *print_vfpu_halffloat(int l, char *output)
 	unsigned int fraction = float16 & VFPU_MASK_FLOAT16_FRAC;
 	char signchar = '+' + ((sign == 1) * 2);
 
-	if (exponent == VFPU_FLOAT16_EXP_MAX)
-	{
+	if (exponent == VFPU_FLOAT16_EXP_MAX){
 		if (fraction == 0)
 			len = sprintf(output, "%cInf", signchar);
 		else
 			len = sprintf(output, "%cNaN", signchar);
 	}
-	else if (exponent == 0 && fraction == 0)
-	{
+	else if (exponent == 0 && fraction == 0){
 		len = sprintf(output, "%c0", signchar);
-	}
-	else
-	{
-		if (exponent == 0)
-		{
-			do
-			{
+	}else{
+		if (exponent == 0){
+			do{
 				fraction <<= 1;
 				exponent--;
 			}
@@ -1152,20 +1062,17 @@ static char *print_vfpu_halffloat(int l, char *output)
 }
 
 // [hlide] added pfx_cst_names
-static const char * const pfx_cst_names[8] =
-{
+static const char * const pfx_cst_names[8] ={
   "0",  "1",  "2",  "1/2",  "3",  "1/3",  "1/4",  "1/6"
 };
 
 // [hlide] added pfx_swz_names
-static const char * const pfx_swz_names[4] =
-{
+static const char * const pfx_swz_names[4] ={
   "x",  "y",  "z",  "w"
 };
 
 // [hlide] added pfx_sat_names
-static const char * const pfx_sat_names[4] =
-{
+static const char * const pfx_sat_names[4] ={
   "",  "[0:1]",  "",  "[-1:1]"
 };
 
@@ -1186,17 +1093,14 @@ static const char * const pfx_sat_names[4] =
 #define VFPU_MASK_PFX_SAT	0x3	/* Saturation. */
 
 // [hlide] added print_vfpu_prefix
-static char *print_vfpu_prefix(int l, unsigned int pos, char *output)
-{
+static char *print_vfpu_prefix(int l, unsigned int pos, char *output){
 	int len = 0;
 
-	switch (pos)
-	{
+	switch (pos){
 	case '0':
 	case '1':
 	case '2':
-	case '3':
-		{
+	case '3':{
 			unsigned int base = '0';
 			unsigned int negation = (l >> (pos - (base - VFPU_SH_PFX_NEG))) & VFPU_MASK_PFX_NEG;
 			unsigned int constant = (l >> (pos - (base - VFPU_SH_PFX_CST))) & VFPU_MASK_PFX_CST;
@@ -1205,12 +1109,9 @@ static char *print_vfpu_prefix(int l, unsigned int pos, char *output)
 
 			if (negation)
 				len = sprintf(output, "-");
-			if (constant)
-			{
+			if (constant){
 				len += sprintf(output+len, "%s", pfx_cst_names[(abs_consthi << 2) | swz_constlo]);
-			}
-			else
-			{
+			}else{
 				if (abs_consthi)
 					len += sprintf(output+len, "|%s|", pfx_swz_names[swz_constlo]);
 				else
@@ -1222,8 +1123,7 @@ static char *print_vfpu_prefix(int l, unsigned int pos, char *output)
 	case '4':
 	case '5':
 	case '6':
-	case '7':
-		{
+	case '7':{
 			unsigned int base = '4';
 			unsigned int mask = (l >> (pos - (base - VFPU_SH_PFX_MASK))) & VFPU_MASK_PFX_MASK;
 			unsigned int saturation = (l >> ((pos - base) * 2)) & VFPU_MASK_PFX_SAT;
@@ -1253,8 +1153,7 @@ static char *print_vfpu_prefix(int l, unsigned int pos, char *output)
 #define VFPU_MASK_ROT_NEG	0x1
 
 // [hlide] added print_vfpu_rotator
-static char *print_vfpu_rotator(int l, char *output)
-{
+static char *print_vfpu_rotator(int l, char *output){
 	int len;
 
 	const char *elements[4];
@@ -1275,25 +1174,19 @@ static char *print_vfpu_rotator(int l, char *output)
 	rotlo = (rotators >> VFPU_SH_ROT_LO) & VFPU_MASK_ROT_LO;
 	negation = (rotators >> VFPU_SH_ROT_NEG) & VFPU_MASK_ROT_NEG;
 
-	if (rothi == rotlo)
-	{
-		if (negation)
-		{
+	if (rothi == rotlo){
+		if (negation){
 			elements[0] = "-s";
 			elements[1] = "-s";
 			elements[2] = "-s";
 			elements[3] = "-s";
-		}
-		else
-		{
+		}else{
 			elements[0] = "s";
 			elements[1] = "s";
 			elements[2] = "s";
 			elements[3] = "s";
 		}
-	}
-	else
-	{
+	}else{
 		elements[0] = "0";
 		elements[1] = "0";
 		elements[2] = "0";
@@ -1307,8 +1200,7 @@ static char *print_vfpu_rotator(int l, char *output)
 
 	len = sprintf(output, "[");
 
-	for (i = 0;;)
-	{
+	for (i = 0;;){
 		len += sprintf(output, "%s", elements[i++]);
 		if (i >= opsize)
 			break;
@@ -1320,8 +1212,7 @@ static char *print_vfpu_rotator(int l, char *output)
 	return output + len;
 }
 
-static char *print_fpureg(int reg, char *output)
-{
+static char *print_fpureg(int reg, char *output){
 	int len;
 
 	len = sprintf(output, "$fpr%02d", reg);
@@ -1329,24 +1220,19 @@ static char *print_fpureg(int reg, char *output)
 	return output + len;
 }
 
-static char *print_debugreg(int reg, char *output)
-{
+static char *print_debugreg(int reg, char *output){
 	int len;
 
-	if((reg < 16) && (dr_regs[reg]))
-	{
+	if((reg < 16) && (dr_regs[reg])){
 		len = sprintf(output, "%s", dr_regs[reg]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "$%02d\n", reg);
 	}
 
 	return output + len;
 }
 
-static char *print_vfpusingle(int reg, char *output)
-{
+static char *print_vfpusingle(int reg, char *output){
 	int len;
 
 	len = sprintf(output, "S%d%d%d", (reg >> 2) & 7, reg & 3, (reg >> 5) & 3);
@@ -1354,84 +1240,60 @@ static char *print_vfpusingle(int reg, char *output)
 	return output + len;
 }
 
-static char *print_vfpu_reg(int reg, int offset, char one, char two, char *output)
-{
+static char *print_vfpu_reg(int reg, int offset, char one, char two, char *output){
 	int len;
 
-	if((reg >> 5) & 1)
-	{
+	if((reg >> 5) & 1){
 		len = sprintf(output, "%c%d%d%d", two, (reg >> 2) & 7, offset, reg & 3);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "%c%d%d%d", one, (reg >> 2) & 7, reg & 3, offset);
 	}
 
 	return output + len;
 }
 
-static char *print_vfpuquad(int reg, char *output)
-{
+static char *print_vfpuquad(int reg, char *output){
 	return print_vfpu_reg(reg, 0, 'C', 'R', output);
 }
 
-static char *print_vfpupair(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfpupair(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg(reg, 2, 'C', 'R', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg(reg, 0, 'C', 'R', output);
 	}
 }
 
-static char *print_vfputriple(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfputriple(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg(reg, 1, 'C', 'R', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg(reg, 0, 'C', 'R', output);
 	}
 }
 
-static char *print_vfpumpair(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfpumpair(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg(reg, 2, 'M', 'E', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg(reg, 0, 'M', 'E', output);
 	}
 }
 
-static char *print_vfpumtriple(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfpumtriple(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg(reg, 1, 'M', 'E', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg(reg, 0, 'M', 'E', output);
 	}
 }
 
-static char *print_vfpumatrix(int reg, char *output)
-{
+static char *print_vfpumatrix(int reg, char *output){
 	return print_vfpu_reg(reg, 0, 'M', 'E', output);
 }
 
-static char *print_vfpureg(int reg, char type, char *output)
-{
-	switch(type)
-	{
+static char *print_vfpureg(int reg, char type, char *output){
+	switch(type){
 		case 's': return print_vfpusingle(reg, output);
 				  break;
 		case 'q': return print_vfpuquad(reg, output);
@@ -1452,18 +1314,14 @@ static char *print_vfpureg(int reg, char type, char *output)
 	return output;
 }
 
-static void decode_args(unsigned int opcode, unsigned int PC, const char *fmt, char *output, unsigned int *realregs)
-{
+static void decode_args(unsigned int opcode, unsigned int PC, const char *fmt, char *output, unsigned int *realregs){
 	int i = 0;
 	int vmmul = 0;
 
-	while(fmt[i])
-	{
-		if(fmt[i] == '%')
-		{
+	while(fmt[i]){
+		if(fmt[i] == '%'){
 			i++;
-			switch(fmt[i])
-			{
+			switch(fmt[i]){
 				case 'd': output = print_cpureg(RD(opcode), output);
 						  break;
 				case 't': output = print_cpureg(RT(opcode), output);
@@ -1555,9 +1413,7 @@ static void decode_args(unsigned int opcode, unsigned int PC, const char *fmt, c
 				default: break;
 			};
 			i++;
-		}
-		else
-		{
+		}else{
 			*output++ = fmt[i++];
 		}
 	}
@@ -1566,66 +1422,49 @@ end:
 	*output = 0;
 }
 
-void format_line(char *code, int codelen, const char *addr, unsigned int opcode, const char *name, const char *args, int noaddr)
-{
+void format_line(char *code, int codelen, const char *addr, unsigned int opcode, const char *name, const char *args, int noaddr){
 	char ascii[17];
 	char *p;
 	int i;
 
-	if(name == NULL)
-	{
+	if(name == NULL){
 		name = "Unknown";
 		args = "";
 	}
 
 	p = ascii;
-	for(i = 0; i < 4; i++)
-	{
+	for(i = 0; i < 4; i++){
 		unsigned char ch;
 
 		ch = (unsigned char) ((opcode >> (i*8)) & 0xFF);
-		if((ch < 32) || (ch > 126))
-		{
+		if((ch < 32) || (ch > 126)){
 			ch = '.';
 		}
-		if(g_xmloutput && (ch == '<'))
-		{
+		if(g_xmloutput && (ch == '<')){
 			strcpy(p, "&lt;");
 			p += strlen(p);
-		}
-		else
-		{
+		}else{
 			*p++ = ch;
 		}
 	}
 	*p = 0;
 
-	if(noaddr)
-	{
+	if(noaddr){
 		snprintf(code, codelen, "%-10s %s", name, args);
-	}
-	else
-	{
-		if(g_printswap)
-		{
-			if(g_xmloutput)
-			{
+	}else{
+		if(g_printswap){
+			if(g_xmloutput){
 				snprintf(code, codelen, "%-10s %-80s ; %s: 0x%08X '%s'", name, args, addr, opcode, ascii);
-			}
-			else
-			{
+			}else{
 				snprintf(code, codelen, "%-10s %-40s ; %s: 0x%08X '%s'", name, args, addr, opcode, ascii);
 			}
-		}
-		else
-		{
+		}else{
 			snprintf(code, codelen, "%s: 0x%08X '%s' - %-10s %s", addr, opcode, ascii, name, args);
 		}
 	}
 }
 
-static char *print_cpureg_xml(int reg, char *output)
-{
+static char *print_cpureg_xml(int reg, char *output){
 	int len;
 
 	len = sprintf(output, "<gpr>r%d</gpr>", reg);
@@ -1633,8 +1472,7 @@ static char *print_cpureg_xml(int reg, char *output)
 	return output + len;
 }
 
-static char *print_int_xml(int i, char *output)
-{
+static char *print_int_xml(int i, char *output){
 	int len;
 
 	len = sprintf(output, "<imm>%d</imm>", i);
@@ -1642,8 +1480,7 @@ static char *print_int_xml(int i, char *output)
 	return output + len;
 }
 
-static char *print_hex_xml(int i, char *output)
-{
+static char *print_hex_xml(int i, char *output){
 	int len;
 
 	len = sprintf(output, "<imm>0x%X</imm>", i);
@@ -1651,79 +1488,63 @@ static char *print_hex_xml(int i, char *output)
 	return output + len;
 }
 
-static char *print_imm_xml(int ofs, char *output)
-{
+static char *print_imm_xml(int ofs, char *output){
 	int len;
 
-	if(g_hexints)
-	{
-		if((g_signedhex) && (ofs < 0))
-		{
+	if(g_hexints){
+		if((g_signedhex) && (ofs < 0)){
 			int real;
 
 			real = -ofs;
 			len = sprintf(output, "<imm>-0x%X</imm>", real);
-		}
-		else
-		{
+		}else{
 			unsigned int val = ofs;
 			val &= 0xFFFF;
 			len = sprintf(output, "<imm>0x%X</imm>", val);
 		}
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "<imm>%d</imm>", ofs);
 	}
 
 	return output + len;
 }
 
-static char *print_jump_xml(unsigned int addr, char *output)
-{
+static char *print_jump_xml(unsigned int addr, char *output){
 	int len;
 	char symbol[128];
 	int symfound = 0;
 
-	if(g_syms)
-	{
+	if(g_syms){
 		symfound = disasmResolveRef(addr, symbol, sizeof(symbol));
 	}
 
-	if(symfound)
-	{
+	if(symfound){
 		len = sprintf(output, "<ref>%s</ref>", symbol);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "<ref>0x%08X</ref>", addr);
 	}
 
 	return output + len;
 }
 
-static char *print_ofs_xml(int ofs, int reg, char *output)
-{
+static char *print_ofs_xml(int ofs, int reg, char *output){
 	output = print_imm_xml(ofs, output);
 	output = print_cpureg_xml(reg, output);
 
 	return output;
 }
 
-static char *print_pcofs_xml(int ofs, unsigned int PC, char *output)
-{
+static char *print_pcofs_xml(int ofs, unsigned int PC, char *output){
 	ofs = ofs * 4;
 
 	return print_jump_xml(PC + 4 + ofs, output);
 }
 
-static char *print_jumpr_xml(int reg, char *output)
-{
+static char *print_jumpr_xml(int reg, char *output){
 	return print_cpureg_xml(reg, output);
 }
 
-static char *print_syscall_xml(unsigned int syscall, char *output)
-{
+static char *print_syscall_xml(unsigned int syscall, char *output){
 	int len;
 
 	len = sprintf(output, "<syscall>0x%X</syscall>", syscall);
@@ -1731,24 +1552,19 @@ static char *print_syscall_xml(unsigned int syscall, char *output)
 	return output + len;
 }
 
-static char *print_cop0_xml(int reg, char *output)
-{
+static char *print_cop0_xml(int reg, char *output){
 	int len;
 
-	if(cop0_regs[reg])
-	{
+	if(cop0_regs[reg]){
 		len = sprintf(output, "<cop0>%s</cop0>", cop0_regs[reg]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "<cop0>$%d</cop0>", reg);
 	}
 
 	return output + len;
 }
 
-static char *print_cop1_xml(int reg, char *output)
-{
+static char *print_cop1_xml(int reg, char *output){
 	int len;
 
 	len = sprintf(output, "<cop1>$fcr%d</cop1>", reg);
@@ -1756,22 +1572,17 @@ static char *print_cop1_xml(int reg, char *output)
 	return output + len;
 }
 
-static char *print_cop2_xml(int reg, char *output)
-{
+static char *print_cop2_xml(int reg, char *output){
 	return print_cop2(reg, output);
 }
 
 // [hlide] added print_vfpu_cond_xml
-static char *print_vfpu_cond_xml(int cond, char *output)
-{
+static char *print_vfpu_cond_xml(int cond, char *output){
 	int len;
 
-	if ((cond >= 0) && (cond < 16))
-	{
+	if ((cond >= 0) && (cond < 16)){
 		len = sprintf(output, "<cond>%s</cond>", vfpu_cond_names[cond]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "<imm>%d</imm>", cond);
 	}
 
@@ -1779,16 +1590,12 @@ static char *print_vfpu_cond_xml(int cond, char *output)
 }
 
 // [hlide] added print_vfpu_const_xml_xml
-static char *print_vfpu_const_xml(int k, char *output)
-{
+static char *print_vfpu_const_xml(int k, char *output){
 	int len;
 
-	if ((k > 0) && (k < 20))
-	{
+	if ((k > 0) && (k < 20)){
 		len = sprintf(output, "<const>%s</const>", vfpu_const_names[k]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "<imm>%d</imm>", k);
 	}
 
@@ -1796,13 +1603,11 @@ static char *print_vfpu_const_xml(int k, char *output)
 }
 
 // [hlide] added print_vfpu_halffloat_xml
-static char *print_vfpu_halffloat_xml(int l, char *output)
-{
+static char *print_vfpu_halffloat_xml(int l, char *output){
 	int len;
 
 	/* Convert a VFPU 16-bit floating-point number to IEEE754. */
-	union float2int
-	{
+	union float2int{
 		unsigned int i;
 		float f;
 	} float2int;
@@ -1812,23 +1617,17 @@ static char *print_vfpu_halffloat_xml(int l, char *output)
 	unsigned int fraction = float16 & VFPU_MASK_FLOAT16_FRAC;
 	char signchar = '+' + ((sign == 1) * 2);
 
-	if (exponent == VFPU_FLOAT16_EXP_MAX)
-	{
+	if (exponent == VFPU_FLOAT16_EXP_MAX){
 		if (fraction == 0)
 			len = sprintf(output, "%cInf", signchar);
 		else
 			len = sprintf(output, "%cNaN", signchar);
 	}
-	else if (exponent == 0 && fraction == 0)
-	{
+	else if (exponent == 0 && fraction == 0){
 		len = sprintf(output, "%c0", signchar);
-	}
-	else
-	{
-		if (exponent == 0)
-		{
-			do
-			{
+	}else{
+		if (exponent == 0){
+			do{
 				fraction <<= 1;
 				exponent--;
 			}
@@ -1848,17 +1647,14 @@ static char *print_vfpu_halffloat_xml(int l, char *output)
 }
 
 // [hlide] added print_vfpu_prefix_xml
-static char *print_vfpu_prefix_xml(int l, unsigned int pos, char *output)
-{
+static char *print_vfpu_prefix_xml(int l, unsigned int pos, char *output){
 	int len = 0;
 
-	switch (pos)
-	{
+	switch (pos){
 	case '0':
 	case '1':
 	case '2':
-	case '3':
-		{
+	case '3':{
 			unsigned int base = '0';
 			unsigned int negation = (l >> (pos - (base - VFPU_SH_PFX_NEG))) & VFPU_MASK_PFX_NEG;
 			unsigned int constant = (l >> (pos - (base - VFPU_SH_PFX_CST))) & VFPU_MASK_PFX_CST;
@@ -1868,12 +1664,9 @@ static char *print_vfpu_prefix_xml(int l, unsigned int pos, char *output)
 			len = sprintf(output, "<%s>", pfx_swz_names[pos - base]);
 			if (negation)
 				len = sprintf(output, "-");
-			if (constant)
-			{
+			if (constant){
 				len += sprintf(output, "%s", pfx_cst_names[(abs_consthi << 2) | swz_constlo]);
-			}
-			else
-			{
+			}else{
 				if (abs_consthi)
 					len += sprintf(output, "|%s|", pfx_swz_names[swz_constlo]);
 				else
@@ -1886,8 +1679,7 @@ static char *print_vfpu_prefix_xml(int l, unsigned int pos, char *output)
 	case '4':
 	case '5':
 	case '6':
-	case '7':
-		{
+	case '7':{
 			unsigned int base = '4';
 			unsigned int mask = (l >> (pos - (base - VFPU_SH_PFX_MASK))) & VFPU_MASK_PFX_MASK;
 			unsigned int saturation = (l >> ((pos - base) * 2)) & VFPU_MASK_PFX_SAT;
@@ -1904,8 +1696,7 @@ static char *print_vfpu_prefix_xml(int l, unsigned int pos, char *output)
 }
 
 // [hlide] added print_vfpu_rotator_xml
-static char *print_vfpu_rotator_xml(int l, char *output)
-{
+static char *print_vfpu_rotator_xml(int l, char *output){
 	int len;
 
 	const char *elements[4];
@@ -1926,25 +1717,19 @@ static char *print_vfpu_rotator_xml(int l, char *output)
 	rotlo = (rotators >> VFPU_SH_ROT_LO) & VFPU_MASK_ROT_LO;
 	negation = (rotators >> VFPU_SH_ROT_NEG) & VFPU_MASK_ROT_NEG;
 
-	if (rothi == rotlo)
-	{
-		if (negation)
-		{
+	if (rothi == rotlo){
+		if (negation){
 			elements[0] = "-s";
 			elements[1] = "-s";
 			elements[2] = "-s";
 			elements[3] = "-s";
-		}
-		else
-		{
+		}else{
 			elements[0] = "s";
 			elements[1] = "s";
 			elements[2] = "s";
 			elements[3] = "s";
 		}
-	}
-	else
-	{
+	}else{
 		elements[0] = "0";
 		elements[1] = "0";
 		elements[2] = "0";
@@ -1958,8 +1743,7 @@ static char *print_vfpu_rotator_xml(int l, char *output)
 
 	len = sprintf(output, "<rot>");
 
-	for (i = 0;;)
-	{
+	for (i = 0;;){
 		len += sprintf(output, "<%s>%s</%s>", pfx_swz_names[i], elements[i], pfx_swz_names[i]);
 		if (++i >= opsize)
 			break;
@@ -1971,8 +1755,7 @@ static char *print_vfpu_rotator_xml(int l, char *output)
 }
 
 
-static char *print_fpureg_xml(int reg, char *output)
-{
+static char *print_fpureg_xml(int reg, char *output){
 	int len;
 
 	len = sprintf(output, "<fpr>$fpr%02d</fpr>", reg);
@@ -1980,24 +1763,19 @@ static char *print_fpureg_xml(int reg, char *output)
 	return output + len;
 }
 
-static char *print_debugreg_xml(int reg, char *output)
-{
+static char *print_debugreg_xml(int reg, char *output){
 	int len;
 
-	if((reg < 16) && (dr_regs[reg]))
-	{
+	if((reg < 16) && (dr_regs[reg])){
 		len = sprintf(output, "<dreg>%s</dreg>", dr_regs[reg]);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "<dreg>$%02d</dreg>\n", reg);
 	}
 
 	return output + len;
 }
 
-static char *print_vfpusingle_xml(int reg, char *output)
-{
+static char *print_vfpusingle_xml(int reg, char *output){
 	int len;
 
 	len = sprintf(output, "<vfpu>S%d%d%d</vfpu>", (reg >> 2) & 7, reg & 3, (reg >> 5) & 3);
@@ -2005,84 +1783,60 @@ static char *print_vfpusingle_xml(int reg, char *output)
 	return output + len;
 }
 
-static char *print_vfpu_reg_xml(int reg, int offset, char one, char two, char *output)
-{
+static char *print_vfpu_reg_xml(int reg, int offset, char one, char two, char *output){
 	int len;
 
-	if((reg >> 5) & 1)
-	{
+	if((reg >> 5) & 1){
 		len = sprintf(output, "<vfpu>%c%d%d%d</vfpu>", two, (reg >> 2) & 7, offset, reg & 3);
-	}
-	else
-	{
+	}else{
 		len = sprintf(output, "<vfpu>%c%d%d%d</vfpu>", one, (reg >> 2) & 7, reg & 3, offset);
 	}
 
 	return output + len;
 }
 
-static char *print_vfpuquad_xml(int reg, char *output)
-{
+static char *print_vfpuquad_xml(int reg, char *output){
 	return print_vfpu_reg_xml(reg, 0, 'C', 'R', output);
 }
 
-static char *print_vfpupair_xml(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfpupair_xml(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg_xml(reg, 2, 'C', 'R', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg_xml(reg, 0, 'C', 'R', output);
 	}
 }
 
-static char *print_vfputriple_xml(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfputriple_xml(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg_xml(reg, 1, 'C', 'R', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg_xml(reg, 0, 'C', 'R', output);
 	}
 }
 
-static char *print_vfpumpair_xml(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfpumpair_xml(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg_xml(reg, 2, 'M', 'E', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg_xml(reg, 0, 'M', 'E', output);
 	}
 }
 
-static char *print_vfpumtriple_xml(int reg, char *output)
-{
-	if((reg >> 6) & 1)
-	{
+static char *print_vfpumtriple_xml(int reg, char *output){
+	if((reg >> 6) & 1){
 		return print_vfpu_reg_xml(reg, 1, 'M', 'E', output);
-	}
-	else
-	{
+	}else{
 		return print_vfpu_reg_xml(reg, 0, 'M', 'E', output);
 	}
 }
 
-static char *print_vfpumatrix_xml(int reg, char *output)
-{
+static char *print_vfpumatrix_xml(int reg, char *output){
 	return print_vfpu_reg_xml(reg, 0, 'M', 'E', output);
 }
 
-static char *print_vfpureg_xml(int reg, char type, char *output)
-{
-	switch(type)
-	{
+static char *print_vfpureg_xml(int reg, char type, char *output){
+	switch(type){
 		case 's': return print_vfpusingle_xml(reg, output);
 				  break;
 		case 'q': return print_vfpuquad_xml(reg, output);
@@ -2103,24 +1857,20 @@ static char *print_vfpureg_xml(int reg, char type, char *output)
 	return output;
 }
 
-static void decode_args_xml(unsigned int opcode, unsigned int PC, const char *fmt, char *output)
-{
+static void decode_args_xml(unsigned int opcode, unsigned int PC, const char *fmt, char *output){
 	int i = 0;
 	int vmmul = 0;
 	int arg = 0;
 
-	while(fmt[i])
-	{
-		if(fmt[i] == '%')
-		{
+	while(fmt[i]){
+		if(fmt[i] == '%'){
 			int len;
 
 			i++;
 			len = sprintf(output, "<arg%d>", arg);
 			output += len;
 			
-			switch(fmt[i])
-			{
+			switch(fmt[i]){
 				case 'd': output = print_cpureg_xml(RD(opcode), output);
 						  break;
 				case 't': output = print_cpureg_xml(RT(opcode), output);
@@ -2215,9 +1965,7 @@ static void decode_args_xml(unsigned int opcode, unsigned int PC, const char *fm
 			output += len;
 			arg++;
 			i++;
-		}
-		else
-		{
+		}else{
 			i++;
 		}
 	}
@@ -2226,35 +1974,28 @@ end:
 	*output = 0;
 }
 
-void format_line_xml(char *code, int codelen, const char *addr, unsigned int opcode, const char *name, const char *args)
-{
+void format_line_xml(char *code, int codelen, const char *addr, unsigned int opcode, const char *name, const char *args){
 	char ascii[17];
 	char *p;
 	int i;
 
-	if(name == NULL)
-	{
+	if(name == NULL){
 		name = "Unknown";
 		args = "";
 	}
 
 	p = ascii;
-	for(i = 0; i < 4; i++)
-	{
+	for(i = 0; i < 4; i++){
 		unsigned char ch;
 
 		ch = (unsigned char) ((opcode >> (i*8)) & 0xFF);
-		if((ch < 32) || (ch > 126))
-		{
+		if((ch < 32) || (ch > 126)){
 			ch = '.';
 		}
-		if(g_xmloutput && (ch == '<'))
-		{
+		if(g_xmloutput && (ch == '<')){
 			strcpy(p, "&lt;");
 			p += strlen(p);
-		}
-		else
-		{
+		}else{
 			*p++ = ch;
 		}
 	}
@@ -2263,8 +2004,7 @@ void format_line_xml(char *code, int codelen, const char *addr, unsigned int opc
 	snprintf(code, codelen, "<name>%s</name><opcode>0x%08X</opcode>%s", name, opcode, args);
 }
 
-const char *disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int *realregs, unsigned int *regmask, int noaddr)
-{
+const char *disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int *realregs, unsigned int *regmask, int noaddr){
 	static char code[1024];
 	const char *name = NULL;
 	char args[1024];
@@ -2274,50 +2014,40 @@ const char *disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int
 	struct Instruction *ix = NULL;
 
 	sprintf(addr, "0x%08X", PC);
-	if((g_syms) && (g_symaddr))
-	{
+	if((g_syms) && (g_symaddr)){
 		char addrtemp[128];
 		/* Symbol resolver shouldn't touch addr unless it finds symbol */
-		if(disasmResolveSymbol(PC, addrtemp, sizeof(addrtemp)))
-		{
+		if(disasmResolveSymbol(PC, addrtemp, sizeof(addrtemp))){
 			snprintf(addr, sizeof(addr), "%-20s", addrtemp);
 		}
 	}
 
 	g_regmask = 0;
 
-	if(!g_macroon)
-	{
+	if(!g_macroon){
 		size = sizeof(g_macro) / sizeof(struct Instruction);
-		for(i = 0; i < size; i++)
-		{
-			if((opcode & g_macro[i].mask) == g_macro[i].opcode)
-			{
+		for(i = 0; i < size; i++){
+			if((opcode & g_macro[i].mask) == g_macro[i].opcode){
 				ix = &g_macro[i];
 				break;
 			}
 		}
 	}
 
-	if(!ix)
-	{
+	if(!ix){
 		size = sizeof(g_inst) / sizeof(struct Instruction);
-		for(i = 0; i < size; i++)
-		{
-			if((opcode & g_inst[i].mask) == g_inst[i].opcode)
-			{
+		for(i = 0; i < size; i++){
+			if((opcode & g_inst[i].mask) == g_inst[i].opcode){
 				ix = &g_inst[i];
 				break;
 			}
 		}
 	}
 
-	if(ix)
-	{
+	if(ix){
 		decode_args(opcode, PC, ix->fmt, args, realregs);
 
-		if(regmask) 
-		{
+		if(regmask) {
 			*regmask = g_regmask;
 		}
 
@@ -2329,8 +2059,7 @@ const char *disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int
 	return code;
 }
 
-const char *disasmInstructionXML(unsigned int opcode, unsigned int PC)
-{
+const char *disasmInstructionXML(unsigned int opcode, unsigned int PC){
 	static char code[1024];
 	const char *name = NULL;
 	char args[1024];
@@ -2342,34 +2071,27 @@ const char *disasmInstructionXML(unsigned int opcode, unsigned int PC)
 	sprintf(addr, "0x%08X", PC);
 	g_regmask = 0;
 
-	if(!g_macroon)
-	{
+	if(!g_macroon){
 		size = sizeof(g_macro) / sizeof(struct Instruction);
-		for(i = 0; i < size; i++)
-		{
-			if((opcode & g_macro[i].mask) == g_macro[i].opcode)
-			{
+		for(i = 0; i < size; i++){
+			if((opcode & g_macro[i].mask) == g_macro[i].opcode){
 				ix = &g_macro[i];
 				break;
 			}
 		}
 	}
 
-	if(!ix)
-	{
+	if(!ix){
 		size = sizeof(g_inst) / sizeof(struct Instruction);
-		for(i = 0; i < size; i++)
-		{
-			if((opcode & g_inst[i].mask) == g_inst[i].opcode)
-			{
+		for(i = 0; i < size; i++){
+			if((opcode & g_inst[i].mask) == g_inst[i].opcode){
 				ix = &g_inst[i];
 				break;
 			}
 		}
 	}
 
-	if(ix)
-	{
+	if(ix){
 		decode_args_xml(opcode, PC, ix->fmt, args);
 
 		name = ix->name;
@@ -2380,7 +2102,6 @@ const char *disasmInstructionXML(unsigned int opcode, unsigned int PC)
 	return code;
 }
 
-void disasmSetXmlOutput()
-{
+void disasmSetXmlOutput(){
 	g_xmloutput = 1;
 }
