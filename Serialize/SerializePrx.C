@@ -43,7 +43,7 @@ void CSerializePrx::DoSects(CProcessPrx &prx){
 
 void CSerializePrx::DoImports(CProcessPrx &prx){
 	PspModule *pMod;
-	PspLibImport *pImport;
+	PspEntries *pImport;
 	int iLoop;
 
 	pMod = prx.GetModuleInfo();
@@ -53,7 +53,7 @@ void CSerializePrx::DoImports(CProcessPrx &prx){
 		throw 0;
 	}
 
-	pImport = pMod->imp_head;
+	pImport = pMod->imports;
 	while(pImport != NULL){
 		if(SerializeImport(iLoop, pImport) == 0){
 			throw 0;
@@ -70,7 +70,7 @@ void CSerializePrx::DoImports(CProcessPrx &prx){
 
 void CSerializePrx::DoExports(CProcessPrx &prx, int blDoSyslib){
 	PspModule *pMod;
-	PspLibExport *pExport;
+	PspEntries *pExport;
 	int iLoop;
 
 	pMod = prx.GetModuleInfo();
@@ -80,7 +80,7 @@ void CSerializePrx::DoExports(CProcessPrx &prx, int blDoSyslib){
 		throw 0;
 	}
 
-	pExport = pMod->exp_head;
+	pExport = pMod->exports;
 	while(pExport != NULL){
 		if((blDoSyslib) || (strcmp(pExport->name, PSP_SYSTEM_EXPORT) != 0)){
 			if(SerializeExport(iLoop, pExport) == 0){

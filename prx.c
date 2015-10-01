@@ -13,6 +13,7 @@
 #define PSP_MAX_F_ENTRIES 2000
 #define PSP_MODULE_INFO_NAME ".rodata.sceModuleInfo"
 #define PSP_SYSTEM_EXPORT "syslib"
+#define PSP_IMPORT_BASE_SIZE (5*4)
 
 typedef enum {
 	PSP_ENTRY_FUNC = 0,
@@ -26,7 +27,6 @@ typedef struct {
 	uint32_t exports;
 }PspModuleExport;
 
-#define PSP_IMPORT_BASE_SIZE (5*4)
 typedef struct {
 	uint32_t name;
 	uint32_t flags;
@@ -54,37 +54,19 @@ typedef struct {
 	uint32_t nid_addr;
 }PspEntry;
 
-typedef struct PspLibImport{
-	struct PspLibImport *prev;
-	struct PspLibImport *next;
-	char name[PSP_LIB_MAX_NAME];
-	uint32_t addr;
+typedef struct{
+	char name[PSP_LIB_MAX_NAME],file[PATH_MAX];
+	uint32_t addr,f_count,v_count;
 	PspModuleImport stub;
-	PspEntry funcs[PSP_MAX_F_ENTRIES];
-	int f_count;
-	PspEntry vars[PSP_MAX_V_ENTRIES];
-	int v_count;
-	char file[PATH_MAX];
-}PspLibImport;
-
-typedef struct PspLibExport{
-	struct PspLibExport *prev;
-	struct PspLibExport *next;
-	char name[PSP_LIB_MAX_NAME];
-	uint32_t addr;
-	PspModuleExport stub;
-	PspEntry funcs[PSP_MAX_F_ENTRIES];
-	int f_count;
-	PspEntry vars[PSP_MAX_V_ENTRIES];
-	int v_count;
-}PspLibExport;
+	//PspModuleExport stub;
+	PspEntry funcs[PSP_MAX_F_ENTRIES],vars[PSP_MAX_V_ENTRIES];
+}PspEntries;
 
 typedef struct{
 	char name[PSP_MODULE_MAX_NAME+1];
 	PspModuleInfo info;
 	uint32_t addr;
-	PspLibExport *exp_head;
-	PspLibImport *imp_head;
+	PspEntries *exports,*imports;
 }PspModule;
 
 #define SYMFILE_MAGIC "SYMS"
@@ -159,7 +141,7 @@ int PrxLoadSingleImport(PspModuleImport *pImport, uint32_t addr){
 	uint32_t nidAddr;
 	uint32_t funcAddr;
 	uint32_t varAddr;
-	PspLibImport*pLib;
+	PspEntries*pLib;
 
 /*
 	if(pLib != NULL){
@@ -253,15 +235,15 @@ int PrxLoadSingleImport(PspModuleImport *pImport, uint32_t addr){
 				varAddr += 8;
 			}
 
-			if(m_modInfo.imp_head == NULL){
+			if(m_modInfo.imports == NULL){
 				pLib->next = NULL;
 				pLib->prev = NULL;
-				m_modInfo.imp_head = pLib;
+				m_modInfo.imports = pLib;
 			}else{
 				// Search for the end of the list
-				PspLibImport* pImport;
+				PspEntries* pImport;
 
-				pImport = m_modInfo.imp_head;
+				pImport = m_modInfo.imports;
 				while(pImport->next != NULL){
 					pImport = pImport->next;
 				}
@@ -295,7 +277,7 @@ int PrxLoadImports(){
 	uint32_t imp_end;
 /*
 
-	assert(m_modInfo.imp_head == NULL);
+	assert(m_modInfo.imports == NULL);
 
 	imp_base = m_modInfo.info.imports;
 	imp_end =  m_modInfo.info.imp_end;
@@ -329,16 +311,16 @@ int PrxLoadSingleExport(PspModuleExport *pExport, uint32_t addr){
 	int blError = 1;
 	int count = 0;
 	int iLoop;
-	PspLibExport* pLib = NULL;
+	PspEntries* pLib = NULL;
 	uint32_t expAddr;
 
 /*
 	assert(pExport != NULL);
 
-	SAFE_ALLOC(pLib, PspLibExport);
+	SAFE_ALLOC(pLib, PspEntries);
 	if(pLib != NULL){
 		do{
-			memset(pLib, 0, sizeof(PspLibExport));
+			memset(pLib, 0, sizeof(PspEntries));
 			pLib->addr = addr;
 			pLib->stub.name = LW(pExport->name);
 			pLib->stub.flags = LW(pExport->flags);
@@ -396,15 +378,15 @@ int PrxLoadSingleExport(PspModuleExport *pExport, uint32_t addr){
 				expAddr += 4;
 			}
 
-			if(m_modInfo.exp_head == NULL){
+			if(m_modInfo.exports == NULL){
 				pLib->next = NULL;
 				pLib->prev = NULL;
-				m_modInfo.exp_head = pLib;
+				m_modInfo.exports = pLib;
 			}else{
 				// Search for the end of the list
-				PspLibExport* pExport;
+				PspEntries* pExport;
 
-				pExport = m_modInfo.exp_head;
+				pExport = m_modInfo.exports;
 				while(pExport->next != NULL){
 					pExport = pExport->next;
 				}
@@ -438,7 +420,7 @@ int PrxLoadExports(){
 	uint32_t exp_base;
 	uint32_t exp_end;
 /*
-	assert(m_modInfo.exp_head == NULL);
+	assert(m_modInfo.exports == NULL);
 
 	exp_base = m_modInfo.info.exports;
 	exp_end =  m_modInfo.info.exp_end;
@@ -1145,8 +1127,8 @@ int PrxPrxToElf(FILE *fp){
 
 void PrxBuildSymbols(/*SymbolMap *syms,*/ uint32_t dwBase){
 	// First map in imports and exports 
-	PspLibExport *pExport;
-	PspLibImport *pImport;
+	PspEntries *pExport;
+	PspEntries *pImport;
 	int iLoop;
 /*
 	// If we have a symbol table then no point building from imports/exports 
@@ -1178,8 +1160,8 @@ void PrxBuildSymbols(/*SymbolMap *syms,*/ uint32_t dwBase){
 			}
 		}
 	}else{
-		pExport = m_modInfo.exp_head;
-		pImport = m_modInfo.imp_head;
+		pExport = m_modInfo.exports;
+		pImport = m_modInfo.imports;
 
 		while(pExport != NULL){
 			if(pExport->f_count > 0){
@@ -1921,7 +1903,7 @@ void PrxDisasmXML(FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pDat
 									  unsigned int i;
 									  for(i = 0; i < s->exported.size(); i++){
 										  unsigned int nid = 0;
-										  PspLibExport *pExp = s->imported[0];
+										  PspEntries *pExp = s->imported[0];
 
 										  for(int i = 0; i < pImp->f_count; i++){
 										  	if(strcmp(s->name.c_str(), pImp->funcs[i].name) == 0){
@@ -2208,7 +2190,7 @@ void PrxDump(FILE *fp, const char *disopts){
 void PrxDumpXML(FILE *fp, const char *disopts){
 	int iLoop;
 	char *slash;
-	PspLibExport *pExport;
+	PspEntries *pExport;
 /*
 	disasmSetSymbols(&m_syms);
 	disasmSetOpts(disopts, 1);
@@ -2222,7 +2204,7 @@ void PrxDumpXML(FILE *fp, const char *disopts){
 
 	fprintf(fp, "<prx file=\"%s\" name=\"%s\">\n", slash, m_modInfo.name);
 	fprintf(fp, "<exports>\n");
-	pExport = m_modInfo.exp_head;
+	pExport = m_modInfo.exports;
 	while(pExport){
 		fprintf(fp, "<lib name=\"%s\">\n", pExport->name);
 		for(int i = 0; i < pExport->f_count; i++){

@@ -23,10 +23,10 @@ class CSerializePrxToMap : public CSerializePrx{
 	virtual int SerializeSect(int num, ElfSection &sect);
 	virtual int EndSects();
 	virtual int StartImports();
-	virtual int SerializeImport(int num, const PspLibImport *imp);
+	virtual int SerializeImport(int num, const PspEntries *imp);
 	virtual int EndImports();
 	virtual int StartExports();
-	virtual int SerializeExport(int num, const PspLibExport *exp);
+	virtual int SerializeExport(int num, const PspEntries *exp);
 	virtual int EndExports();
 	virtual int StartRelocs();
 	virtual int SerializeReloc(int count, const ElfReloc *rel);

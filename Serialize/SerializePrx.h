@@ -38,10 +38,10 @@ protected:
 	/** Called when have finished serializing the sections */
 	virtual int EndSects()												= 0;
 	virtual int StartImports()											= 0;
-	virtual int SerializeImport(int index, const PspLibImport *imp)	= 0;
+	virtual int SerializeImport(int index, const PspEntries *imp)	= 0;
 	virtual int EndImports()											= 0;
 	virtual int StartExports()											= 0;
-	virtual int SerializeExport(int index, const PspLibExport *exp)	= 0;
+	virtual int SerializeExport(int index, const PspEntries *exp)	= 0;
 	virtual int EndExports()											= 0;
 	virtual int StartRelocs()											= 0;
 	/* Called with a list of relocs for a single segment */

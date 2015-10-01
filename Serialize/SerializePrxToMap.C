@@ -120,7 +120,7 @@ int CSerializePrxToMap::StartImports(){
 	return 1;
 }
 
-int CSerializePrxToMap::SerializeImport(int num, const PspLibImport *imp){
+int CSerializePrxToMap::SerializeImport(int num, const PspEntries *imp){
 	char str_import[128];
 	int iLoop;
 	uint32_t addr;
@@ -169,7 +169,7 @@ int CSerializePrxToMap::StartExports(){
 	return 1;
 }
 
-int CSerializePrxToMap::SerializeExport(int num, const PspLibExport *exp){
+int CSerializePrxToMap::SerializeExport(int num, const PspEntries *exp){
 	char str_export[128];
 	int iLoop;
 	uint32_t addr;

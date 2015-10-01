@@ -7,91 +7,108 @@ enum {
 	SERIALIZE_ALL	   = 0xFFFFFFFF
 };
 typedef enum{
-	OUTPUT_NONE = 0,
-	OUTPUT_IDC = 1,
-	OUTPUT_MAP = 2,
-	OUTPUT_XML = 3,
-	OUTPUT_ELF = 4,
-	OUTPUT_STUB = 6,
-	OUTPUT_DEP = 7,
-	OUTPUT_MOD = 8,
-	OUTPUT_PSTUB = 9,
-	OUTPUT_IMPEXP = 10,
-	OUTPUT_SYMBOLS = 11,
-	OUTPUT_DISASM  = 12,
-	OUTPUT_XMLDB = 13,
-	OUTPUT_ENT = 14,
-}OutputMode;
+	OUT_NONE,
+	OUT_IDC,
+	OUT_MAP,
+	OUT_XML,
+	OUT_ELF,
+	OUT_STUB,
+	OUT_STUBNEW,
+	OUT_DEP,
+	OUT_MOD,
+	OUT_PSTUB,
+	OUT_PSTUBNEW,
+	OUT_IMPEXP,
+	OUT_SYMBOLS,
+	OUT_DISASM,
+	OUT_XMLDB,
+	OUT_ENT,
+}OutType;
 
-char**       arg_ppInfiles;
-int          arg_iInFiles;
-char *       arg_pOutfile;
-char *       arg_pNamefile;
-char *       arg_pFuncfile;
-int          arg_blDebug;
-OutputMode   arg_outputMode;
-uint32_t     arg_iSMask;
-int          arg_newstubs;
-uint32_t     arg_dwBase;
-const char*  arg_disopts = "";
-int          arg_loadbin = 0;
-int          arg_xmlOutput = 0;
-int          arg_aliasOutput = 0;
-unsigned int arg_database = 0;
-const char * arg_pDbTitle = "";
+char**   arg_inFiles;
+int      arg_nbFiles;
+char *   arg_outfile;
+char *   arg_nidsfile;
+char *   arg_funcfile;
+int      arg_debug;
+OutType  arg_action;
+uint32_t arg_iSMask;
+uint32_t arg_dwBase;
+char*    arg_disopts = "";
+int      arg_loadbin = 0;
+int      arg_xmlOutput = 0;
+int      arg_aliasOutput = 0;
+unsigned arg_database = 0;
+char *   arg_dbTitle = "";
+
+char*    def_namefile = "psplibdoc.xml";
+char*    def_funcfile = "functions.txt";
+
+void init_arguments(){
+	struct stat s;
+	arg_inFiles = NULL;
+	arg_nbFiles = 0;
+	arg_outfile = NULL;
+	arg_debug = 0;
+	arg_action = OUT_IDC;
+	arg_iSMask = SERIALIZE_ALL & ~SERIALIZE_SECTIONS;
+	arg_dwBase = 0;
+	arg_nidsfile = stat(def_namefile,&s)?arg_nidsfile:def_namefile;
+	arg_funcfile = stat(def_funcfile,&s)?arg_funcfile:def_funcfile;
+}
 
 int arg_do_serialize(const char *arg){
 	arg_iSMask = 0;
 	for(int i=0;arg[i];i++){
-		switch(tolower(arg[i])){
+		switch(tolower((int)arg[i])){
 			case 'i' : arg_iSMask |= SERIALIZE_IMPORTS;break;
 			case 'x' : arg_iSMask |= SERIALIZE_EXPORTS;break;
 			case 'r' : arg_iSMask |= SERIALIZE_RELOCS;break;
 			case 's' : arg_iSMask |= SERIALIZE_SECTIONS;break;
 			case 'l' : arg_iSMask |= SERIALIZE_DOSYSLIB;break;
-			default:   fprintf(stderr, "Unknown serialize option '%c'\n", tolower(arg[i]));
+			default  : fprintf(stderr, "Unknown serialize option '%c'\n", tolower((int)arg[i]));
 			return 0;
 		}
 	}
-
 	return 1;
 }
 
-int arg_do_xmldb(const char *arg){
-	arg_pDbTitle = arg;
-	arg_outputMode = OUTPUT_XMLDB;
+int arg_do_xmldb(char *arg){
+	arg_dbTitle = arg;
+	arg_action = OUT_XMLDB;
 	return 1;
 }
 
 typedef struct{const char
-  *full      ,  ch,type,req; void*argvoid              ; const int val ; const char *help;}ArgEntry;
+  *full      ,  lb,type,req; void*argvoid             ; int value   ; const char *help;}ArgEntry;
 
 ArgEntry cmd_options[] = {
-	{"output"  , 'o', 's', 1 , (void*) &arg_pOutfile     , 0             , "outfile : Outputfile. If not specified uses stdout"},
-	{"idcout"  , 'c', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_IDC    , "        : Output an IDC file (default)"},
-	{"mapout"  , 'a', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_MAP    , "        : Output a MAP file"},
-	{"xmlout"  , 'x', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_XML    , "        : Output an XML file"},
-	{"elfout"  , 'e', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_ELF    , "        : Output an ELF from a PRX"},
-	{"debug"   , 'd', 'i', 0 , (void*) &arg_blDebug      , 1             , "        : Enable debug mode"},
-	{"serial"  , 's', 'f', 1 , (void*) &arg_do_serialize , 0             , "ixrsl   : Specify what to serialize (Imports,Exports,Relocs,Sections,SyslibExp)"},
-	{"xmlfile" , 'n', 's', 1 , (void*) &arg_pNamefile    , 0             , "imp.xml : Specify a XML file containing the NID tables"},
-	{"xmldis"  , 'g', 'i', 0 , (void*) &arg_xmlOutput    , 1             , "        : Enable XML disassembly output mode"},
-	{"xmldb"   , 'w', 'f', 1 , (void*) &arg_do_xmldb     , 0             , "title   : Output the PRX(es) as an XML database disassembly with a title" },
-	{"stubs"   , 't', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_STUB   , "        : Emit stub files for the XML file passed on the command line"},
-	{"prxstubs", 'u', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_PSTUB  , "        : Emit stub files based on the exports of the specified PRX files" },
-	{"newstubs", 'k', 'i', 0 , (void*) &arg_newstubs     , 1             , "        : Emit new style stubs for the SDK"},
-	{"depends" , 'q', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_DEP    , "        : Print PRX dependencies. (Should have loaded an XML file to be useful"},
-	{"modinfo" , 'm', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_MOD    , "        : Print the module and library information to screen"},
-	{"impexp"  , 'f', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_IMPEXP , "        : Print the imports and exports of a prx"},
-	{"exports" , 'p', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_ENT    , "        : Output an export file (.exp)"},
-	{"disasm"  , 'w', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_DISASM , "        : Disasm the executable sections of the files (if more than one file output name is automatic)"},
-	{"disopts" , 'i', 's', 1 , (void*) &arg_disopts      , 0             , "opts    : Specify options for disassembler"},
-	{"binary"  , 'b', 'i', 0 , (void*) &arg_loadbin      , 1             , "        : Load the file as binary for disassembly"},
-	{"database", 'l', 'i', 1 , (void*) &arg_database     , 0             , "        : Specify the offset of the data section in the file for binary disassembly"},
-	{"reloc"   , 'r', 'i', 1 , (void*) &arg_dwBase       , 0             , "addr    : Relocate the PRX to a different address"},
-	{"symbols" , 'y', 'i', 0 , (void*) &arg_outputMode   , OUTPUT_SYMBOLS, "        : Output a symbol file based on the input file"},
-	{"funcs"   , 'z', 's', 1 , (void*) &arg_pFuncfile    , 0             , "        : Specify a functions file for disassembly"},
-	{"alias"   , 'A', 'i', 0 , (void*) &arg_aliasOutput  , 1             , "        : Print aliases when using -f mode" },
+	{"output"  , 'o', 's', 1 , (void*) &arg_outfile     , 0           , "Outputfile. (stdout)"},
+	{"idcout"  , 'c', 'i', 0 , (void*) &arg_action      , OUT_IDC     , "Output an IDC file (default)"},
+	{"mapout"  , 'a', 'i', 0 , (void*) &arg_action      , OUT_MAP     , "Output a MAP file"},
+	{"xmlout"  , 'x', 'i', 0 , (void*) &arg_action      , OUT_XML     , "Output an XML file"},
+	{"elfout"  , 'e', 'i', 0 , (void*) &arg_action      , OUT_ELF     , "Output an ELF from a PRX"},
+	{"debug"   , 'd', 'i', 0 , (void*) &arg_debug       , 1           , "Enable debug mode"},
+	{"serial"  , 's', 'f', 1 , (void*) &arg_do_serialize, 0           , "Specify what to serialize (Imports,Exports,Relocs,Sections,SyslibExp)"},
+	{"xmlfile" , 'n', 's', 1 , (void*) &arg_nidsfile    , 0           , "Specify a XML file containing the NID tables"},
+	{"xmldis"  , 'g', 'i', 0 , (void*) &arg_xmlOutput   , 1           , "Enable XML disassembly output mode"},
+	{"xmldb"   , 'w', 'f', 1 , (void*) &arg_do_xmldb    , 0           , "Output the PRX(es) as an XML database disassembly with a title" },
+	{"xmlstubs", 't', 'i', 0 , (void*) &arg_action      , OUT_STUB    , "Emit old stub files for the XML file passed on the command line"},
+	{"xmlstubs", 't', 'i', 0 , (void*) &arg_action      , OUT_STUBNEW , "Emit new stub files for the XML file passed on the command line"},
+	{"prxstubs", 'u', 'i', 0 , (void*) &arg_action      , OUT_PSTUB   , "Emit old stub files based on the exports of the specified PRX files" },
+	{"prxstubs", 'u', 'i', 0 , (void*) &arg_action      , OUT_PSTUBNEW, "Emit new stub files based on the exports of the specified PRX files"},
+	{"depends" , 'q', 'i', 0 , (void*) &arg_action      , OUT_DEP     , "Print PRX dependencies. (Should have loaded an XML file to be useful"},
+	{"modinfo" , 'm', 'i', 0 , (void*) &arg_action      , OUT_MOD     , "Print the module and library information to screen"},
+	{"impexp"  , 'f', 'i', 0 , (void*) &arg_action      , OUT_IMPEXP  , "Print the imports and exports of a prx"},
+	{"exports" , 'p', 'i', 0 , (void*) &arg_action      , OUT_ENT     , "Output an export file (.exp)"},
+	{"disasm"  , 'w', 'i', 0 , (void*) &arg_action      , OUT_DISASM  , "Disasm the executable sections of the files (if more than one file output name is automatic)"},
+	{"disopts" , 'i', 's', 1 , (void*) &arg_disopts     , 0           , "Specify options for disassembler"},
+	{"binary"  , 'b', 'i', 0 , (void*) &arg_loadbin     , 1           , "Load the file as binary for disassembly"},
+	{"database", 'l', 'i', 1 , (void*) &arg_database    , 0           , "Specify the offset of the data section in the file for binary disassembly"},
+	{"reloc"   , 'r', 'i', 1 , (void*) &arg_dwBase      , 0           , "Relocate the PRX to a different address"},
+	{"symbols" , 'y', 'i', 0 , (void*) &arg_action      , OUT_SYMBOLS , "Output a symbol file based on the input file"},
+	{"funcs"   , 'z', 's', 1 , (void*) &arg_funcfile    , 0           , "Specify a functions file for disassembly"},
+	{"alias"   , 'A', 'i', 0 , (void*) &arg_aliasOutput , 1           , "Print aliases when using -f mode" },
 };
 #define ARG_COUNT(x) (sizeof(x) / sizeof(ArgEntry))
 
@@ -118,7 +135,7 @@ char **GetArgs(int *argc, char **argv, ArgEntry *entry, int argcount){
 			/* Error check, short options should be 2 characters */
 			if(strlen(arg) == 2){
 				for(int i = 0;i < argcount;i++)
-					if(entry[i].ch == arg[1])
+					if(entry[i].lb == arg[1])
 						ent = &entry[i];
 			}
 		}else{// Single - means stop processing
@@ -134,7 +151,7 @@ char **GetArgs(int *argc, char **argv, ArgEntry *entry, int argcount){
 		if(ent->req){
 			switch(ent->type){
 				case 'i':
-					*((int *) ent->argvoid) = ent->val;
+					*((int *) ent->argvoid) = ent->value;
 				break;
 				case 'f':
 					if(!((ArgFunc) ent->argvoid)(NULL))
@@ -166,45 +183,14 @@ char **GetArgs(int *argc, char **argv, ArgEntry *entry, int argcount){
 	}
 	return argv;
 }
-
-void init_arguments(){
-	arg_ppInfiles = NULL;
-	arg_iInFiles = 0;
-	arg_pOutfile = NULL;
-	arg_blDebug = 0;
-	arg_outputMode = OUTPUT_IDC;
-	arg_iSMask = SERIALIZE_ALL & ~SERIALIZE_SECTIONS;
-	arg_newstubs = 0;
-	arg_dwBase = 0;
-
-	struct stat s;
-
-	char*def_namepath = "psplibdoc.xml";
-	if(!stat(def_namepath, &s))
-		arg_pNamefile = def_namepath;
-	char*def_funcpath = "functions.txt";
-	if(!stat(def_funcpath, &s))
-		arg_pFuncfile = def_funcpath;
-}
-
-int process_args(int argc, char **argv){
-	init_arguments();
-
-	arg_ppInfiles = GetArgs(&argc, argv, cmd_options, ARG_COUNT(cmd_options));
-	if((arg_ppInfiles) && (argc > 0)){
-		arg_iInFiles = argc;
-		return 0;
-	}
-	return 1;
-}
-
-int print_help(){
+int arg_usage(char* title){
+	fprintf(stdout, "%s\n",title?title:"");
 	fprintf(stdout, "Usage: prxtool [options...] file\n");
 	fprintf(stdout, "Options:\n");
 
 	for(unsigned i = 0; i < ARG_COUNT(cmd_options); i++){
 		if(cmd_options[i].help)
-			fprintf(stdout, "--%-10s -%c %s\n", cmd_options[i].full, cmd_options[i].ch, cmd_options[i].help);
+			fprintf(stdout, "--%-10s -%c %s\n", cmd_options[i].full, cmd_options[i].lb, cmd_options[i].help);
 	}
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Disassembler Options:\n");
@@ -214,5 +200,19 @@ int print_help(){
 	fprintf(stdout, "s - Print the PC as a symbol if possible\n");
 	fprintf(stdout, "m - Disable macro instructions (e.g. nop, beqz etc.\n");
 	fprintf(stdout, "w - Indicate PC, opcode information goes after the instruction disasm\n");
+	return 1;
+}
+
+
+int arg_apply(int argc, char **argv){
+	if(argc<=1)
+		return arg_usage("No arguments provided");
+	
+	init_arguments();
+	arg_inFiles = GetArgs(&argc, argv, cmd_options, ARG_COUNT(cmd_options));
+	if(!arg_inFiles)
+		return arg_usage("Error while parsing arguments");
+	
+	arg_nbFiles = argc;
 	return 0;
 }

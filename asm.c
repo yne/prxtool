@@ -32,8 +32,7 @@ typedef struct{
 	char name[32];
 	unsigned int*refs;
 	char* alias;
-	PspLibExport * exported;
-	PspLibImport * imported;
+	PspEntries * exported,* imported;
 }SymbolEntry;
 //typedef std::map<unsigned int, SymbolEntry*> SymbolMap;
 //typedef std::map<unsigned int, ImmEntry *> ImmMap;
@@ -654,7 +653,7 @@ SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
 		//s = (*g_syms)[PC];
 		if((s) && (s->imported > 0)){
 			unsigned int nid = 0;
-			PspLibImport *pImp = &s->imported[0];
+			PspEntries *pImp = &s->imported[0];
 
 			for(int i = 0; i < pImp->f_count; i++){
 				if(strcmp(s->name, pImp->funcs[i].name) == 0){

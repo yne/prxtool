@@ -154,7 +154,7 @@ int CSerializePrxToIdc::StartImports(){
 	return 1;
 }
 
-int CSerializePrxToIdc::SerializeImport(int num, const PspLibImport *imp){
+int CSerializePrxToIdc::SerializeImport(int num, const PspEntries *imp){
 	char str_import[128];
 	int iLoop;
 	uint32_t addr;
@@ -197,7 +197,7 @@ int CSerializePrxToIdc::StartExports(){
 	return 1;
 }
 
-int CSerializePrxToIdc::SerializeExport(int num, const PspLibExport *exp){
+int CSerializePrxToIdc::SerializeExport(int num, const PspEntries *exp){
 	char str_export[128];
 	int iLoop;
 	uint32_t addr;

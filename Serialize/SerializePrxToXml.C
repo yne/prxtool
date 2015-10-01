@@ -66,7 +66,7 @@ int CSerializePrxToXml::StartImports(){
 	return 1;
 }
 
-int CSerializePrxToXml::SerializeImport(int num, const PspLibImport *imp){
+int CSerializePrxToXml::SerializeImport(int num, const PspEntries *imp){
 	int iLoop;
 
 	fprintf(m_fpOut, "\t\t\t<LIBRARY>\n");
@@ -112,7 +112,7 @@ int CSerializePrxToXml::StartExports(){
 	return 1;
 }
 
-int CSerializePrxToXml::SerializeExport(int num, const PspLibExport *exp){
+int CSerializePrxToXml::SerializeExport(int num, const PspEntries *exp){
 	int iLoop;
 
 	fprintf(m_fpOut, "\t\t\t<LIBRARY>\n");

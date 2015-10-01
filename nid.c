@@ -67,11 +67,11 @@ int NidsFromXml(LibraryEntry *libraries,const char* XMLpath){
 }
 
 static char *strip_whitesp(char *str){
-	while(isspace(*str))
+	while(isspace((int)*str))
 		str++;
 
 	int len = strlen(str);
-	while((len > 0) && (isspace(str[len-1])))
+	while((len > 0) && (isspace((int)str[len-1])))
 		str[--len] = 0;
 
 	return len?str:NULL;
