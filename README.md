@@ -11,13 +11,7 @@ Installation
 
 To compile `prxtool`, run:
 
-    $ ./bootstrap
-    $ ./configure
-    $ make
-
-You can install it by running:
-
-    $ [sudo] make install
+    cc prxtool.c
 
 License
 -------
