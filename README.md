@@ -1,5 +1,7 @@
 PRXTool
 =======
+[![Build Status](https://api.travis-ci.org/yne/prxtool.svg)](https://travis-ci.org/yne/prxtool)
+
 This is a simple tool to manipulate Sony PSP(tm) PRX files. Prxtool can:
 
 * output an IDC file which can be used with IDA Pro

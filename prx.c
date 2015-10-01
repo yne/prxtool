@@ -1689,8 +1689,7 @@ void PrxDumpStrings(FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pD
 
 void PrxDisasm(FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData/*, ImmMap &imms*/, uint32_t dwBase){
 	uint32_t iILoop;
-	uint32_t *pInst;
-	pInst  = (uint32_t*) pData;
+	uint32_t *pInst = (uint32_t*) pData;
 	uint32_t inst;
 /*
 	SymbolEntry *lastFunc = NULL;
