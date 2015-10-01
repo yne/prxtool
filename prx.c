@@ -88,19 +88,19 @@ typedef struct{
 }PspModule;
 
 #define SYMFILE_MAGIC "SYMS"
-typedef struct {
+typedef struct __attribute__((packed)) {
 	char magic[4];
 	char modname[PSP_MODULE_MAX_NAME];
 	uint32_t  symcount;
 	uint32_t  strstart;
 	uint32_t  strsize;
-}SymfileHeader __attribute__((packed));
+}SymfileHeader;
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	uint32_t name;
 	uint32_t addr;
 	uint32_t size;
-}SymfileEntry __attribute__((packed));
+}SymfileEntry;
 
 #include "vmem.c"
 #include "asm.c"

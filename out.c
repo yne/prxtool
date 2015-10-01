@@ -167,26 +167,6 @@ void serialize_file(const char *file/*, CSerializePrx *pSer, CNidMgr *pNids*/){
 	}
 }
 
-typedef enum{
-	SYMBOL_NOSYM = 0,
-	SYMBOL_UNK,
-	SYMBOL_FUNC,
-	SYMBOL_LOCAL,
-	SYMBOL_DATA,
-}SymbolType;
-
-typedef struct{
-	unsigned int addr;
-	SymbolType type;
-	unsigned int size;
-	char* name;
-	unsigned int*refs;
-	char** alias;
-	PspLibExport* exported;
-	PspLibImport* imported;
-}SymbolEntry;
-
-
 struct ImmEntry{
 	unsigned int addr;
 	unsigned int target;
@@ -292,7 +272,7 @@ void output_deps(const char *file/*, CNidMgr *pNids*/){
 	if(PrxLoadFromFile(file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
-		PspLibImport pHead;
+		PspLibImport*pHead=NULL;
 		char path[PATH_MAX];
 		int i;
 
@@ -300,17 +280,17 @@ void output_deps(const char *file/*, CNidMgr *pNids*/){
 		fprintf(stdout, "Dependancy list for %s\n", file);
 		//PrxGetImports(&pHead);
 		while(pHead){
-			if(strlen(pHead.file) > 0){
-				strcpy(path, pHead.file);
+			if(strlen(pHead->file) > 0){
+				strcpy(path, pHead->file);
 			}else{
-				snprintf(path, PATH_MAX, "Unknown (%s)", pHead.name);
+				snprintf(path, PATH_MAX, "Unknown (%s)", pHead->name);
 			}
-			fprintf(stdout, "Dependancy %d for %s: %s\n", i++, pHead.name, path);
+			fprintf(stdout, "Dependancy %d for %s: %s\n", i++, pHead->name, path);
 			//pHead = pHead.next;
 		}
 	}
 }
-void write_stub(const char *szDirectory, PspLibExport *pExp/*, CProcessPrx *pPrx*/){
+void write_stub(const char *szDirectory, PspLibExport *pExp, CProcessPrx *pPrx){
 	char szPath[PATH_MAX];
 	FILE *fp;
 	fprintf(stdout,"Library %s\n", pExp->name);
@@ -382,7 +362,7 @@ void write_ent(PspLibExport *pExp, FILE *fp){
 		free(nidName);
 	}
 }
-void write_stub_new(const char *szDirectory, PspLibExport *pExp, CProcessPrx *pPrx){
+int write_stub_new(const char *szDirectory, PspLibExport *pExp, CProcessPrx *pPrx){
 	char szPath[PATH_MAX];
 	fprintf(stdout,"Library %s\n", pExp->name);
 	if(pExp->v_count != 0){
@@ -415,7 +395,7 @@ void write_stub_new(const char *szDirectory, PspLibExport *pExp, CProcessPrx *pP
 		fprintf(fp, "#ifdef F_%s_%04d\n", pExp->name, i + 1);
 		SymbolEntry *pSym = /*pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):*/NULL;
 		if((arg_aliasOutput) && (pSym) && (pSym->alias > 0))
-			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name, strcmp(pSym->name, pExp->funcs[i].name)?pSym->name:pSym->alias[0]);
+			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name, strcmp(pSym->name, pExp->funcs[i].name)?pSym->name:pSym->alias);
 		else
 			fprintf(fp, "\tIMPORT_FUNC\t\"%s\",0x%08X,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name);
 		fprintf(fp, "#endif\n");
@@ -430,12 +410,12 @@ void output_stubs_prx(const char *file/*, CNidMgr *pNids*/){
 	if(PrxLoadFromFile(file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
-		PspLibExport pHead;
+		PspLibExport*pHead=NULL;
 
 		fprintf(stdout, "Dependancy list for %s\n", file);
 		//PrxGetExports(&pHead);
-		while(pHead != NULL){
-			if(strcmp(pHead.name, PSP_SYSTEM_EXPORT) != 0){
+		while(pHead){
+			if(strcmp(pHead->name, PSP_SYSTEM_EXPORT) != 0){
 				if(arg_newstubs){
 					//write_stub_new("", pHead, &prx);
 				}else{
@@ -453,12 +433,12 @@ void output_ents(const char *file/*, CNidMgr *pNids*/, FILE *f){
 	if(PrxLoadFromFile(file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
-		PspLibExport pHead;
+		PspLibExport*pHead;
 
 		fprintf(stdout, "Dependancy list for %s\n", file);
 		//PrxGetExports(&pHead);
-		while(pHead != NULL){
-			write_ent(&pHead, f);
+		while(pHead){
+			write_ent(pHead, f);
 			//pHead = pHead->next;
 		}
 	}
@@ -483,8 +463,10 @@ void output_stubs_xml(CNidMgr *pNids){
 			strcpy(pExp->funcs[i].name, pLib->pNids[i].name);
 		}
 
-		(arg_newstubs?write_stub_new:write_stub)("", pExp, NULL);
-
+		if(arg_newstubs)
+			write_stub_new("", pExp, NULL);
+		else
+			write_stub("", pExp, NULL);
 		//pLib = pLib->pNext;
 	}
 }

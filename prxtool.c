@@ -9,8 +9,8 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <limits.h>
 #include <sys/stat.h>
+#define PATH_MAX 4096
 
 #include "nid.c"
 #include "elf.c"

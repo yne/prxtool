@@ -29,7 +29,7 @@ typedef struct{
 	unsigned int addr;
 	SymbolType type;
 	unsigned int size;
-	char* name[32];
+	char name[32];
 	unsigned int*refs;
 	char* alias;
 	PspLibExport * exported;
@@ -657,7 +657,7 @@ SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
 			PspLibImport *pImp = &s->imported[0];
 
 			for(int i = 0; i < pImp->f_count; i++){
-				if(strcmp(*s->name, pImp->funcs[i].name) == 0){
+				if(strcmp(s->name, pImp->funcs[i].name) == 0){
 					nid = pImp->funcs[i].nid;
 					break;
 				}
