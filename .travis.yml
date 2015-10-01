@@ -1,4 +1,3 @@
 language: c
-compiler:
-  - clang
-  - gcc
+compiler: gcc
+script: CC prxtool.c
