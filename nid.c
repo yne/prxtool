@@ -6,27 +6,27 @@
  * of NID Libraries.
  **************************************************************
 */
+#include <string.h>
+
 #define LIB_NAME_MAX 64
 #define LIB_SYMBOL_NAME_MAX 128
 #define FUNCTION_NAME_MAX   128
 #define FUNCTION_ARGS_MAX   128
 #define FUNCTION_RET_MAX    64
+#define LIB_NID_MAX         1050//Max Nid (paf/pafmini)
 
-struct LibraryEntry;
 typedef struct{
 	uint32_t nid;
 	char name[LIB_SYMBOL_NAME_MAX];
-	struct LibraryEntry *pParentLib;
 }LibraryNid;
 
-struct FunctionType{
+typedef struct{
 	char name[FUNCTION_NAME_MAX];
 	char args[FUNCTION_ARGS_MAX];
 	char ret[FUNCTION_RET_MAX];
-};
+}FunctionType;
 
 typedef struct{
-	struct LibraryEntry* pNext;
 	char prx_name[LIB_NAME_MAX];
 	char lib_name[LIB_NAME_MAX];
 	char prx[PATH_MAX];
@@ -34,7 +34,7 @@ typedef struct{
 	int  entry_count;
 	int  vcount;
 	int  fcount;
-	LibraryNid *pNids;
+	LibraryNid pNids[LIB_NID_MAX];
 }LibraryEntry;
 
 typedef struct{
@@ -42,7 +42,13 @@ typedef struct{
 	const char *name;
 }SyslibEntry;
 
-static SyslibEntry g_syslib[] = {
+typedef struct{
+	LibraryEntry *libraries;
+	FunctionType *functions;
+	//LibraryEntry *m_pMasterNids;
+}CNidMgr;
+
+SyslibEntry g_syslib[] = {
 	{ 0xd3744be0, "module_bootstart" },
 	{ 0xf01d73a7, "module_info" },
 	{ 0x2f064fa6, "module_reboot_before" },
@@ -56,20 +62,58 @@ static SyslibEntry g_syslib[] = {
 
 #define MASTER_NID_MAPPER "MasterNidMapper"
 
-/*
-// Generate a simple name based on the library and the nid 
-const char *NidGenName(char *m_szCurrName,const char *lib, uint32_t nid){
-	if(lib == NULL){
-		snprintf(m_szCurrName, LIB_SYMBOL_NAME_MAX, "syslib_%08X", nid);
-	}else{
-		snprintf(m_szCurrName, LIB_SYMBOL_NAME_MAX, "%s_%08X", lib, nid);
-	}
-
-	return m_szCurrName;
+int NidsFromXml(LibraryEntry *libraries,const char* XMLpath){
+	return 5;
 }
 
+static char *strip_whitesp(char *str){
+	while(isspace(*str))
+		str++;
+
+	int len = strlen(str);
+	while((len > 0) && (isspace(str[len-1])))
+		str[--len] = 0;
+
+	return len?str:NULL;
+}
+
+int FuncFromTxt(FunctionType *func,const char* szFilename){
+	FILE *fp = fopen(szFilename, "r");
+	if(!fp)
+		return fprintf(stderr,"Unable to Open %s\n", szFilename);
+	
+	char line[1024];
+	int num=0;
+	while(fgets(line, sizeof(line), fp)){
+		char *args,*name,*ret = NULL;
+
+		if(!(name = strip_whitesp(line)))
+			continue;
+		
+		if((args = strchr(name, '|'))){
+			*args++ = 0;
+			if((ret = strchr(args, '|')))
+				*ret++ = 0;
+		}
+
+		if((name) && (name[0] != '#')){
+			memset(&func[num], 0, sizeof(FunctionType));
+			snprintf(func[num].name, FUNCTION_NAME_MAX, "%s", name);
+			if(args)
+				snprintf(func[num].args, FUNCTION_ARGS_MAX, "%s", args);
+			if(ret)
+				snprintf(func[num].ret, FUNCTION_RET_MAX, "%s", ret);
+			fprintf(stdout,"Function: %s %s(%s)\n", func[num].ret, func[num].name, func[num].args);
+		}
+	}
+	fclose(fp);
+	return 1;
+}
+
+
+/*
 // Search the NID list for a function and return the name 
-const char *NidSearchLibs(LibraryEntry *m_pMasterNids,const char *lib, uint32_t nid){
+const char *NidFindLibName(LibraryEntry *m_pMasterNids,const char *lib, uint32_t nid){
 	const char *pName = NULL;
 	LibraryEntry *pLib;
 
@@ -121,7 +165,7 @@ const char *NidSearchLibs(LibraryEntry *m_pMasterNids,const char *lib, uint32_t 
 
 		if(pName == NULL){
 			COutput::Puts(LEVEL_DEBUG, "Using default name");
-			pName = GenName(lib, nid);
+			snprintf(pName, LIB_SYMBOL_NAME_MAX, "%s_%08X", lib?lib:"syslib", nid);
 		}
 	}
 
@@ -310,15 +354,6 @@ int NidAddXmlFile(const char *szFilename){
 	return blRet;
 }
 
-// Find the name based on our list of names 
-const char *NidFindLibName(const char *lib, uint32_t nid){
-	return SearchLibs(lib, nid);
-}
-
-LibraryEntry *NidGetLibraries(void){
-	return m_pLibHead;
-}
-
 // Find the name of the dependany library for a specified lib 
 const char *NidFindDependancy(const char *lib){
 	LibraryEntry *pLib;
@@ -334,74 +369,6 @@ const char *NidFindDependancy(const char *lib){
 	}
 
 	return NULL;
-}
-
-static char *strip_whitesp(char *str){
-	int len;
-
-	while(isspace(*str)){
-		str++;
-	}
-
-	len = strlen(str);
-	while((len > 0) && (isspace(str[len-1]))){
-		str[len-1] = 0;
-		len--;
-	}
-
-	if(len == 0){
-		return NULL;
-	}
-	
-	return str;
-}
-
-int NidAddFunctionFile(const char *szFilename){
-	FILE *fp;
-
-	fp = fopen(szFilename, "r");
-	if(fp){
-		char line[1024];
-
-		while(fgets(line, sizeof(line), fp)){
-			char *name;
-			char *args = NULL;
-			char *ret = NULL;
-
-			name = strip_whitesp(line);
-			if(name == NULL){
-				continue;
-			}
-
-			args = strchr(name, '|');
-			if(args){
-				*args++ = 0;
-				ret = strchr(args, '|');
-				if(ret){
-					*ret++ = 0;
-				}
-			}
-
-			if((name) && (name[0] != '#')){
-				FunctionType *p = new FunctionType;
-
-				memset(p, 0, sizeof(FunctionType));
-				snprintf(p->name, FUNCTION_NAME_MAX, "%s", name);
-				if(args){
-					snprintf(p->args, FUNCTION_ARGS_MAX, "%s", args);
-				}
-				if(ret){
-					snprintf(p->ret, FUNCTION_RET_MAX, "%s", ret);
-				}
-				m_funcMap.insert(m_funcMap.end(), p);
-				fprintf(stdout,"Function: %s %s(%s)\n", p->ret, p->name, p->args);
-			}
-		}
-		fclose(fp);
-		return 1;
-	}
-
-	return 0;
 }
 
 FunctionType *NidFindFunctionType(const char *name){

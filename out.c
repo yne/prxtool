@@ -382,9 +382,8 @@ void write_ent(PspLibExport *pExp, FILE *fp){
 		free(nidName);
 	}
 }
-void write_stub_new(const char *szDirectory, PspLibExport *pExp/*, CProcessPrx *pPrx*/){
+void write_stub_new(const char *szDirectory, PspLibExport *pExp, CProcessPrx *pPrx){
 	char szPath[PATH_MAX];
-	FILE *fp;
 	fprintf(stdout,"Library %s\n", pExp->name);
 	if(pExp->v_count != 0){
 		fprintf(stderr, "%s: Stub output does not currently support variables\n", pExp->name);
@@ -394,49 +393,35 @@ void write_stub_new(const char *szDirectory, PspLibExport *pExp/*, CProcessPrx *
 	strcat(szPath, pExp->name);
 	strcat(szPath, ".S");
 
-	fp = fopen(szPath, "w");
-	if(fp != NULL){
-		fprintf(fp, "\t.set noreorder\n\n");
-		fprintf(fp, "#include \"pspimport.s\"\n\n");
+	FILE *fp = fopen(szPath, "w");
+	
+	if(!fp)
+		return fprintf(stderr, "Unable to Open %s\n",szPath),1;
+	
+	fprintf(fp, "\t.set noreorder\n\n");
+	fprintf(fp, "#include \"pspimport.s\"\n\n");
 
-		fprintf(fp, "// Build List\n");
-		fprintf(fp, "// %s_0000.o ", pExp->name);
-		for(int i = 0; i < pExp->f_count; i++){
-			fprintf(fp, "%s_%04d.o ", pExp->name, i + 1);
-		}
-		fprintf(fp, "\n\n");
+	fprintf(fp, "// Build List\n");
+	fprintf(fp, "// %s_0000.o ", pExp->name);
+	for(int i = 0; i < pExp->f_count; i++)
+		fprintf(fp, "%s_%04d.o ", pExp->name, i + 1);
+	fprintf(fp, "\n\n");
 
-		fprintf(fp, "#ifdef F_%s_0000\n", pExp->name);
-		fprintf(fp, "\tIMPORT_START\t\"%s\",0x%08X\n", pExp->name, pExp->stub.flags);
+	fprintf(fp, "#ifdef F_%s_0000\n", pExp->name);
+	fprintf(fp, "\tIMPORT_START\t\"%s\",0x%08X\n", pExp->name, pExp->stub.flags);
+	fprintf(fp, "#endif\n");
+
+	for(int i = 0; i < pExp->f_count; i++){
+		fprintf(fp, "#ifdef F_%s_%04d\n", pExp->name, i + 1);
+		SymbolEntry *pSym = /*pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):*/NULL;
+		if((arg_aliasOutput) && (pSym) && (pSym->alias > 0))
+			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name, strcmp(pSym->name, pExp->funcs[i].name)?pSym->name:pSym->alias[0]);
+		else
+			fprintf(fp, "\tIMPORT_FUNC\t\"%s\",0x%08X,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name);
 		fprintf(fp, "#endif\n");
-
-		for(int i = 0; i < pExp->f_count; i++){
-			SymbolEntry *pSym;
-
-			fprintf(fp, "#ifdef F_%s_%04d\n", pExp->name, i + 1);
-			if(/*pPrx*/0){
-				//pSym = pPrx->GetSymbolEntryFromAddr(pExp->funcs[i].addr);
-			}else{
-				//pSym = NULL;
-			}
-
-			if((arg_aliasOutput) && (pSym) && (pSym->alias > 0)){
-				if(strcmp(pSym->name, pExp->funcs[i].name)){
-					fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", pExp->name, 
-							pExp->funcs[i].nid, pExp->funcs[i].name, pSym->name);
-				}else{
-					fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", pExp->name, 
-							pExp->funcs[i].nid, pExp->funcs[i].name, pSym->alias[0]);
-				}
-			}else{
-				fprintf(fp, "\tIMPORT_FUNC\t\"%s\",0x%08X,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name);
-			}
-
-			fprintf(fp, "#endif\n");
-		}
-			
-		fclose(fp);
 	}
+	fclose(fp);
+	return 0;
 }
 void output_stubs_prx(const char *file/*, CNidMgr *pNids*/){
 	//CProcessPrx prx(arg_dwBase);
@@ -478,14 +463,12 @@ void output_ents(const char *file/*, CNidMgr *pNids*/, FILE *f){
 		}
 	}
 }
-void output_stubs_xml(/*CNidMgr *pNids*/){
-	LibraryEntry *pLib = NULL;
-	PspLibExport *pExp = NULL;
+void output_stubs_xml(CNidMgr *pNids){
 
-	//pLib = pNids->GetLibraries();
-	//pExp = new PspLibExport;
+	LibraryEntry *pLib = pNids->libraries;
+	PspLibExport *pExp;
 
-	while(pLib != NULL){
+	while(pLib){
 		// Convery the LibraryEntry into a valid PspLibExport
 		int i;
 
@@ -500,11 +483,7 @@ void output_stubs_xml(/*CNidMgr *pNids*/){
 			strcpy(pExp->funcs[i].name, pLib->pNids[i].name);
 		}
 
-		if(arg_newstubs){
-			write_stub_new("", pExp/*, NULL*/);
-		}else{
-			write_stub("", pExp/*, NULL*/);
-		}
+		(arg_newstubs?write_stub_new:write_stub)("", pExp, NULL);
 
 		//pLib = pLib->pNext;
 	}

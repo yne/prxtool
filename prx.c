@@ -5,7 +5,6 @@
  * ProcessPrx.C - Implementation of a class to manipulate a PRX
  **************************************************************
 */
-#include "vmem.c"
 
 #define PSP_MODULE_MAX_NAME 28
 #define PSP_LIB_MAX_NAME 128
@@ -14,16 +13,19 @@
 #define PSP_MAX_F_ENTRIES 2000
 #define PSP_MODULE_INFO_NAME ".rodata.sceModuleInfo"
 #define PSP_SYSTEM_EXPORT "syslib"
+
 typedef enum {
 	PSP_ENTRY_FUNC = 0,
 	PSP_ENTRY_VAR = 1
 }PspEntryType;
+
 typedef struct {
 	uint32_t name;
 	uint32_t flags;
 	uint32_t counts;
 	uint32_t exports;
 }PspModuleExport;
+
 #define PSP_IMPORT_BASE_SIZE (5*4)
 typedef struct {
 	uint32_t name;
@@ -33,6 +35,7 @@ typedef struct {
 	uint32_t funcs;
 	uint32_t vars;
 }PspModuleImport;
+
 typedef struct {
 	uint32_t flags;
 	char name[PSP_MODULE_MAX_NAME];
@@ -42,6 +45,7 @@ typedef struct {
 	uint32_t imports;
 	uint32_t imp_end;
 }PspModuleInfo;
+
 typedef struct {
 	char name[PSP_ENTRY_MAX_NAME];
 	uint32_t nid;
@@ -49,6 +53,7 @@ typedef struct {
 	uint32_t addr;
 	uint32_t nid_addr;
 }PspEntry;
+
 typedef struct PspLibImport{
 	struct PspLibImport *prev;
 	struct PspLibImport *next;
@@ -61,6 +66,7 @@ typedef struct PspLibImport{
 	int v_count;
 	char file[PATH_MAX];
 }PspLibImport;
+
 typedef struct PspLibExport{
 	struct PspLibExport *prev;
 	struct PspLibExport *next;
@@ -72,6 +78,7 @@ typedef struct PspLibExport{
 	PspEntry vars[PSP_MAX_V_ENTRIES];
 	int v_count;
 }PspLibExport;
+
 typedef struct{
 	char name[PSP_MODULE_MAX_NAME+1];
 	PspModuleInfo info;
@@ -79,6 +86,7 @@ typedef struct{
 	PspLibExport *exp_head;
 	PspLibImport *imp_head;
 }PspModule;
+
 #define SYMFILE_MAGIC "SYMS"
 typedef struct {
 	char magic[4];
@@ -87,12 +95,15 @@ typedef struct {
 	uint32_t  strstart;
 	uint32_t  strsize;
 }SymfileHeader __attribute__((packed));
+
 typedef struct {
 	uint32_t name;
 	uint32_t addr;
 	uint32_t size;
 }SymfileEntry __attribute__((packed));
 
+#include "vmem.c"
+#include "asm.c"
 
 static const char* g_szRelTypes[16] = {
 	"R_NONE",
@@ -139,7 +150,8 @@ typedef struct{
 	uint32_t m_dwBase;
 	uint32_t m_stubBottom;
 	int m_blXmlDump;
-}PrxCProcessPrx;
+}CProcessPrx;
+
 int PrxLoadSingleImport(PspModuleImport *pImport, uint32_t addr){
 	int blError = 1;
 	int count = 0;
@@ -2240,8 +2252,6 @@ void PrxDumpXML(FILE *fp, const char *disopts){
 	disasmSetSymbols(NULL);
 */
 }
-/*
-SymbolEntry *PrxGetSymbolEntryFromAddr(uint32_t dwAddr){
-	return m_syms[dwAddr];
+SymbolEntry *PrxGetSymbolEntryFromAddr(CProcessPrx *pPrx,uint32_t dwAddr){
+	return NULL;//m_syms[dwAddr];
 }
-*/
