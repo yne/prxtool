@@ -37,17 +37,14 @@ typedef struct{
 	LibraryNid pNids[LIB_NID_MAX];
 }LibraryEntry;
 
-typedef struct{
-	unsigned int nid;
-	const char *name;
-}SyslibEntry;
 
 typedef struct{
+	unsigned libraries_count,functions_count;
 	LibraryEntry *libraries;
 	FunctionType *functions;
-	//LibraryEntry *m_pMasterNids;
 }CNidMgr;
 
+typedef struct{unsigned nid;char *name;}SyslibEntry;
 SyslibEntry g_syslib[] = {
 	{ 0xd3744be0, "module_bootstart" },
 	{ 0xf01d73a7, "module_info" },
@@ -61,10 +58,6 @@ SyslibEntry g_syslib[] = {
 };
 
 #define MASTER_NID_MAPPER "MasterNidMapper"
-
-int NidsFromXml(LibraryEntry *libraries,const char* XMLpath){
-	return 5;
-}
 
 static char *strip_whitesp(char *str){
 	while(isspace((int)*str))
@@ -80,11 +73,11 @@ static char *strip_whitesp(char *str){
 int FuncFromTxt(FunctionType *func,const char* szFilename){
 	FILE *fp = fopen(szFilename, "r");
 	if(!fp)
-		return fprintf(stderr,"Unable to Open %s\n", szFilename);
+		return fprintf(stderr,"Unable to Open \"%s\"\n", szFilename),0;
 	
 	char line[1024];
-	int num=0;
-	while(fgets(line, sizeof(line), fp)){
+	int num;
+	for(num=0; fgets(line, sizeof(line), fp);){
 		char *args,*name,*ret = NULL;
 
 		if(!(name = strip_whitesp(line)))
@@ -96,120 +89,84 @@ int FuncFromTxt(FunctionType *func,const char* szFilename){
 				*ret++ = 0;
 		}
 
-		if((name) && (name[0] != '#')){
+		if(func && name && (name[0] != '#')){
 			memset(&func[num], 0, sizeof(FunctionType));
 			snprintf(func[num].name, FUNCTION_NAME_MAX, "%s", name);
 			if(args)
 				snprintf(func[num].args, FUNCTION_ARGS_MAX, "%s", args);
 			if(ret)
 				snprintf(func[num].ret, FUNCTION_RET_MAX, "%s", ret);
-			fprintf(stdout,"Function: %s %s(%s)\n", func[num].ret, func[num].name, func[num].args);
+			//fprintf(stdout,"Function: %s %s(%s)\n", func[num].ret, func[num].name, func[num].args);
+			num++;
 		}
 	}
 	fclose(fp);
-	return 1;
+	return num;
+}
+
+FunctionType *NidFindFunctionType(CNidMgr *mgr,const char *name){
+	for(unsigned int i = 0; i < mgr->functions_count; i++)
+		if(!strcmp(name, mgr->functions[i].name))
+			return &mgr->functions[i];
+	return NULL;
+}
+int NidsFromXml(LibraryEntry *libraries,const char* szFilename){
+	FILE *fp = fopen(szFilename, "r");
+	if(!fp)
+		return fprintf(stderr,"Unable to Open \"%s\"\n", szFilename),0;
 }
 
 
-/*
 // Search the NID list for a function and return the name 
 const char *NidFindLibName(LibraryEntry *m_pMasterNids,const char *lib, uint32_t nid){
 	const char *pName = NULL;
-	LibraryEntry *pLib;
-
-	if(m_pMasterNids){
-		pLib = m_pMasterNids;
-	}else{
-		pLib = m_pLibHead;
-	}
-
+/*
 	// Very lazy, could be sped up using a hash table 
-	while(pLib != NULL){
-		if((strcmp(lib, pLib->lib_name) == 0) || (m_pMasterNids)){
-			int iNidLoop;
-
-			for(iNidLoop = 0; iNidLoop < pLib->entry_count; iNidLoop++){
-				if(pLib->pNids[iNidLoop].nid == nid){
-					pName = pLib->pNids[iNidLoop].name;
-					fprintf(stdout,"Using %s, nid %08X\n", pName, nid);
-					break;
-				}
-			}
-
-			if(pName != NULL){
-				break;
-			}
-		}
-
-		if(m_pMasterNids) {
-			pLib = NULL;
-		}else{
-			pLib = pLib->pNext;
-		}
-	}
-
-	if(pName == NULL){
-		// First check special case system library stuff 
-		if(strcmp(lib, PSP_SYSTEM_EXPORT) == 0){
-			int size;
-			int i;
-
-			size = sizeof(g_syslib) / sizeof(SyslibEntry);
-			for(i = 0; i < size; i++){
-				if(nid == g_syslib[i].nid){
-					pName = g_syslib[i].name;
-					break;
-				}
-			}
-		}
-
-		if(pName == NULL){
-			COutput::Puts(LEVEL_DEBUG, "Using default name");
-			snprintf(pName, LIB_SYMBOL_NAME_MAX, "%s_%08X", lib?lib:"syslib", nid);
-		}
-	}
-
+	for(LibraryEntry *pLib = m_pMasterNids?m_pMasterNids:m_pLibHead;pLib;pLib = m_pMasterNids?NULL:pLib->pNext)
+		if((strcmp(lib, pLib->lib_name) == 0) || (m_pMasterNids))
+			for(int iNidLoop = 0; iNidLoop < pLib->entry_count; iNidLoop++)
+				if(pLib->pNids[iNidLoop].nid == nid)
+					if((pName = pLib->pNids[iNidLoop].name))
+						return pName;
+	// First check special case system library stuff 
+	if(strcmp(lib, PSP_SYSTEM_EXPORT) == 0)
+		for(int i = 0; i < sizeof(g_syslib) / sizeof(SyslibEntry); i++)
+			if(nid == g_syslib[i].nid)
+				if((pName = g_syslib[i].name))
+					return pName;
+	snprintf(pName, LIB_SYMBOL_NAME_MAX, "%s_%08X", lib?lib:"syslib", nid);
+*/
 	return pName;
 }
 
 // Read the NID data from the XML file 
-const char* NidReadNid(TiXmlElement *pElement, uint32_t &nid){
-	TiXmlHandle nidHandle(pElement);
-	TiXmlText *pNid;
-	TiXmlText *pName;
-	const char* szName;
+const char* NidReadNid(void *pElement, uint32_t *nid){
+//	TiXmlHandle nidHandle(pElement);
+//	TiXmlText *pNid = nidHandle.FirstChild("NID").FirstChild().Text();
+//	TiXmlText *pName = nidHandle.FirstChild("NAME").FirstChild().Text();
+//
+//	if(pNid && pName){
+//		*nid = strtoul(pNid->Value(), NULL, 16);
+//		return pName->Value();
+//	}
 
-	szName = NULL;
-	pNid = nidHandle.FirstChild("NID").FirstChild().Text();
-	pName = nidHandle.FirstChild("NAME").FirstChild().Text();
-
-	if((pNid != NULL) && (pName != NULL)){
-		nid = strtoul(pNid->Value(), NULL, 16);
-		szName = pName->Value();
-	}
-
-	return szName;
+	return NULL;
 }
 
 // Count the number of nids in the current element 
-int NidCountNids(TiXmlElement *pElement, const char *name){
-	TiXmlElement *pIterator;
+int NidCountNids(void *pElement, const char *name){
 	uint32_t nid;
 	int iCount = 0;
-
-	pIterator = pElement;
-	while(pIterator != NULL){
-		if(ReadNid(pIterator, nid) != NULL){
-			iCount++;
-		}
-		pIterator = pIterator->NextSiblingElement(name);
-	}
-
+	
+	//for(TiXmlElement *pIterator = pElement;pIterator;pIterator = pIterator->NextSiblingElement(name))
+	//	if(ReadNid(pIterator, nid))
+	//		iCount++;
 	return iCount;
 }
 
 // Process a library XML element 
-void NidProcessLibrary(TiXmlElement *pLibrary, const char *prx_name, const char *prx){
+void NidProcessLibrary(void *pLibrary, const char *prx_name, const char *prx){
+/*
 	TiXmlHandle libHandle(pLibrary);
 	TiXmlText *elmName;
 	TiXmlText *elmFlags;
@@ -298,91 +255,36 @@ void NidProcessLibrary(TiXmlElement *pLibrary, const char *prx_name, const char 
 
 		// Allocate library memory 
 	}
+*/
 }
 
 // Process a PRXFILE XML element 
-void NidProcessPrxfile(TiXmlElement *pPrxfile){
-	TiXmlHandle prxHandle(pPrxfile);
-	TiXmlElement *elmLibrary;
-	TiXmlText *txtName;
-	TiXmlText *txtPrx;
-	const char *szPrx;
-
-	txtPrx = prxHandle.FirstChild("PRX").FirstChild().Text();
-	txtName = prxHandle.FirstChild("PRXNAME").FirstChild().Text();
-
-	elmLibrary = prxHandle.FirstChild("LIBRARIES").FirstChild("LIBRARY").Element();
-	while(elmLibrary){
-		COutput::Puts(LEVEL_DEBUG, "Found LIBRARY");
-
-		if(txtPrx == NULL){
-			szPrx = "unknown.prx";
-		}else{
-			szPrx = txtPrx->Value();
-		}
-
-		if(txtName != NULL){
-			ProcessLibrary(elmLibrary, txtName->Value(), szPrx);
-		}
-
-		elmLibrary = elmLibrary->NextSiblingElement("LIBRARY");
-	}
+void NidProcessPrxfile(void*pPrxfile){
+//	TiXmlHandle prxHandle(pPrxfile);
+//	TiXmlText *txtName = prxHandle.FirstChild("PRXNAME").FirstChild().Text();
+//	TiXmlText *txtPrx = prxHandle.FirstChild("PRX").FirstChild().Text();
+//	for(TiXmlElement *elmLibrary = prxHandle.FirstChild("LIBRARIES").FirstChild("LIBRARY").Element();elmLibrary;elmLibrary = elmLibrary->NextSiblingElement("LIBRARY"))
+//		if(txtName)
+//			ProcessLibrary(elmLibrary, txtName->Value(), txtPrx?txtPrx->Value():"unknown.prx");
 }
 
 // Add an XML file to the current library list 
 int NidAddXmlFile(const char *szFilename){
-	TiXmlDocument doc(szFilename);
-	int blRet = 0;
-
-	if(doc.LoadFile()){
-		fprintf(stdout,"Loaded XML file %s", szFilename);
-		TiXmlHandle docHandle(&doc);
-		TiXmlElement *elmPrxfile;
-
-		elmPrxfile = docHandle.FirstChild("PSPLIBDOC").FirstChild("PRXFILES").FirstChild("PRXFILE").Element();
-		while(elmPrxfile){
-			COutput::Puts(LEVEL_DEBUG, "Found PRXFILE");
-			ProcessPrxfile(elmPrxfile);
-
-			elmPrxfile = elmPrxfile->NextSiblingElement("PRXFILE");
-		}
-		blRet = 1;
-	}else{
-		fprintf(stderr, "Couldn't load xml file %s\n", szFilename);
-	}
-
-	return blRet;
+//	TiXmlDocument doc(szFilename);
+//	if(doc.LoadFile()){
+//		fprintf(stdout,"Loaded XML file %s", szFilename);
+//		TiXmlHandle docHandle(&doc);
+//		while(TiXmlElement *elmPrxfile = docHandle.FirstChild("PSPLIBDOC").FirstChild("PRXFILES").FirstChild("PRXFILE").Element();elmPrxfile;elmPrxfile = elmPrxfile->NextSiblingElement("PRXFILE"))
+//			ProcessPrxfile(elmPrxfile);
+//		return 1;
+//	}
+	return fprintf(stderr, "Couldn't load xml file %s\n", szFilename),0;
 }
 
-// Find the name of the dependany library for a specified lib 
-const char *NidFindDependancy(const char *lib){
-	LibraryEntry *pLib;
-
-	pLib = m_pLibHead;
-
-	while(pLib != NULL){
-		if(strcmp(pLib->lib_name, lib) == 0){
-			return pLib->prx;
-		}
-
-		pLib = pLib->pNext;
-	}
-
+// Find the name of the dependency library for a specified lib 
+const char *NidFindDependency(const char *lib){
+//	for(LibraryEntry *pLib = m_pLibHead;pLib;pLib = pLib->pNext)
+//		if(strcmp(pLib->lib_name, lib) == 0)
+//			return pLib->prx;
 	return NULL;
 }
-
-FunctionType *NidFindFunctionType(const char *name){
-	FunctionType *ret = NULL;
-
-	for(unsigned int i = 0; i < m_funcMap.size(); i++){
-		FunctionType *p = NULL;
-		p = m_funcMap[i];
-		if((p) && (strcmp(name, p->name) == 0)){
-			ret = p;
-			break;
-		}
-	}
-
-	return ret;
-}
-*/

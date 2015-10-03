@@ -48,10 +48,10 @@ void output_symbols2(ElfSymbol *pSymbols,int iSymCount, FILE*out_fp){
 	}
 }
 void output_symbols(const char *file, FILE *out_fp){
-	//CProcessPrx prx(arg_dwBase);
+	CProcessPrx prx;
 
 	fprintf(stdout, "Loading %s\n", file);
-	if(PrxLoadFromFile(file) == 0){
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load elf file structures");
 	}else{
 		ElfSymbol *pSymbols;
@@ -63,16 +63,16 @@ void output_symbols(const char *file, FILE *out_fp){
 		}
 	}
 }
-void output_disasm(const char *file, FILE *out_fp/*, CNidMgr *nids*/){
-	//CProcessPrx prx(arg_dwBase);
+void output_disasm(const char *file, FILE *out_fp, CNidMgr *nids){
+	CProcessPrx prx;
 	int blRet;
 
 	fprintf(stdout, "Loading %s\n", file);
-	//PrxSetNidMgr(nids);
+	PrxSetNidMgr(&prx, nids);
 	if(arg_loadbin){
-		blRet = PrxLoadFromBinFile(file, arg_database);
+		blRet = PrxLoadFromBinFile(&prx,file, arg_database);
 	}else{
-		blRet = PrxLoadFromFile(file);
+		blRet = PrxLoadFromFile(&prx,file);
 	}
 
 	if(arg_xmlOutput){
@@ -82,32 +82,27 @@ void output_disasm(const char *file, FILE *out_fp/*, CNidMgr *nids*/){
 	if(blRet == 0){
 		fprintf(stderr, "Couldn't load elf file structures");
 	}else{
-		PrxDump(out_fp, arg_disopts);
+		PrxDump(&prx,out_fp, arg_disopts);
 	}
 }
-void output_xmldb(const char *file, FILE *out_fp/*, CNidMgr *nids*/){
-	//CProcessPrx prx(arg_dwBase);
+void output_xmldb(const char *file, FILE *out_fp, CNidMgr *nids){
+	CProcessPrx prx;
 	int blRet;
 
 	fprintf(stdout, "Loading %s\n", file);
-//	PrxSetNidMgr(nids);
-	if(arg_loadbin){
-		blRet = PrxLoadFromBinFile(file, arg_database);
-	}else{
-		blRet = PrxLoadFromFile(file);
-	}
+	PrxSetNidMgr(&prx,nids);
 
-	if(blRet == 0){
-		fprintf(stderr, "Couldn't load elf file structures");
+	if(arg_loadbin?PrxLoadFromBinFile(&prx,file, arg_database):PrxLoadFromFile(&prx,file)){
+		PrxDumpXML(&prx,out_fp, arg_disopts);
 	}else{
-		PrxDumpXML(out_fp, arg_disopts);
+		fprintf(stderr, "Couldn't load elf file structures");
 	}
 }
-void output_mods(const char *file/*, CNidMgr *pNids*/){
-	//CProcessPrx prx(arg_dwBase);
+void output_mods(const char *file, CNidMgr *pNids){
+	CProcessPrx prx;
 
-	//PrxSetNidMgr(pNids);
-	if(PrxLoadFromFile(file) == 0){
+	PrxSetNidMgr(&prx,pNids);
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
 		PspModule pMod;
@@ -144,42 +139,35 @@ void output_mods(const char *file/*, CNidMgr *pNids*/){
 	}
 }
 void output_elf(const char *file, FILE *out_fp){//TODO
-	//CProcessPrx prx(arg_dwBase);
+	CProcessPrx prx;
 
 	fprintf(stdout, "Loading %s\n", file);
-	if(PrxLoadFromFile(file) == 0){
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
-		if(PrxPrxToElf(out_fp) == 0){
+		if(PrxPrxToElf(&prx,out_fp) == 0){
 			fprintf(stderr, "Failed to create a fixed up ELF\n");
 		}
 	}
 }
-void serialize_file(const char *file/*, CSerializePrx *pSer, CNidMgr *pNids*/){
-	//CProcessPrx prx(arg_dwBase);
+void serialize_file(const char *file, CNidMgr *pNids/* CSerializePrx *pSer */){
+	CProcessPrx prx;
 
-	//PrxSetNidMgr(pNids);
+	PrxSetNidMgr(&prx,pNids);
 	fprintf(stdout, "Loading %s\n", file);
-	if(PrxLoadFromFile(file) == 0){
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
 		//PrxSerSerializePrx(prx, arg_iSMask);
 	}
 }
 
-struct ImmEntry{
-	unsigned int addr;
-	unsigned int target;
-	/* Does this entry point to a text section ? */
-	int text;
-};
-
-void output_importexport(const char *file/*, CNidMgr *pNids*/){
-//	CProcessPrx prx(arg_dwBase);
+void output_importexport(const char *file, CNidMgr *pNids){
+	CProcessPrx prx;
 	int iLoop;
 
-//	PrxSetNidMgr(pNids);
-	if(PrxLoadFromFile(file) == 0){
+	PrxSetNidMgr(&prx,pNids);
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
 		PspModule pMod;
@@ -265,11 +253,11 @@ void output_importexport(const char *file/*, CNidMgr *pNids*/){
 	}
 
 }
-void output_deps(const char *file/*, CNidMgr *pNids*/){
-//	CProcessPrx prx(arg_dwBase);
+void output_deps(const char *file, CNidMgr *pNids){
+	CProcessPrx prx;
 
-//	PrxSetNidMgr(pNids);
-	if(PrxLoadFromFile(file) == 0){
+	PrxSetNidMgr(&prx,pNids);
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
 		PspEntries*pHead=NULL;
@@ -277,7 +265,7 @@ void output_deps(const char *file/*, CNidMgr *pNids*/){
 		int i;
 
 		i = 0;
-		fprintf(stdout, "Dependancy list for %s\n", file);
+		fprintf(stdout, "Dependency list for %s\n", file);
 		//PrxGetImports(&pHead);
 		while(pHead){
 			if(strlen(pHead->file) > 0){
@@ -285,7 +273,7 @@ void output_deps(const char *file/*, CNidMgr *pNids*/){
 			}else{
 				snprintf(path, PATH_MAX, "Unknown (%s)", pHead->name);
 			}
-			fprintf(stdout, "Dependancy %d for %s: %s\n", i++, pHead->name, path);
+			fprintf(stdout, "Dependency %d for %s: %s\n", i++, pHead->name, path);
 			//pHead = pHead.next;
 		}
 	}
@@ -309,19 +297,11 @@ void write_stub(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
 		fprintf(fp, "\tSTUB_START\t\"%s\",0x%08X,0x%08X\n", pExp->name, pExp->stub.flags, (pExp->f_count << 16) | 5);
 
 		for(int i = 0; i < pExp->f_count; i++){
-			SymbolEntry *pSym;
-
-			// if(pPrx){
-				// pSym = pPrx->GetSymbolEntryFromAddr(pExp->funcs[i].addr);
-			// }else{
-				// pSym = NULL;
-			// }
-
-			if((arg_aliasOutput) && (pSym) && (pSym->alias > 0)){
+			SymbolEntry *pSym = pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):NULL;
+			if((arg_aliasOutput) && (pSym) && (pSym->alias > 0))
 				fprintf(fp, "\tSTUB_FUNC_WITH_ALIAS\t0x%08X,%s,%s\n", pExp->funcs[i].nid, pExp->funcs[i].name, strcmp(pSym->name, pExp->funcs[i].name)?pSym->name:pSym->alias);
-			}else{
+			else
 				fprintf(fp, "\tSTUB_FUNC\t0x%08X,%s\n", pExp->funcs[i].nid, pExp->funcs[i].name);
-			}
 		}
 
 		fprintf(fp, "\tSTUB_END\n");
@@ -329,32 +309,26 @@ void write_stub(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
 	}
 }
 void write_ent(PspEntries *pExp, FILE *fp){
-	char szPath[PATH_MAX];
+	char szPath[PATH_MAX],nidName[PATH_MAX];
 	fprintf(stdout,"Library %s\n", pExp->name);
-	if(fp != NULL){
-		int i;
-		char *nidName = (char*)malloc(strlen(pExp->name) + 10);
+	if(!fp)return;
+	fprintf(fp, "PSP_EXPORT_START(%s, 0x%04X, 0x%04X)\n", pExp->name, pExp->stub.flags & 0xFFFF, pExp->stub.flags >> 16);
 
-		fprintf(fp, "PSP_EXPORT_START(%s, 0x%04X, 0x%04X)\n", pExp->name, pExp->stub.flags & 0xFFFF, pExp->stub.flags >> 16);
-
-		for(i = 0; i < pExp->f_count; i++){
-			sprintf(nidName, "%s_%08X", pExp->name, pExp->funcs[i].nid);
-			if (strcmp(nidName, pExp->funcs[i].name) == 0)
-				fprintf(fp, "PSP_EXPORT_FUNC_NID(%s, 0x%08X)\n", pExp->funcs[i].name, pExp->funcs[i].nid);
-			else
-				fprintf(fp, "PSP_EXPORT_FUNC_HASH(%s)\n", pExp->funcs[i].name);
-		}
-		for (i = 0; i < pExp->v_count; i++){
-			sprintf(nidName, "%s_%08X", pExp->name, pExp->vars[i].nid);
-			if (strcmp(nidName, pExp->vars[i].name) == 0)
-				fprintf(fp, "PSP_EXPORT_VAR_NID(%s, 0x%08X)\n", pExp->vars[i].name, pExp->vars[i].nid);
-			else
-				fprintf(fp, "PSP_EXPORT_VAR_HASH(%s)\n", pExp->vars[i].name);
-		}
-
-		fprintf(fp, "PSP_EXPORT_END\n\n");
-		free(nidName);
+	for(int i = 0; i < pExp->f_count; i++){
+		snprintf(nidName, sizeof(nidName), "%s_%08X", pExp->name, pExp->funcs[i].nid);
+		if (strcmp(nidName, pExp->funcs[i].name) == 0)
+			fprintf(fp, "PSP_EXPORT_FUNC_NID(%s, 0x%08X)\n", pExp->funcs[i].name, pExp->funcs[i].nid);
+		else
+			fprintf(fp, "PSP_EXPORT_FUNC_HASH(%s)\n", pExp->funcs[i].name);
 	}
+	for (int i = 0; i < pExp->v_count; i++){
+		snprintf(nidName, sizeof(nidName), "%s_%08X", pExp->name, pExp->vars[i].nid);
+		if (strcmp(nidName, pExp->vars[i].name) == 0)
+			fprintf(fp, "PSP_EXPORT_VAR_NID(%s, 0x%08X)\n", pExp->vars[i].name, pExp->vars[i].nid);
+		else
+			fprintf(fp, "PSP_EXPORT_VAR_HASH(%s)\n", pExp->vars[i].name);
+	}
+	fprintf(fp, "PSP_EXPORT_END\n\n");
 }
 int write_stub_new(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
 	char szPath[PATH_MAX];
@@ -397,20 +371,19 @@ int write_stub_new(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx)
 	fclose(fp);
 	return 0;
 }
-void output_stubs_prx(const char *file/*, CNidMgr *pNids*/){
-	//CProcessPrx prx(arg_dwBase);
+void output_stubs_prx(const char *file, CNidMgr *pNids){
+	CProcessPrx prx;
 
-	//PrxSetNidMgr(pNids);
-	if(PrxLoadFromFile(file) == 0){
+	PrxSetNidMgr(&prx,pNids);
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
-		PspEntries*pHead=NULL;
-
-		fprintf(stdout, "Dependancy list for %s\n", file);
-		//PrxGetExports(&pHead);
+		fprintf(stdout, "Dependency list for %s\n", file);
+		PspEntries*pHead=prx.modInfo.exports;
+		//PrxGetExports(&prx,&pHead);
 		while(pHead){
 			if(strcmp(pHead->name, PSP_SYSTEM_EXPORT) != 0){
-				if(arg_action == OUT_PSTUBNEW){
+				if(arg_out_pstubnew){
 					write_stub_new("", pHead, NULL);
 				}else{
 					write_stub("", pHead, NULL);
@@ -420,17 +393,16 @@ void output_stubs_prx(const char *file/*, CNidMgr *pNids*/){
 		}
 	}
 }
-void output_ents(const char *file/*, CNidMgr *pNids*/, FILE *f){
-	//CProcessPrx prx(arg_dwBase);
+void output_ents(const char *file, CNidMgr *pNids, FILE *f){
+	CProcessPrx prx;
 
-	//PrxSetNidMgr(pNids);
-	if(PrxLoadFromFile(file) == 0){
+	PrxSetNidMgr(&prx,pNids);
+	if(PrxLoadFromFile(&prx,file) == 0){
 		fprintf(stderr, "Couldn't load prx file structures\n");
 	}else{
-		PspEntries*pHead;
-
-		fprintf(stdout, "Dependancy list for %s\n", file);
-		//PrxGetExports(&pHead);
+		fprintf(stdout, "Dependency list for %s\n", file);
+		PspEntries*pHead=prx.modInfo.exports;
+		//PrxGetExports(&prx,&pHead);
 		while(pHead){
 			write_ent(pHead, f);
 			//pHead = pHead->next;
@@ -457,7 +429,7 @@ void output_stubs_xml(CNidMgr *pNids){
 			strcpy(pExp->funcs[i].name, pLib->pNids[i].name);
 		}
 
-		if(arg_action==OUT_STUBNEW)
+		if(arg_out_stubnew)
 			write_stub_new("", pExp, NULL);
 		else
 			write_stub("", pExp, NULL);

@@ -1,0 +1,41 @@
+No argument should print the usage
+>>> prxtool
+<<< ...Usage:...
+
+Unknow argument is fatal
+>>> prxtool --dummy
+<<< ... Invalid argument ...
+
+--help argument print usage
+>>> prxtool --help
+<<< ... Invalid argument ...
+
+Parsing numeric argument :
+>>> prxtool --help --inbinoff=8
+<<< ...--inbinoff=8...
+
+Parsing numeric argument (hex):
+>>> prxtool --help --inbinoff=0xF
+<<< ...--inbinoff=15...
+
+No numeric value mean 1:
+>>> prxtool --help --verbose
+<<< ...--verbose=1...
+
+Parsing string argument:
+>>> prxtool --help --serialize=toto
+<<< ...--serialize="toto"...
+
+Parsing string argument with space:
+>>> prxtool --help --serialize="to to"
+<<< ...--serialize="to to"...
+
+Parsing empty string value are skipped:
+>>> prxtool --help --serialize
+<<< ...--serialize="ixrl"...
+
+Default funcfile and nidsfile are keept if exist:
+>>> touch functions.txt psplibdoc.xml
+>>> prxtool --help
+<<< ...--funcs="func...
+<<< ...--xmlfile="psp...
