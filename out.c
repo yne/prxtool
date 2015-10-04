@@ -63,7 +63,7 @@ void output_symbols(const char *file, FILE *out_fp){
 		}
 	}
 }
-void output_disasm(const char *file, FILE *out_fp, CNidMgr *nids){
+void output_disasm(const char *file, FILE *out_fp, DataBase *nids){
 	CProcessPrx prx;
 	int blRet;
 
@@ -85,7 +85,7 @@ void output_disasm(const char *file, FILE *out_fp, CNidMgr *nids){
 		PrxDump(&prx,out_fp, arg_disopts);
 	}
 }
-void output_xmldb(const char *file, FILE *out_fp, CNidMgr *nids){
+void output_xmldb(const char *file, FILE *out_fp, DataBase *nids){
 	CProcessPrx prx;
 	int blRet;
 
@@ -98,7 +98,7 @@ void output_xmldb(const char *file, FILE *out_fp, CNidMgr *nids){
 		fprintf(stderr, "Couldn't load elf file structures");
 	}
 }
-void output_mods(const char *file, CNidMgr *pNids){
+void output_mods(const char *file, DataBase *pNids){
 	CProcessPrx prx;
 
 	PrxSetNidMgr(&prx,pNids);
@@ -150,7 +150,7 @@ void output_elf(const char *file, FILE *out_fp){//TODO
 		}
 	}
 }
-void serialize_file(const char *file, CNidMgr *pNids/* CSerializePrx *pSer */){
+void serialize_file(const char *file, DataBase *pNids/* CSerializePrx *pSer */){
 	CProcessPrx prx;
 
 	PrxSetNidMgr(&prx,pNids);
@@ -161,8 +161,7 @@ void serialize_file(const char *file, CNidMgr *pNids/* CSerializePrx *pSer */){
 		//PrxSerSerializePrx(prx, arg_iSMask);
 	}
 }
-
-void output_importexport(const char *file, CNidMgr *pNids){
+void output_importexport(const char *file, DataBase *pNids){
 	CProcessPrx prx;
 	int iLoop;
 
@@ -253,7 +252,7 @@ void output_importexport(const char *file, CNidMgr *pNids){
 	}
 
 }
-void output_deps(const char *file, CNidMgr *pNids){
+void output_deps(const char *file, DataBase *pNids){
 	CProcessPrx prx;
 
 	PrxSetNidMgr(&prx,pNids);
@@ -371,7 +370,7 @@ int write_stub_new(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx)
 	fclose(fp);
 	return 0;
 }
-void output_stubs_prx(const char *file, CNidMgr *pNids){
+void output_stubs_prx(const char *file, DataBase *pNids){
 	CProcessPrx prx;
 
 	PrxSetNidMgr(&prx,pNids);
@@ -393,7 +392,7 @@ void output_stubs_prx(const char *file, CNidMgr *pNids){
 		}
 	}
 }
-void output_ents(const char *file, CNidMgr *pNids, FILE *f){
+void output_ents(const char *file, DataBase *pNids, FILE *f){
 	CProcessPrx prx;
 
 	PrxSetNidMgr(&prx,pNids);
@@ -409,7 +408,7 @@ void output_ents(const char *file, CNidMgr *pNids, FILE *f){
 		}
 	}
 }
-void output_stubs_xml(CNidMgr *pNids){
+void output_stubs_xml(DataBase *pNids){
 
 	LibraryEntry *pLib = pNids->libraries;
 	PspEntries *pExp;
@@ -425,8 +424,8 @@ void output_stubs_xml(CNidMgr *pNids){
 		pExp->stub.flags = pLib->flags;
 
 		for(i = 0; i < pExp->f_count; i++){
-			pExp->funcs[i].nid = pLib->pNids[i].nid;
-			strcpy(pExp->funcs[i].name, pLib->pNids[i].name);
+			//pExp->funcs[i].nid = pLib->pNids[i].nid;
+			//strcpy(pExp->funcs[i].name, pLib->pNids[i].name);
 		}
 
 		if(arg_out_stubnew)

@@ -14,20 +14,21 @@
 #define PSP_MODULE_INFO_NAME ".rodata.sceModuleInfo"
 #define PSP_SYSTEM_EXPORT "syslib"
 #define PSP_IMPORT_BASE_SIZE (5*4)
+#define SYMFILE_MAGIC "SYMS"
 
 typedef enum {
 	PSP_ENTRY_FUNC = 0,
 	PSP_ENTRY_VAR = 1
 }PspEntryType;
 
-typedef struct {
+typedef struct{
 	uint32_t name;
 	uint32_t flags;
 	uint32_t counts;
 	uint32_t exports;
 }PspModuleExport;
 
-typedef struct {
+typedef struct{
 	uint32_t name;
 	uint32_t flags;
 	uint32_t counts;
@@ -36,7 +37,7 @@ typedef struct {
 	uint32_t vars;
 }PspModuleImport;
 
-typedef struct {
+typedef struct{
 	uint32_t flags;
 	char name[PSP_MODULE_MAX_NAME];
 	uint32_t gp;
@@ -46,7 +47,7 @@ typedef struct {
 	uint32_t imp_end;
 }PspModuleInfo;
 
-typedef struct {
+typedef struct{
 	char name[PSP_ENTRY_MAX_NAME];
 	uint32_t nid;
 	PspEntryType type;
@@ -69,20 +70,19 @@ typedef struct{
 	PspEntries *exports,*imports;
 }PspModule;
 
-#define SYMFILE_MAGIC "SYMS"
-typedef struct __attribute__((packed)) {
+typedef struct{
 	char magic[4];
 	char modname[PSP_MODULE_MAX_NAME];
 	uint32_t  symcount;
 	uint32_t  strstart;
 	uint32_t  strsize;
-}SymfileHeader;
+} __attribute__ ((packed)) SymfileHeader;
 
-typedef struct __attribute__((packed)) {
+typedef struct {
 	uint32_t name;
 	uint32_t addr;
 	uint32_t size;
-}SymfileEntry;
+} __attribute__((packed))SymfileEntry;
 
 #include "vmem.c"
 #include "asm.c"
@@ -119,8 +119,8 @@ static const char* g_szRelTypes[16] = {
 
 typedef struct{
 	PspModule modInfo;
-	CNidMgr   defNidMgr;
-	CNidMgr*  pCurrNidMgr;
+	DataBase   defNidMgr;
+	DataBase*  pCurrNidMgr;
 	Vmem vMem;
 	int blPrxLoaded;
 	ElfReloc  *pElfRelocs;// Pointer to the allocated relocation entries, if available 
@@ -894,47 +894,51 @@ int PrxLoadRelocs(CProcessPrx* prx){
 int PrxLoadFromFile(CProcessPrx* prx,const char *szFilename){
 	int blRet = 0;
 /*
-	if(ElfLoadFromFile(szFilename)){
-		// Do PRX specific stuff 
-		ElfSection *pInfoSect;
-		uint8_t *pData = NULL;
-		uint32_t iAddr = 0;
+	if(!ElfLoadFromFile(szFilename))
+		return 1;
+	// Do PRX specific stuff 
+	ElfSection *pInfoSect;
+	uint8_t *pData = NULL;
+	uint32_t iAddr = 0;
 
-		FreeMemory();
-		prx->blPrxLoaded = 0;
+	FreeMemory();
+	prx->blPrxLoaded = 0;
 
-		prx->vMem = CVirtualMem(prx->pElfBin, prx->iBinSize, prx->iBaseAddr, MEM_LITTLE_ENDIAN);
+	prx->vMem = CVirtualMem(prx->pElfBin, prx->iBinSize, prx->iBaseAddr, MEM_LITTLE_ENDIAN);
 
-		pInfoSect = ElfFindSection(PSP_MODULE_INFO_NAME);
-		if(pInfoSect == NULL){
-			// Get from program headers 
-			if(prx->iPHCount > 0){
-				iAddr = (prx->pElfPrograms[0].iPaddr & 0x7FFFFFFF) - prx->pElfPrograms[0].iOffset;
-				pData = prx->pElfBin + iAddr;
-			}
-		}else{
-			pData = pInfoSect->pData;
-			iAddr = pInfoSect->iAddr;
+	pInfoSect = ElfFindSection(PSP_MODULE_INFO_NAME);
+	if(pInfoSect == NULL){
+		// Get from program headers 
+		if(prx->iPHCount > 0){
+			iAddr = (prx->pElfPrograms[0].iPaddr & 0x7FFFFFFF) - prx->pElfPrograms[0].iOffset;
+			pData = prx->pElfBin + iAddr;
 		}
-
-		if(pData != NULL){
-			if((FillModule(pData, iAddr)) && (LoadRelocs())){
-				prx->blPrxLoaded = 1;
-				if(prx->pElfRelocs){
-				    FixupRelocs(prx->dwBase, prx->imms);
-				}
-				if ((LoadExports()) && (LoadImports()) && (CreateFakeSections())){
-				    fprintf(stdout, "Loaded PRX %s successfully\n", szFilename);
-				    BuildMaps();
-				    blRet = 1;
-				}
-			}
-		}else{
-			fprintf(stderr, "Could not find module section\n");
-		}
+	}else{
+		pData = pInfoSect->pData;
+		iAddr = pInfoSect->iAddr;
 	}
+
+	if(!pData)
+		return fprintf(stderr, "Could not find module section\n"),1;
+	if(!FillModule(pData, iAddr))
+		return fprintf(stderr, "Could not fill module\n"),1;
+	if(!LoadRelocs())
+		return fprintf(stderr, "Could not load relocs\n"),1;
+	prx->blPrxLoaded = 1;
+	if(prx->pElfRelocs){
+		FixupRelocs(prx->dwBase, prx->imms);
+	}
+	if(!LoadExports())
+		return fprintf(stderr, "Could not load exports\n"),1;
+	if(!LoadImports())
+		return fprintf(stderr, "Could not load imports\n"),1;
+	if(!CreateFakeSections())
+		return fprintf(stderr, "Could not create fake sections\n"),1;
+		
+	fprintf(stdout, "Loaded PRX %s successfully\n", szFilename);
+	BuildMaps();
 */
-	return blRet;
+	return 0;
 }
 
 int PrxLoadFromBinFile(CProcessPrx* prx,const char *szFilename, unsigned int dwDataBase){
@@ -1671,7 +1675,7 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 									 fprintf(fp, "%s", s->alias[i].c_str());
 								  }
 								  fprintf(fp, "\n");
-								  t = NidFindFunctionType(prx->pCurrNidMgr,s->name.c_str());
+								  t = db_func_find(prx->pCurrNidMgr,s->name.c_str());
 								  if(t){
 									  fprintf(fp, "; Prototype: %s (*)(%s)\n", t->ret, t->args);
 								  }
@@ -1794,7 +1798,7 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 
 			s = disasmFindSymbol(dwJump);
 			if(s){
-				t = NidFindFunctionType(prx->pCurrNidMgr,s->name.c_str());
+				t = db_func_find(prx->pCurrNidMgr,s->name.c_str());
 				if(t){
 					fprintf(fp, "; Call - %s %s(%s)\n", t->ret, t->name, t->args);
 				}
@@ -1882,7 +1886,7 @@ void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 									 fprintf(fp, "%s", s->alias[i].c_str());
 								  }
 								  fprintf(fp, "\n");
-								  t = NidFindFunctionType(prx->pCurrNidMgr,s->name.c_str());
+								  t = db_func_find(prx->pCurrNidMgr,s->name.c_str());
 								  if(t){
 									  fprintf(fp, "; Prototype: %s (*)(%s)\n", t->ret, t->args);
 								  }
@@ -2191,7 +2195,7 @@ void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
 */
 }
 
-void PrxSetNidMgr(CProcessPrx*prx,CNidMgr* nidMgr){
+void PrxSetNidMgr(CProcessPrx*prx,DataBase* nidMgr){
 	prx->pCurrNidMgr = nidMgr?nidMgr:&prx->defNidMgr;
 }
 

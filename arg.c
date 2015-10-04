@@ -119,8 +119,8 @@ int arg_init(int argc, char **argv){
 	if(stat(arg_funcfile,&s))arg_funcfile = NULL;
 	
 	arg_inFiles = arg_parse(&argc, argv, cmd_options, countof(cmd_options));
-	if(!arg_inFiles || arg_showusage)
-		return arg_usage(cmd_options, countof(cmd_options),cmd_disopts, countof(cmd_disopts));
 	arg_nbFiles = argc;
-	return 0;
+	if(!arg_inFiles || arg_showusage)
+		arg_usage(cmd_options, countof(cmd_options),cmd_disopts, countof(cmd_disopts));
+	return !arg_inFiles;
 }

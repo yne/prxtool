@@ -21,13 +21,13 @@ typedef struct{
 #define CHECK_ADDR(mem, addr, sz) ((mem->data) && (addr >= mem->baseAddr)&&((addr + sz) < (mem->baseAddr + mem->size)))
 #include "endianness.c"
 
-uint8_t  VmemGetU8(Vmem*mem, uint32_t iAddr){
+uint8_t  VmemGetU8  (Vmem*mem, uint32_t iAddr){
 	if(!CHECK_ADDR(mem,iAddr, 1))
 		return fprintf(stdout,"Invalid memory address 0x%08X\n", iAddr),0;
 	return mem->data[iAddr - mem->baseAddr];
 }
 
-uint16_t VmemGetU16(Vmem*mem, uint32_t iAddr){
+uint16_t VmemGetU16 (Vmem*mem, uint32_t iAddr){
 	if(!CHECK_ADDR(mem,iAddr, 2))
 		return fprintf(stdout,"Invalid memory address 0x%08X\n", iAddr),0;
 	if(mem->m_endian == MEM_LITTLE_ENDIAN)
@@ -37,7 +37,7 @@ uint16_t VmemGetU16(Vmem*mem, uint32_t iAddr){
 	return fprintf(stdout,"Invalid endian format\n"),0;
 }
 
-uint32_t VmemGetU32(Vmem*mem, uint32_t iAddr){
+uint32_t VmemGetU32 (Vmem*mem, uint32_t iAddr){
 	if(!CHECK_ADDR(mem,iAddr, 4))
 		return fprintf(stdout,"Invalid memory address 0x%08X\n", iAddr),0;
 	if(mem->m_endian == MEM_LITTLE_ENDIAN)
@@ -47,13 +47,13 @@ uint32_t VmemGetU32(Vmem*mem, uint32_t iAddr){
 	return fprintf(stdout,"Invalid endian format\n"),0;
 }
 
-int8_t   VmemGetS8(Vmem*mem, uint32_t iAddr){
+int8_t   VmemGetS8  (Vmem*mem, uint32_t iAddr){
 	if(!CHECK_ADDR(mem,iAddr, 1))
 		return fprintf(stdout,"Invalid memory address 0x%08X\n", iAddr),0;
 	return mem->data[iAddr - mem->baseAddr];
 }
 
-int16_t  VmemGetS16(Vmem*mem, uint32_t iAddr){
+int16_t  VmemGetS16 (Vmem*mem, uint32_t iAddr){
 	if(!CHECK_ADDR(mem,iAddr, 2))
 		return fprintf(stdout,"Invalid memory address 0x%08X\n", iAddr),0;
 	if(mem->m_endian == MEM_LITTLE_ENDIAN)
@@ -63,7 +63,7 @@ int16_t  VmemGetS16(Vmem*mem, uint32_t iAddr){
 	return fprintf(stdout,"Invalid endian format\n"),0;
 }
 
-int32_t  VmemGetS32(Vmem*mem, uint32_t iAddr){
+int32_t  VmemGetS32 (Vmem*mem, uint32_t iAddr){
 	if(!CHECK_ADDR(mem,iAddr, 4))
 		return fprintf(stdout,"Invalid memory address 0x%08X\n", iAddr),0;
 	if(mem->m_endian == MEM_LITTLE_ENDIAN)
@@ -73,7 +73,7 @@ int32_t  VmemGetS32(Vmem*mem, uint32_t iAddr){
 	return fprintf(stdout,"Invalid endian format\n"),0;
 }
 
-void *   VmemGetPtr(Vmem*mem, uint32_t iAddr){
+void *   VmemGetPtr (Vmem*mem, uint32_t iAddr){
 	if(CHECK_ADDR(mem,iAddr, 1))
 		return fprintf(stdout,"Ptr out of region 0x%08X\n", iAddr),NULL;
 	return &mem->data[iAddr - mem->baseAddr];
@@ -86,7 +86,7 @@ uint32_t VmemGetSize(Vmem*mem, uint32_t iAddr){
 	return mem->size - (iAddr - mem->baseAddr);
 }
 
-uint32_t VmemCopy(Vmem*mem, void *pDest, uint32_t iAddr, uint32_t iSize){
+uint32_t VmemCopy   (Vmem*mem, uint32_t iAddr, void *pDest, uint32_t iSize){
 	uint32_t size = VmemGetSize(mem,iAddr);
 	uint32_t iCopySize = size > iSize ? iSize : size;
 	void *ptr;
