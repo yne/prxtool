@@ -7,10 +7,6 @@
 */
 
 #define PSP_MODULE_MAX_NAME 28
-#define PSP_LIB_MAX_NAME 128
-#define PSP_ENTRY_MAX_NAME 128
-#define PSP_MAX_V_ENTRIES 255
-#define PSP_MAX_F_ENTRIES 2000
 #define PSP_MODULE_INFO_NAME ".rodata.sceModuleInfo"
 #define PSP_SYSTEM_EXPORT "syslib"
 #define PSP_IMPORT_BASE_SIZE (5*4)
@@ -48,7 +44,7 @@ typedef struct{
 }PspModuleInfo;
 
 typedef struct{
-	char name[PSP_ENTRY_MAX_NAME];
+	char name[128];
 	uint32_t nid;
 	PspEntryType type;
 	uint32_t addr;
@@ -56,11 +52,11 @@ typedef struct{
 }PspEntry;
 
 typedef struct{
-	char name[PSP_LIB_MAX_NAME],file[PATH_MAX];
+	char name[128],file[PATH_MAX];
 	uint32_t addr,f_count,v_count;
 	PspModuleImport stub;
 	//PspModuleExport stub;
-	PspEntry funcs[PSP_MAX_F_ENTRIES],vars[PSP_MAX_V_ENTRIES];
+	PspEntry funcs[2000],vars[255];
 }PspEntries;
 
 typedef struct{
@@ -133,140 +129,82 @@ typedef struct{
 }CProcessPrx;
 
 int PrxLoadSingleImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr){
-	int blError = 1;
-	int count = 0;
-	int iLoop;
-	uint32_t nidAddr;
-	uint32_t funcAddr;
-	uint32_t varAddr;
-	PspEntries*pLib;
+	char*pName,*dep,*slash;
+	PspEntries pLib={
+		.addr = addr,
+		.stub.name = LW(pImport->name),
+		.stub.flags = LW(pImport->flags),
+		.stub.counts = LW(pImport->counts),
+		.stub.nids = LW(pImport->nids),
+		.stub.funcs = LW(pImport->funcs),
+		.stub.vars = LW(pImport->vars),
+	};
+	if(!pLib.stub.name)// Shouldn't be zero, although technically it could be 
+		return fprintf(stderr, "Import libraries must have a name"),0;
+	if(!(pName = (char*) VmemGetPtr(&prx->vMem,pLib.stub.name)))
+		return fprintf(stderr, "Invalid memory address for import name (0x%08X)\n", pLib.stub.name),0;
 
-/*
-	if(pLib != NULL){
-		do{
-			memset(pLib, 0, sizeof(PspModuleImport));
-			pLib->addr = addr;
-			pLib->stub.name = LW(pImport->name);
-			pLib->stub.flags = LW(pImport->flags);
-			pLib->stub.counts = LW(pImport->counts);
-			pLib->stub.nids = LW(pImport->nids);
-			pLib->stub.funcs = LW(pImport->funcs);
-			pLib->stub.vars = LW(pImport->vars);
+	strncpy(pLib.name, pName,sizeof(pLib.name));
+	//if((dep = db_nids_findDependency(prx->pCurrNidMgr->libraries,prx->pCurrNidMgr->libraries_count,pName))){
+	//	if((slash = strrchr(dep, '/')))// Remove any path element
+	//		dep = slash + 1;
+	//	strcpy(pLib.file, dep);
+	//}
 
-			if(pLib->stub.name == 0){
-				// Shouldn't be zero, although technically it could be 
-				fprintf(stderr, "Import libraries must have a name");
-				break;
-			}else{
-				char *pName = (char*) VmemGetPtr(pLib->stub.name);
-				const char *dep;
-				if(pName == NULL){
-					fprintf(stderr, "Invalid memory address for import name (0x%08X)\n", pLib->stub.name);
-					break;
-				}
+	fprintf(stdout,"Found import library '%s'\n", pLib.name);
+	fprintf(stdout,"Flags %08X, counts %08X, nids %08X, funcs %08X\n", 
+			pLib.stub.flags, pLib.stub.counts, pLib.stub.nids, pLib.stub.funcs);
 
-				// Should use strncpy I guess 
-				strcpy(pLib->name, pName);
-				dep = prx->pCurrNidMgr->FindDependency(pName);
-				if(dep){
-					const char *slash;
-					
-					// Remove any path element 
-					slash = strrchr(dep, '/');
-					if(slash){
-						dep = slash + 1;
-					}
-					strcpy(pLib->file, dep);
-				}
-			}
+	pLib.v_count = (pLib.stub.counts >> 8) & 0xFF;
+	pLib.f_count = (pLib.stub.counts >> 16) & 0xFFFF;
+	uint32_t nidAddr = pLib.stub.nids;
+	uint32_t funcAddr = pLib.stub.funcs;
+	uint32_t varAddr = pLib.stub.vars;
 
-			fprintf(stdout,"Found import library '%s'\n", pLib->name);
-			fprintf(stdout,"Flags %08X, counts %08X, nids %08X, funcs %08X\n", 
-					pLib->stub.flags, pLib->stub.counts, pLib->stub.nids, pLib->stub.funcs);
+	if(VmemGetSize(&prx->vMem,nidAddr) < (sizeof(uint32_t) * pLib.f_count))
+		return fprintf(stderr, "Not enough space for library import nids"),0;
 
-			pLib->v_count = (pLib->stub.counts >> 8) & 0xFF;
-			pLib->f_count = (pLib->stub.counts >> 16) & 0xFFFF;
-			count = pLib->stub.counts & 0xFF;
-			nidAddr = pLib->stub.nids;
-			funcAddr = pLib->stub.funcs;
-			varAddr = pLib->stub.vars;
+	if(VmemGetSize(&prx->vMem,funcAddr) < (uint32_t) (8 * pLib.f_count))
+		return fprintf(stderr, "Not enough space for library functions"),0;
 
-			if(VmemGetSize(nidAddr) < (sizeof(uint32_t) * pLib->f_count)){
-				fprintf(stderr, "Not enough space for library import nids");
-				break;
-			}
-
-			if(VmemGetSize(funcAddr) < (uint32_t) (8 * pLib->f_count)){
-				fprintf(stderr, "Not enough space for library functions");
-				break;
-			}
-
-			for(iLoop = 0; iLoop < pLib->f_count; iLoop++){
-				pLib->funcs[iLoop].nid = VmemGetU32(nidAddr);
-				strcpy(pLib->funcs[iLoop].name, prx->pCurrNidMgr->FindLibName(pLib->name, pLib->funcs[iLoop].nid));
-				pLib->funcs[iLoop].type = PSP_ENTRY_FUNC;
-				pLib->funcs[iLoop].addr = funcAddr;
-				pLib->funcs[iLoop].nid_addr = nidAddr;
-				fprintf(stdout,"Found import nid:0x%08X func:0x%08X name:%s\n", 
-								pLib->funcs[iLoop].nid, pLib->funcs[iLoop].addr, pLib->funcs[iLoop].name);
-				nidAddr += 4;
-				funcAddr += 8;
-			}
+	for(int iLoop = 0; iLoop < pLib.f_count; iLoop++,nidAddr += 4,funcAddr += 8){
+		pLib.funcs[iLoop].nid = VmemGetU32(&prx->vMem,nidAddr);
+		//strcpy(pLib.funcs[iLoop].name, prx->pCurrNidMgr->FindLibName(pLib.name, pLib.funcs[iLoop].nid));
+		pLib.funcs[iLoop].type = PSP_ENTRY_FUNC;
+		pLib.funcs[iLoop].addr = funcAddr;
+		pLib.funcs[iLoop].nid_addr = nidAddr;
+		fprintf(stdout,"Found import nid:0x%08X func:0x%08X name:%s\n", pLib.funcs[iLoop].nid, pLib.funcs[iLoop].addr, pLib.funcs[iLoop].name);
+	}
+	
+	for(int iLoop = 0; iLoop < pLib.v_count; iLoop++){
+		pLib.vars[iLoop].addr = VmemGetU32(&prx->vMem,varAddr);
+		pLib.vars[iLoop].nid = VmemGetU32(&prx->vMem,varAddr+4);
+		pLib.vars[iLoop].type = PSP_ENTRY_VAR;
+		pLib.vars[iLoop].nid_addr = varAddr+4;
+		//strcpy(pLib.vars[iLoop].name, prx->pCurrNidMgr->FindLibName(pLib.name, pLib.vars[iLoop].nid));
+		fprintf(stdout,"Found variable nid:0x%08X addr:0x%08X name:%s\n",
+				pLib.vars[iLoop].nid, pLib.vars[iLoop].addr, pLib.vars[iLoop].name);
+		uint32_t varFixup = pLib.vars[iLoop].addr;
+		for(uint32_t varData;(varData = VmemGetU32(&prx->vMem,varFixup));varFixup += 4){
+			fprintf(stdout,"Variable Fixup: addr:%08X type:%08X\n", (varData & 0x3FFFFFF) << 2, varData >> 26);
 			
-			for(iLoop = 0; iLoop < pLib->v_count; iLoop++){
-				uint32_t varFixup;
-				uint32_t varData;
-
-				pLib->vars[iLoop].addr = VmemGetU32(varAddr);
-				pLib->vars[iLoop].nid = VmemGetU32(varAddr+4);
-				pLib->vars[iLoop].type = PSP_ENTRY_VAR;
-				pLib->vars[iLoop].nid_addr = varAddr+4;
-				strcpy(pLib->vars[iLoop].name, prx->pCurrNidMgr->FindLibName(pLib->name, pLib->vars[iLoop].nid));
-				fprintf(stdout,"Found variable nid:0x%08X addr:0x%08X name:%s\n",
-						pLib->vars[iLoop].nid, pLib->vars[iLoop].addr, pLib->vars[iLoop].name);
-				varFixup = pLib->vars[iLoop].addr;
-				while((varData = VmemGetU32(varFixup))){
-					fprintf(stdout,"Variable Fixup: addr:%08X type:%08X\n", 
-							(varData & 0x3FFFFFF) << 2, varData >> 26);
-					varFixup += 4;
-				}
-				varAddr += 8;
-			}
-
-			if(prx->modInfo.imports == NULL){
-				pLib->next = NULL;
-				pLib->prev = NULL;
-				prx->modInfo.imports = pLib;
-			}else{
-				// Search for the end of the list
-				PspEntries* pImport;
-
-				pImport = prx->modInfo.imports;
-				while(pImport->next != NULL){
-					pImport = pImport->next;
-				}
-
-				pImport->next = pLib;
-				pLib->prev = pImport;
-				pLib->next = NULL;
-			}
-
-			blError = 0;
 		}
-		while(0);
+		varAddr += 8;
+	}
+
+	if(prx->modInfo.imports){
+		// Search for the end of the list
+		//for(PspEntries* pImport = prx->modInfo.imports;pImport->next;pImport = pImport->next);
+		//pImport->next = pLib;
+		//pLib.prev = pImport;
+		//pLib.next = NULL;
 	}else{
-		fprintf(stderr, "Could not allocate memory for import library");
+		//pLib.next = NULL;
+		//pLib.prev = NULL;
+		//prx->modInfo.imports = pLib;
 	}
 
-	if(blError == 1){
-		count = 0;
-		if(pLib != NULL){
-			delete pLib;
-			pLib = NULL;
-		}
-	}
-*/
-	return count;
+	return pLib.stub.counts & 0xFF;
 }
 
 int PrxLoadImports(CProcessPrx* prx){

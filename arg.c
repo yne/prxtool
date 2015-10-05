@@ -105,7 +105,7 @@ int arg_usage(ArgEntry *entry, int entrycount, ArgDisEntry *disentry, int disent
 			snprintf(argbuf,sizeof(argbuf),"--%s=%i",ent->label,*(int*)ent->argvoid);
 		if(ent->type=='s')
 			snprintf(argbuf,sizeof(argbuf),"--%s=\"%s\"",ent->label,*(char**)(ent->argvoid));
-		fprintf(stdout,"%-*s %s\n",sizeof(argbuf)-1,argbuf, ent->help);
+		fprintf(stdout,"%-*s %s\n",(int)sizeof(argbuf)-1,argbuf, ent->help);
 	}
 	fprintf(stdout, "\nDisassembler Options:\n");
 	for(int i = 0; i < disentrycount; i++)

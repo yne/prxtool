@@ -132,6 +132,7 @@ int main(int argc, char **argv){
 
 	if((arg_outfile) && (out_fp))
 		fclose(out_fp);
-
-	return fprintf(stdout, "Done"),0;
+	
+	fprintf(stdout, "Done");
+	return 0;
 }

@@ -1,11 +1,9 @@
 #include <string.h>
 #include <stdlib.h>
-#define LIB_NAME_MAX 64
-#define LIB_SYMBOL_NAME_MAX 128
 
 typedef struct{
-	char prx_name[LIB_NAME_MAX];
-	char lib_name[LIB_NAME_MAX];
+	char prx_name[64];
+	char lib_name[64];
 	char prx[PATH_MAX];
 	int  flags;
 	int  vcount,fcount;
@@ -13,7 +11,7 @@ typedef struct{
 
 typedef struct{
 	uint32_t nid;
-	char name[LIB_SYMBOL_NAME_MAX];
+	char name[128];
 	LibraryEntry*owner;
 }LibraryNid;
 
@@ -38,12 +36,16 @@ char*db_nids_trim_xml(char*str){
 	if(end)*end=0;
 	return beg?beg+1:str;
 }
+
 void db_nids_print(LibraryEntry *lib, LibraryNid *nids,int nids_count){
 	printf("[%s:%s] %s %08X (%i var & %i func)\n",lib->prx,lib->prx_name,lib->lib_name,lib->flags,lib->vcount,lib->fcount);
 	for(int i=0;i<nids_count;i++)
 		if(nids[i].owner==lib)
 			printf("	%08X %s\n",nids[i].nid,nids[i].name);
 }
+
+// get function name by Nid
+
 int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* szFilename){
 	FILE *fp = fopen(szFilename, "r");
 	if(!fp)
