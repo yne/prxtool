@@ -37,14 +37,26 @@ char*db_nids_trim_xml(char*str){
 	return beg?beg+1:str;
 }
 
-void db_nids_print(LibraryEntry *lib, LibraryNid *nids,int nids_count){
-	printf("[%s:%s] %s %08X (%i var & %i func)\n",lib->prx,lib->prx_name,lib->lib_name,lib->flags,lib->vcount,lib->fcount);
+void db_nids_print(LibraryEntry *library, LibraryNid *nids,int nids_count){
+	printf("[%s:%s] %s %08X (%i var & %i func)\n",library->prx,library->prx_name,library->lib_name,library->flags,library->vcount,library->fcount);
 	for(int i=0;i<nids_count;i++)
-		if(nids[i].owner==lib)
+		if(nids[i].owner == library)
 			printf("	%08X %s\n",nids[i].nid,nids[i].name);
 }
 
-// get function name by Nid
+// find a function name by owner name + nid
+char* db_nids_getFunctionName(LibraryNid * nids, unsigned nids_length,char*lib_name, uint32_t nid){
+	for(int i=0;i<nids_length;i++)
+		if((nids[i].nid == nid) && !strcmp(nids[i].owner->lib_name,lib_name))
+			return nids[i].name;
+	return NULL;
+}
+char* db_nids_findPrxByLibName(LibraryEntry * libs, unsigned libraries_count,char*lib_name){
+	for(int i=0;i<libraries_count;i++)
+		if(!strcmp(libs[i].lib_name,lib_name))
+			return libs[i].prx;
+	return NULL;
+}
 
 int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* szFilename){
 	FILE *fp = fopen(szFilename, "r");
