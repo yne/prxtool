@@ -130,7 +130,7 @@ typedef struct{
 	int blXmlDump;
 }CProcessPrx;
 
-int PrxLoadSingleImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr){
+int PrxLoadImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr){
 	char*pName,*dep,*slash;
 	PspEntries pLib={
 		.addr = addr,
@@ -185,7 +185,7 @@ int PrxLoadSingleImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr
 			fprintf(stdout,"Variable Fixup: addr:%08X type:%08X\n", (varData & 0x3FFFFFF) << 2, varData >> 26);
 		
 	}
-
+	//append module imports to the global symbole list
 	if(prx->modInfo.imports){
 		// Search for the end of the list
 		//for(PspEntries* pImport = prx->modInfo.imports;pImport->next;pImport = pImport->next);
@@ -202,39 +202,12 @@ int PrxLoadSingleImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr
 }
 
 int PrxLoadImports(CProcessPrx* prx){
-	int blRet = 1;
-	uint32_t imp_base;
-	uint32_t imp_end;
-/*
-
-	assert(prx->modInfo.imports == NULL);
-
-	imp_base = prx->modInfo.info.imports;
-	imp_end =  prx->modInfo.info.imp_end;
-
-	if(imp_base != 0){
-		while((imp_end - imp_base) >= PSP_IMPORT_BASE_SIZE){
-			uint32_t count;
-			PspModuleImport *pImport;
-
-			pImport = (PspModuleImport*) VmemGetPtr(imp_base);
-
-			if(pImport != NULL){
-				count = LoadSingleImport(pImport, imp_base);
-				if(count > 0){
-					imp_base += (count * sizeof(uint32_t));
-				}else{
-					blRet = 0;
-					break;
-				}
-			}else{
-				blRet = 0;
-				break;
-			}
-		}
-	}
-*/
-	return blRet;
+	PspModuleInfo*i=&prx->modInfo.info;
+	uint32_t count;void*ptr;
+	for(uint32_t base = i->imports;i->imports && (i->imp_end - base) >= PSP_IMPORT_BASE_SIZE;base += (count * sizeof(uint32_t)))
+		if(!(ptr=VmemGetPtr(&prx->vMem,base)) || !(count = PrxLoadImport(prx, ptr, base)))
+			return 0;
+	return 1;
 }
 
 int PrxLoadSingleExport(CProcessPrx* prx,PspModuleExport *pExport, uint32_t addr){
