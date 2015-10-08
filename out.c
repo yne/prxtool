@@ -101,7 +101,7 @@ int output_mods(const char *file, DataBase *pNids){
 	PspModule pMod;
 	//PrxGetModuleInfo(&pMod);
 	fprintf(stdout, "Module information\n");
-	fprintf(stdout, "Name:    %s\n", pMod.name);
+	fprintf(stdout, "Name:    %s\n", pMod.info.name);
 	fprintf(stdout, "Attrib:  %04X\n", pMod.info.flags & 0xFFFF);
 	fprintf(stdout, "Version: %d.%d\n", (pMod.info.flags >> 24) & 0xFF, (pMod.info.flags >> 16) & 0xFF);
 	fprintf(stdout, "GP:      %08X\n", pMod.info.gp);
@@ -149,7 +149,7 @@ int output_importexport(const char *file, DataBase *pNids){
 	PspModule pMod;
 	//PrxGetModuleInfo(&pMod);
 	fprintf(stdout, "Module information\n");
-	fprintf(stdout, "Name:    %s\n", pMod.name);
+	fprintf(stdout, "Name:    %s\n", pMod.info.name);
 	fprintf(stdout, "Attrib:  %04X\n", pMod.info.flags & 0xFFFF);
 	fprintf(stdout, "Version: %d.%d\n", (pMod.info.flags >> 24) & 0xFF, (pMod.info.flags >> 16) & 0xFF);
 	fprintf(stdout, "GP:      %08X\n", pMod.info.gp);
@@ -344,7 +344,7 @@ int output_stubs_prx(const char *file, DataBase *pNids){
 	fprintf(stdout, "Dependency list for%s\n", file);
 	
 	//PrxGetExports(&prx,&pHead);
-	for(PspEntries*pHead=prx.modInfo.exports;pHead;/*pHead = pHead->next*/){
+	for(PspEntries*pHead=prx.module.exports;pHead;/*pHead = pHead->next*/){
 		if(strcmp(pHead->name, PSP_SYSTEM_EXPORT)){
 			if(arg_out_pstubnew)
 				write_stub_new("", pHead, NULL);
@@ -364,7 +364,7 @@ int output_ents(const char *file, DataBase *pNids, FILE *f){
 	fprintf(stdout, "Dependency list for%s\n", file);
 	
 	//PrxGetExports(&prx,&pHead);
-	for(PspEntries*pHead=prx.modInfo.exports;pHead;/*pHead = pHead->next*/)
+	for(PspEntries*pHead=prx.module.exports;pHead;/*pHead = pHead->next*/)
 		write_ent(pHead, f);
 }
 

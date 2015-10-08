@@ -62,7 +62,6 @@ typedef struct{
 }PspEntries;
 
 typedef struct{
-	char name[PSP_MODULE_MAX_NAME+1];
 	PspModuleInfo info;
 	uint32_t addr;
 	PspEntries *exports,*imports;
@@ -70,7 +69,7 @@ typedef struct{
 
 typedef struct{
 	char magic[4];
-	char modname[PSP_MODULE_MAX_NAME];
+	char modname[sizeof(((PspModuleInfo){}).name)];
 	uint32_t  symcount;
 	uint32_t  strstart;
 	uint32_t  strsize;
@@ -116,7 +115,8 @@ static const char* g_szRelTypes[16] = {
 #define MINIMUM_STRING 4
 
 typedef struct{
-	PspModule modInfo;
+	ElfCProcessElf elf;
+	PspModule  module;
 	DataBase   defNidMgr;
 	DataBase*  pCurrNidMgr;
 	Vmem vMem;
@@ -185,24 +185,24 @@ int PrxLoadImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr){
 			fprintf(stdout,"Variable Fixup: addr:%08X type:%08X\n", (varData & 0x3FFFFFF) << 2, varData >> 26);
 		
 	}
-	//append module imports to the global symbole list
-	if(prx->modInfo.imports){
+	//append module imports to the global symbol list
+	if(prx->module.imports){
 		// Search for the end of the list
-		//for(PspEntries* pImport = prx->modInfo.imports;pImport->next;pImport = pImport->next);
+		//for(PspEntries* pImport = prx->module.imports;pImport->next;pImport = pImport->next);
 		//pImport->next = pLib;
 		//pLib.prev = pImport;
 		//pLib.next = NULL;
 	}else{
 		//pLib.next = NULL;
 		//pLib.prev = NULL;
-		//prx->modInfo.imports = pLib;
+		//prx->module.imports = pLib;
 	}
 
 	return pLib.stub.counts & 0xFF;
 }
 
 int PrxLoadImports(CProcessPrx* prx){
-	PspModuleInfo*i=&prx->modInfo.info;
+	PspModuleInfo*i=&prx->module.info;
 	uint32_t count;void*ptr;
 	for(uint32_t base = i->imports;i->imports && (i->imp_end - base) >= PSP_IMPORT_BASE_SIZE;base += (count * sizeof(uint32_t)))
 		if(!(ptr=VmemGetPtr(&prx->vMem,base)) || !(count = PrxLoadImport(prx, ptr, base)))
@@ -210,7 +210,7 @@ int PrxLoadImports(CProcessPrx* prx){
 	return 1;
 }
 
-int PrxLoadSingleExport(CProcessPrx* prx,PspModuleExport *pExport, uint32_t addr){
+int PrxLoadExport(CProcessPrx* prx,PspModuleExport *pExport, uint32_t addr){
 	int blError = 1;
 	int count = 0;
 	int iLoop;
@@ -281,15 +281,15 @@ int PrxLoadSingleExport(CProcessPrx* prx,PspModuleExport *pExport, uint32_t addr
 				expAddr += 4;
 			}
 
-			if(prx->modInfo.exports == NULL){
+			if(prx->module.exports == NULL){
 				pLib->next = NULL;
 				pLib->prev = NULL;
-				prx->modInfo.exports = pLib;
+				prx->module.exports = pLib;
 			}else{
 				// Search for the end of the list
 				PspEntries* pExport;
 
-				pExport = prx->modInfo.exports;
+				pExport = prx->module.exports;
 				while(pExport->next != NULL){
 					pExport = pExport->next;
 				}
@@ -323,10 +323,10 @@ int PrxLoadExports(CProcessPrx* prx){
 	uint32_t exp_base;
 	uint32_t exp_end;
 /*
-	assert(prx->modInfo.exports == NULL);
+	assert(prx->module.exports == NULL);
 
-	exp_base = prx->modInfo.info.exports;
-	exp_end =  prx->modInfo.info.exp_end;
+	exp_base = prx->module.info.exports;
+	exp_end =  prx->module.info.exp_end;
 	if(exp_base != 0){
 		while((exp_end - exp_base) >= sizeof(PspModuleExport)){
 			uint32_t count;
@@ -352,203 +352,153 @@ int PrxLoadExports(CProcessPrx* prx){
 	return blRet;
 }
 
-int PrxFillModule(CProcessPrx* prx,uint8_t *pData, uint32_t iAddr){
-	int blRet = 0;
-/*
-	if(pData != NULL){
-		PspModuleInfo *pModInfo;
-
-		pModInfo = (PspModuleInfo*) pData;
-		memcpy(prx->modInfo.name, pModInfo->name, PSP_MODULE_MAX_NAME);
-		prx->modInfo.name[PSP_MODULE_MAX_NAME] = 0;
-		prx->modInfo.addr = iAddr;
-		memcpy(&prx->modInfo.info, pModInfo, sizeof(PspModuleInfo));
-		prx->modInfo.info.flags = LW(prx->modInfo.info.flags);
-		prx->modInfo.info.gp = LW(prx->modInfo.info.gp);
-		prx->modInfo.info.exports = LW(prx->modInfo.info.exports);
-		prx->modInfo.info.exp_end = LW(prx->modInfo.info.exp_end);
-		prx->modInfo.info.imports = LW(prx->modInfo.info.imports);
-		prx->modInfo.info.imp_end = LW(prx->modInfo.info.imp_end);
-		prx->stubBottom = prx->modInfo.info.exports - 4; // ".lib.ent.top"
-		fprintf(stdout,"Stub bottom 0x%08X\n", prx->stubBottom);
-		blRet = 1;
-
-		if(COutput::GetDebug()){
-			COutput::Puts(LEVEL_DEBUG, "Module Info:");
-			fprintf(stdout,"Name: %s\n", prx->modInfo.name);
-			fprintf(stdout,"Addr: 0x%08X\n", prx->modInfo.addr);
-			fprintf(stdout,"Flags: 0x%08X\n", prx->modInfo.info.flags);
-			fprintf(stdout,"GP: 0x%08X\n", prx->modInfo.info.gp);
-			fprintf(stdout,"Exports: 0x%08X, Exp_end 0x%08X\n", prx->modInfo.info.exports, prx->modInfo.info.exp_end);
-			fprintf(stdout,"Imports: 0x%08X, Imp_end 0x%08X\n", prx->modInfo.info.imports, prx->modInfo.info.imp_end);
+int PrxFillModule(CProcessPrx* prx,PspModuleInfo *pData, uint32_t iAddr){
+	if(!pData)
+		return 0;
+	prx->module=(PspModule){
+		.addr=iAddr,
+		.info={
+			.flags   = LW((*pData).flags),
+			.gp      = LW((*pData).gp),
+			.exports = LW((*pData).exports),
+			.exp_end = LW((*pData).exp_end),
+			.imports = LW((*pData).imports),
+			.imp_end = LW((*pData).imp_end),
 		}
-	}
-*/
-	return blRet;
+	};
+	prx->stubBottom   = prx->module.info.exports - 4; // ".lib.ent.top"
+	fprintf(stdout,"Stub bottom 0x%08X\n", prx->stubBottom);
+
+	fprintf(stdout,"Module Info:\n"
+		"Name: %s\nAddr: 0x%08X\nFlags: 0x%08X\nGP: 0x%08X\n"
+		"Exports: 0x%08X...0x%08X\nImports: 0x%08X...0x%08X\n",
+		prx->module.info.name, prx->module.addr, prx->module.info.flags, prx->module.info.gp,
+		prx->module.info.exports, prx->module.info.exp_end, prx->module.info.imports, prx->module.info.imp_end);
+	return 1;
 }
 
 int PrxCreateFakeSections(CProcessPrx* prx){
 	// If we have no section headers let's build some fake sections 
-	/*
-	if(prx->iSHCount == 0){
-		if(prx->iPHCount < 3){
-			fprintf(stderr, "Invalid number of program headers for newstyle PRX (%d)\n", 
-					prx->iPHCount);
-			return 0;
-		}
+	if(!prx->elf.m_iSHCount)
+		return 1;
+	if(prx->elf.m_iPHCount < 3)
+		return fprintf(stderr, "Not enough program headers (%d<3)\n", prx->elf.m_iPHCount),0;
 
-		if (prx->pElfPrograms[2].iType == PT_PRXRELOC) {
-			prx->iSHCount = 6;
-		} else {
-			prx->iSHCount = 5;
-		}
+	prx->elf.m_iSHCount = prx->elf.m_pElfPrograms[2].iType == PT_PRXRELOC?6:5;
+	prx->elf.m_pElfSections[0]=(ElfSection){};
+	prx->elf.m_pElfSections[1]=(ElfSection){
+		.iType = SHT_PROGBITS,
+		.iFlags = SHF_ALLOC | SHF_EXECINSTR,
+		.iAddr = prx->elf.m_pElfPrograms[0].iVaddr,
+		.pData = prx->elf.m_pElf + prx->elf.m_pElfPrograms[0].iOffset,
+		.iSize = prx->stubBottom,
+		.szName= ".text",
+	};
+	prx->elf.m_pElfSections[2]=(ElfSection){
+	.iType = SHT_PROGBITS,
+	.iFlags = SHF_ALLOC,
+	.iAddr = prx->stubBottom,
+	.pData = prx->elf.m_pElf + prx->elf.m_pElfPrograms[0].iOffset + prx->stubBottom,
+	.iSize = prx->elf.m_pElfPrograms[0].iMemsz - prx->stubBottom,
+	.szName=".rodata",
+	};
+	prx->elf.m_pElfSections[3]=(ElfSection){
+		.iType = SHT_PROGBITS,
+		.iFlags = SHF_ALLOC | SHF_WRITE,
+		.iAddr = prx->elf.m_pElfPrograms[1].iVaddr,
+		.pData = prx->elf.m_pElf + prx->elf.m_pElfPrograms[1].iOffset,
+		.iSize = prx->elf.m_pElfPrograms[1].iFilesz,
+		.szName= ".data",
+	};
+	prx->elf.m_pElfSections[4]=(ElfSection){
+		.iType = SHT_NOBITS,
+		.iFlags = SHF_ALLOC | SHF_WRITE,
+		.iAddr = prx->elf.m_pElfPrograms[1].iVaddr + prx->elf.m_pElfPrograms[1].iFilesz,
+		.pData = prx->elf.m_pElf + prx->elf.m_pElfPrograms[1].iOffset + prx->elf.m_pElfPrograms[1].iFilesz,
+		.iSize = prx->elf.m_pElfPrograms[1].iMemsz - prx->elf.m_pElfPrograms[1].iFilesz,
+		.szName= ".bss",
+	};
+	prx->elf.m_pElfSections[5]=prx->elf.m_pElfPrograms[2].iType == PT_PRXRELOC?(ElfSection){
+		.iType = SHT_PRXRELOC,
+		.iFlags = 0,
+		.iAddr = 0,
+		.pData = prx->elf.m_pElf + prx->elf.m_pElfPrograms[2].iOffset,
+		.iSize = prx->elf.m_pElfPrograms[2].iFilesz,
+		.iInfo = 1,// Bind to section 1, not that is matters 
+		.szName= ".reloc",
+	}:(ElfSection){};
 
-		SAFE_ALLOC(prx->pElfSections, ElfSection[prx->iSHCount]);
-		if(prx->pElfSections == NULL){
-			return 0;
-		}
-
-		memset(prx->pElfSections, 0, sizeof(ElfSection) * prx->iSHCount);
-
-		prx->pElfSections[1].iType = SHT_PROGBITS;
-		prx->pElfSections[1].iFlags = SHF_ALLOC | SHF_EXECINSTR;
-		prx->pElfSections[1].iAddr = prx->pElfPrograms[0].iVaddr;
-		prx->pElfSections[1].pData = prx->pElf + prx->pElfPrograms[0].iOffset;
-		prx->pElfSections[1].iSize = prx->stubBottom;
-		strcpy(prx->pElfSections[1].szName, ".text");
-
-		prx->pElfSections[2].iType = SHT_PROGBITS;
-		prx->pElfSections[2].iFlags = SHF_ALLOC;
-		prx->pElfSections[2].iAddr = prx->stubBottom;
-		prx->pElfSections[2].pData = prx->pElf + prx->pElfPrograms[0].iOffset + prx->stubBottom;
-		prx->pElfSections[2].iSize = prx->pElfPrograms[0].iMemsz - prx->stubBottom;
-		strcpy(prx->pElfSections[2].szName, ".rodata");
-
-		prx->pElfSections[3].iType = SHT_PROGBITS;
-		prx->pElfSections[3].iFlags = SHF_ALLOC | SHF_WRITE;
-		prx->pElfSections[3].iAddr = prx->pElfPrograms[1].iVaddr;
-		prx->pElfSections[3].pData = prx->pElf + prx->pElfPrograms[1].iOffset;
-		prx->pElfSections[3].iSize = prx->pElfPrograms[1].iFilesz;
-		strcpy(prx->pElfSections[3].szName, ".data");
-
-
-		prx->pElfSections[4].iType = SHT_NOBITS;
-		prx->pElfSections[4].iFlags = SHF_ALLOC | SHF_WRITE;
-		prx->pElfSections[4].iAddr = prx->pElfPrograms[1].iVaddr + prx->pElfPrograms[1].iFilesz;
-		prx->pElfSections[4].pData = prx->pElf + prx->pElfPrograms[1].iOffset + prx->pElfPrograms[1].iFilesz;
-		prx->pElfSections[4].iSize = prx->pElfPrograms[1].iMemsz - prx->pElfPrograms[1].iFilesz;
-		strcpy(prx->pElfSections[4].szName, ".bss");
-
-		if (prx->pElfPrograms[2].iType == PT_PRXRELOC) {
-			prx->pElfSections[5].iType = SHT_PRXRELOC;
-			prx->pElfSections[5].iFlags = 0;
-			prx->pElfSections[5].iAddr = 0;
-			prx->pElfSections[5].pData = prx->pElf + prx->pElfPrograms[2].iOffset;
-			prx->pElfSections[5].iSize = prx->pElfPrograms[2].iFilesz;
-			// Bind to section 1, not that is matters 
-			prx->pElfSections[5].iInfo = 1;
-			strcpy(prx->pElfSections[5].szName, ".reloc");
-		}
-
-		if(COutput::GetDebug()){
-			ElfDumpSections();
-		}
-	}
-	*/
+	//ElfDumpSections();
 	return 1;
 }
 
 int PrxCountRelocs(CProcessPrx* prx){
-	int  iLoop;
 	int  iRelocCount = 0;
 
 /*
-	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
+	for(int iLoop = 0; iLoop < prx->iSHCount; iLoop++){
 		if((prx->pElfSections[iLoop].iType == SHT_PRXRELOC) || (prx->pElfSections[iLoop].iType == SHT_REL)){
-			if(prx->pElfSections[iLoop].iSize % sizeof(Elf32_Rel)){
-				fprintf(stdout,"Relocation section invalid\n");
-			}
-
+			if(prx->pElfSections[iLoop].iSize % sizeof(Elf32_Rel))
+				fprintf(stdout,"Invalid Relocation section #%i\n",iLoop);
 			iRelocCount += prx->pElfSections[iLoop].iSize / sizeof(Elf32_Rel);
 		}
 	}
 
-	for(iLoop = 0; iLoop < prx->iPHCount; iLoop++){
-		if(prx->pElfPrograms[iLoop].iType == PT_PRXRELOC2) {
-			uint8_t *block1, block1s, part1s;
-			uint8_t *block2, block2s, part2s;
-			uint8_t *pos, *end;
-			
-			if (prx->pElfPrograms[iLoop].pData[0] != 0 ||
-			    prx->pElfPrograms[iLoop].pData[1] != 0) {
-				fprintf(stdout,"Should start with 0x00 0x00\n");
-				return 0;
-			}
-			
-			part1s = prx->pElfPrograms[iLoop].pData[2];
-			part2s = prx->pElfPrograms[iLoop].pData[3];
-			block1s = prx->pElfPrograms[iLoop].pData[4];
-			block1 = &prx->pElfPrograms[iLoop].pData[4];
-			block2 = block1 + block1s;
-			block2s = block2[0];
-			pos = block2 + block2s;
-			end = &prx->pElfPrograms[iLoop].pData[prx->pElfPrograms[iLoop].iFilesz];
-			while (pos < end) {
-				uint32_t cmd, part1, temp;
-				cmd = pos[0] | (pos[1] << 16);
-				pos += 2;
-				temp = (cmd << (16 - part1s)) & 0xFFFF;
-				temp = (temp >> (16 - part1s)) & 0xFFFF;
-				if (temp >= block1s) {
-					fprintf(stdout,"Invalid cmd1 index\n");
-					return 0;
+	for(int iLoop = 0; iLoop < prx->iPHCount; iLoop++){
+		if(prx->pElfPrograms[iLoop].iType != PT_PRXRELOC2)
+			continue;
+		uint8_t *block1, block1s, part1s;
+		uint8_t *block2, block2s, part2s;
+		uint8_t *pos, *end;
+		
+		if (prx->pElfPrograms[iLoop].pData[0] || prx->pElfPrograms[iLoop].pData[1])
+			return fprintf(stdout,"Should start with 0x00 0x00\n"),0;
+		
+		part1s = prx->pElfPrograms[iLoop].pData[2];
+		part2s = prx->pElfPrograms[iLoop].pData[3];
+		block1s = prx->pElfPrograms[iLoop].pData[4];
+		block1 = &prx->pElfPrograms[iLoop].pData[4];
+		block2 = block1 + block1s;
+		block2s = block2[0];
+		pos = block2 + block2s;
+		end = &prx->pElfPrograms[iLoop].pData[prx->pElfPrograms[iLoop].iFilesz];
+		while (pos < end) {
+			uint32_t cmd, part1, temp;
+			cmd = pos[0] | (pos[1] << 16);
+			pos += 2;
+			temp = (cmd << (16 - part1s)) & 0xFFFF;
+			temp = (temp >> (16 - part1s)) & 0xFFFF;
+			if (temp >= block1s)
+				return fprintf(stdout,"Invalid cmd1 index\n"),0;
+			part1 = block1[temp];
+			if (!(part1 & 0x01) && ( part1 & 0x06 ) == 4 )
+				pos += 4;
+			else {
+				switch (part1 & 0x06) {
+				case 2:pos += 2;break;
+				case 4:pos += 4;break;
 				}
-				part1 = block1[temp];
-            if ( (part1 & 0x01) == 0 ) {
-               if ( ( part1 & 0x06 ) == 4 ) {
-                  pos += 4;
-               }
-            }
-            else {
-               switch (part1 & 0x06) {
-               case 2:
-						pos += 2;
-                  break;
-               case 4:
-						pos += 4;
-                  break;
-					}
-               switch (part1 & 0x38) {
-               case 0x10:
-                  pos += 2;
-                  break;
-               case 0x18:
-                  pos += 4;
-                  break;
-               }
+				switch (part1 & 0x38) {
+				case 0x10:pos += 2;break;
+				case 0x18:pos += 4;break;
 				}
-				iRelocCount++;
 			}
+			iRelocCount++;
 		}
 	}
-
-
-	fprintf(stdout,"Relocation entries %d\n", iRelocCount);
 	*/
+	fprintf(stdout,"Relocation entries %d\n", iRelocCount);
 	return iRelocCount;
 }
 
 int PrxLoadRelocsTypeA(CProcessPrx* prx,struct ElfReloc *pRelocs){
-	int i, count;
-	const Elf32_Rel *reloc;
-	int  iLoop, iCurrRel = 0;
+	int iCurrRel = 0;
 /*
 	
-	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
+	for(int iLoop = 0; iLoop < prx->iSHCount; iLoop++){
 		if((prx->pElfSections[iLoop].iType == SHT_PRXRELOC) || (prx->pElfSections[iLoop].iType == SHT_REL)){
-			count = prx->pElfSections[iLoop].iSize / sizeof(Elf32_Rel);
-			reloc = (const Elf32_Rel *) prx->pElfSections[iLoop].pData;
-			for(i = 0; i < count; i++) {    
+			const Elf32_Rel *reloc = (const Elf32_Rel *) prx->pElfSections[iLoop].pData;
+			for(int i = 0; i < prx->pElfSections[iLoop].iSize / sizeof(Elf32_Rel); i++) {    
 				pRelocs[iCurrRel].secname = prx->pElfSections[iLoop].szName;
 				pRelocs[iCurrRel].base = 0;
 				pRelocs[iCurrRel].type = ELF32_R_TYPE(LW(reloc->r_info));
@@ -825,7 +775,7 @@ int PrxLoadFromFile(CProcessPrx* prx,const char *szFilename){
 
 	if(!pData)
 		return fprintf(stderr, "Could not find module section\n"),1;
-	if(!FillModule(pData, iAddr))
+	if(!PrxFillModule((PspModuleInfo *)pData, iAddr))
 		return fprintf(stderr, "Could not fill module\n"),1;
 	if(!LoadRelocs())
 		return fprintf(stderr, "Could not load relocs\n"),1;
@@ -1067,8 +1017,8 @@ void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 			}
 		}
 	}else{
-		pExport = prx->modInfo.exports;
-		pImport = prx->modInfo.imports;
+		pExport = prx->module.exports;
+		pImport = prx->module.imports;
 
 		while(pExport != NULL){
 			if(pExport->f_count > 0){
@@ -2067,9 +2017,9 @@ void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
 		slash++;
 	}
 
-	fprintf(fp, "<prx file=\"%s\" name=\"%s\">\n", slash, prx->modInfo.name);
+	fprintf(fp, "<prx file=\"%s\" name=\"%s\">\n", slash, prx->module.name);
 	fprintf(fp, "<exports>\n");
-	pExport = prx->modInfo.exports;
+	pExport = prx->module.exports;
 	while(pExport){
 		fprintf(fp, "<lib name=\"%s\">\n", pExport->name);
 		for(int i = 0; i < pExport->f_count; i++){
