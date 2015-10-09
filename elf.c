@@ -190,7 +190,7 @@ int ElfLoadPrograms(ElfCProcessElf*elf){
 }
 
 int ElfLoadSymbols(ElfCProcessElf*elf){
-	fprintf(stdout,"Size %d\n", sizeof(Elf32_Sym));
+	fprintf(stdout,"Size %zu\n", sizeof(Elf32_Sym));
 	ElfSection *pSymtab = ElfFindSection(elf, ".symtab");
 	if((!pSymtab) || (pSymtab->iType != SHT_SYMTAB) || (!pSymtab->pData))
 		return 0;
@@ -276,8 +276,7 @@ int ElfBuildBinaryImage(ElfCProcessElf*elf){
 
 	// Find the maximum and minimum addresses
 	if(elf->elfHeader.iType == ELF_MIPS_TYPE){
-		fprintf(stdout,"Using Section Headers for binary image\n");
-		// If ELF type then use the sections
+		fprintf(stdout,"ELF type => use section headers\n");
 		for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
 			ElfSection* pSection = &elf->pElfSections[iLoop];
 			if(pSection->iFlags & SHF_ALLOC){
@@ -289,26 +288,25 @@ int ElfBuildBinaryImage(ElfCProcessElf*elf){
 					iMinAddr = pSection->iAddr;
 			}
 		}
-		fprintf(stdout,"Min Address %08X, Max Address %08X, Max Size %d\n", iMinAddr, iMaxAddr, iMaxSize);
+		fprintf(stdout,"Min Address %08X, Max Address %08X, Max Size %ld\n", iMinAddr, iMaxAddr, iMaxSize);
 		if(iMinAddr != 0xFFFFFFFF){
 			elf->iBinSize = iMaxAddr - iMinAddr + iMaxSize;
 			elf->pElfBin[elf->iBinSize];
 			if(elf->pElfBin != NULL){
 				memset(elf->pElfBin, 0, elf->iBinSize);
-				for(iLoop = 0; iLoop < elf->iSHCount; iLoop++){
+				for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
 					ElfSection* pSection = &elf->pElfSections[iLoop];
 					if((pSection->iFlags & SHF_ALLOC) && (pSection->iType != SHT_NOBITS) && (pSection->pData != NULL)){
 						memcpy(elf->pElfBin + (pSection->iAddr - iMinAddr), pSection->pData, pSection->iSize);
 					}
 				}
 				elf->iBaseAddr = iMinAddr;
-				blRet = 1;
+				return 1;
 			}
 		}
 	}else{
-		// If PRX use the program headers
-		fprintf(stdout,"Using Program Headers for binary image\n");
-		for(iLoop = 0; iLoop < elf->iPHCount; iLoop++){
+		fprintf(stdout,"PRX type => using program headers\n");
+		for(int iLoop = 0; iLoop < elf->iPHCount; iLoop++){
 			ElfProgram* pProgram = &elf->pElfPrograms[iLoop];
 			if(pProgram->iType == PT_LOAD){
 				if((pProgram->iVaddr + pProgram->iMemsz) > iMaxAddr)
@@ -323,7 +321,7 @@ int ElfBuildBinaryImage(ElfCProcessElf*elf){
 			elf->pElfBin[elf->iBinSize];
 			if(elf->pElfBin != NULL){
 				memset(elf->pElfBin, 0, elf->iBinSize);
-				for(iLoop = 0; iLoop < elf->iPHCount; iLoop++){
+				for(int iLoop = 0; iLoop < elf->iPHCount; iLoop++){
 					ElfProgram* pProgram = &elf->pElfPrograms[iLoop];
 					if((pProgram->iType == PT_LOAD) && (pProgram->pData != NULL)){
 						fprintf(stdout,"Loading program %d 0x%08X\n", iLoop, pProgram->iType);
@@ -331,12 +329,12 @@ int ElfBuildBinaryImage(ElfCProcessElf*elf){
 					}
 				}
 				elf->iBaseAddr = iMinAddr;
-				blRet = 1;
+				return 1;
 			}
 		}
 	}
 
-	return blRet;
+	return 0;
 }
 
 int ElfLoadSections(ElfCProcessElf*elf){
