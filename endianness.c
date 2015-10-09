@@ -5,8 +5,8 @@
  * types.h - Definition of basic cross platform types.
  ***************************************************************/
 
-#ifndef __TYPES_H__
-#define __TYPES_H__
+#ifndef __ENDIANNESS_C__
+#define __ENDIANNESS_C__
 
 #ifdef WORDS_BIGENDIAN
 uint32_t lw_le(uint32_t data){
