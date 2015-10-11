@@ -166,7 +166,7 @@ int elf_buildFakeSections(ElfCtx*elf, unsigned int dwDataBase){
 	return 1;
 }
 
-uint8_t* elf_loadFileToMem(ElfCtx*elf, const char *filename, uint32_t *lSize){
+uint8_t* elf_loadFileToMem(ElfCtx*elf, const char *filename, size_t *lSize){
 	FILE *fp = fopen(filename, "rb");
 	if(!fp)
 		return fprintf(stderr, "Could not open file %s\n", filename),NULL;

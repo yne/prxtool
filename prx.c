@@ -382,7 +382,7 @@ int PrxCreateFakeSections(CProcessPrx* prx){
 	if(!prx->elf.iSHCount)
 		return 1;
 	if(prx->elf.iPHCount < 3)
-		return fprintf(stderr, "Not enough program headers (%d<3)\n", prx->elf.iPHCount),0;
+		return fprintf(stderr, "Not enough program headers (%zu<3)\n", prx->elf.iPHCount),0;
 
 	prx->elf.iSHCount = prx->elf.programs[2].type == PT_PRXRELOC?6:5;
 	prx->elf.sections[0]=(ElfSection){};
