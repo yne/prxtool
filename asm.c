@@ -142,9 +142,9 @@ typedef struct{
 	SymbolType type;
 	size_t size;
 	char name[32];
-	uint32_t*refs;
-	char* alias;
-	PspEntries * exported,* imported;
+	uint32_t*refs;//TODO
+	char alias[32][32];//TODO
+	PspEntries*exported,*imported;//TODO
 }SymbolEntry;
 
 typedef struct{
