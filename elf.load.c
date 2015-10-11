@@ -1,13 +1,13 @@
 // Build a binary image of the elf file in memory
 // Really should build the binary image from program headers if no section headers
 
-int ElfBuildBinaryImageFromSection(ElfCProcessElf*elf){
+int elf_buildBinaryImageFromSection(ElfCtx*elf){
 	uint32_t iMinAddr = ~0,iMaxAddr = 0;
 	long iMaxSize = 0;
 	
 	for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
-		ElfSection* pSection = &elf->pElfSections[iLoop];
-		if(pSection->iFlags & SHF_ALLOC){
+		ElfSection* pSection = &elf->sections[iLoop];
+		if(pSection->flags & SHF_ALLOC){
 			if((pSection->iAddr + pSection->iSize) > (iMaxAddr + iMaxSize)){
 				iMaxAddr = pSection->iAddr;
 				iMaxSize = pSection->iSize;
@@ -23,24 +23,24 @@ int ElfBuildBinaryImageFromSection(ElfCProcessElf*elf){
 		if(elf->pElfBin){
 			memset(elf->pElfBin, 0, elf->iBinSize);
 			for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
-				ElfSection* pSection = &elf->pElfSections[iLoop];
-				if((pSection->iFlags & SHF_ALLOC) && (pSection->iType != SHT_NOBITS) && (pSection->pData)){
+				ElfSection* pSection = &elf->sections[iLoop];
+				if((pSection->flags & SHF_ALLOC) && (pSection->type != SHT_NOBITS) && (pSection->pData)){
 					memcpy(elf->pElfBin + (pSection->iAddr - iMinAddr), pSection->pData, pSection->iSize);
 				}
 			}
-			elf->iBaseAddr = iMinAddr;
+			elf->baseAddr = iMinAddr;
 			return 1;
 		}
 	}
 	return 0;
 }
 
-int ElfBuildBinaryImageFromProgram(ElfCProcessElf*elf){
+int elf_buildBinaryImageFromProgram(ElfCtx*elf){
 	uint32_t iMinAddr = ~0,iMaxAddr = 0;
 	
 	for(int iLoop = 0; iLoop < elf->iPHCount; iLoop++){
-		ElfProgram* pProgram = &elf->pElfPrograms[iLoop];
-		if(pProgram->iType == PT_LOAD){
+		ElfProgram* pProgram = &elf->programs[iLoop];
+		if(pProgram->type == PT_LOAD){
 			if((pProgram->iVaddr + pProgram->iMemsz) > iMaxAddr)
 				iMaxAddr = pProgram->iVaddr + pProgram->iMemsz;
 			if(pProgram->iVaddr < iMinAddr)
@@ -54,37 +54,37 @@ int ElfBuildBinaryImageFromProgram(ElfCProcessElf*elf){
 		if(elf->pElfBin != NULL){
 			memset(elf->pElfBin, 0, elf->iBinSize);
 			for(int iLoop = 0; iLoop < elf->iPHCount; iLoop++){
-				ElfProgram* pProgram = &elf->pElfPrograms[iLoop];
-				if((pProgram->iType == PT_LOAD) && (pProgram->pData != NULL)){
-					fprintf(stdout,"Loading program %d 0x%08X\n", iLoop, pProgram->iType);
+				ElfProgram* pProgram = &elf->programs[iLoop];
+				if((pProgram->type == PT_LOAD) && (pProgram->pData != NULL)){
+					fprintf(stdout,"Loading program %d 0x%08X\n", iLoop, pProgram->type);
 					memcpy(elf->pElfBin + (pProgram->iVaddr - iMinAddr), pProgram->pData, pProgram->iFilesz);
 				}
 			}
-			elf->iBaseAddr = iMinAddr;
+			elf->baseAddr = iMinAddr;
 			return 1;
 		}
 	}
 	return 0;
 }
 
-int ElfBuildBinaryImage(ElfCProcessElf*elf){
+int elf_buildBinaryImage(ElfCtx*elf){
 	assert(elf->pElf);
 	assert(elf->iElfSize);
 	assert(!elf->pElfBin);
 	assert(!elf->iBinSize);
 
-	if (elf->elfHeader.iType == ELF_MIPS_TYPE)
-		return ElfBuildBinaryImageFromSection(elf);
+	if (elf->header.type == ELF_MIPS_TYPE)
+		return elf_buildBinaryImageFromSection(elf);
 	else
-		return ElfBuildBinaryImageFromProgram(elf);
+		return elf_buildBinaryImageFromProgram(elf);
 }
 
-int ElfFillSection(ElfCProcessElf*elf, ElfSection* elfSect, const Elf32_Shdr *pSection){
+int elf_fillSection(ElfCtx*elf, ElfSection* elfSect, const Elf32_Shdr *pSection){
 	assert(pSection);
 	
 	elfSect->iName       = LW(pSection->sh_name);
-	elfSect->iType       = LW(pSection->sh_type);
-	elfSect->iFlags      = LW(pSection->sh_flags);
+	elfSect->type       = LW(pSection->sh_type);
+	elfSect->flags      = LW(pSection->sh_flags);
 	elfSect->iAddr       = LW(pSection->sh_addr);
 	elfSect->iOffset     = LW(pSection->sh_offset);
 	elfSect->iSize       = LW(pSection->sh_size);
@@ -96,51 +96,51 @@ int ElfFillSection(ElfCProcessElf*elf, ElfSection* elfSect, const Elf32_Shdr *pS
 	elfSect->pRelocs     = NULL;
 	elfSect->iRelocCount = 0;
 
-	if(((elfSect->pData + elfSect->iSize) > (elf->pElf + elf->iElfSize)) && (elfSect->iType != SHT_NOBITS))
+	if(((elfSect->pData + elfSect->iSize) > (elf->pElf + elf->iElfSize)) && (elfSect->type != SHT_NOBITS))
 		return fprintf(stderr, "Section too big for file"),elfSect->pData = NULL,0;
 
 	return 1;
 }
 
-int ElfValidateHeader(ElfCProcessElf*elf){
+int elf_validateHeader(ElfCtx*elf){
 	assert(elf->pElf);
 	assert(elf->iElfSize);
 	
 	Elf32_Ehdr* eh = (Elf32_Ehdr*) elf->pElf;
-	elf->elfHeader=(ElfHeader){
-		.iMagic     = LW(eh->e_magic),
+	elf->header=(ElfHeader){
+		.magic     = LW(eh->e_magic),
 		.iClass     =    eh->e_class,
 		.iData      =    eh->e_data,
 		.iIdver     =    eh->e_idver,
-		.iType      = LH(eh->e_type),
+		.type      = LH(eh->e_type),
 		.iMachine   = LH(eh->e_machine),
 		.iVersion   = LW(eh->e_version),
-		.iEntry     = LW(eh->e_entry),
-		.iPhoff     = LW(eh->e_phoff),
-		.iShoff     = LW(eh->e_shoff),
-		.iFlags     = LW(eh->e_flags),
-		.iEhsize    = LH(eh->e_ehsize),
-		.iPhentsize = LH(eh->e_phentsize),
-		.iPhnum     = LH(eh->e_phnum),
-		.iShentsize = LH(eh->e_shentsize),
-		.iShnum     = LH(eh->e_shnum),
-		.iShstrndx  = LH(eh->e_shstrndx),
+		.entry     = LW(eh->e_entry),
+		.PHoff     = LW(eh->e_phoff),
+		.SHoff     = LW(eh->e_shoff),
+		.flags     = LW(eh->e_flags),
+		.EHsize    = LH(eh->e_ehsize),
+		.PHentSize = LH(eh->e_phentsize),
+		.PHnum     = LH(eh->e_phnum),
+		.SHentSize = LH(eh->e_shentsize),
+		.SHnum     = LH(eh->e_shnum),
+		.SHstrIndex  = LH(eh->e_shstrndx),
 	};
-	if(elf->elfHeader.iMagic != ELF_MAGIC)
+	if(elf->header.magic != ELF_MAGIC)
 		return fprintf(stderr, "Magic value incorrect (not an ELF?)"),0;
 
-	uint32_t iPhend = (elf->elfHeader.iPhnum > 0)?elf->elfHeader.iPhoff + (elf->elfHeader.iPhentsize * elf->elfHeader.iPhnum):0;
-	uint32_t iShend = (elf->elfHeader.iShnum > 0)?elf->elfHeader.iShoff + (elf->elfHeader.iShentsize * elf->elfHeader.iShnum):0;
+	uint32_t iPhend = (elf->header.PHnum > 0)?elf->header.PHoff + (elf->header.PHentSize * elf->header.PHnum):0;
+	uint32_t iShend = (elf->header.SHnum > 0)?elf->header.SHoff + (elf->header.SHentSize * elf->header.SHnum):0;
 
 	if(iPhend > elf->iElfSize)
 		return fprintf(stderr, "Program header information invalid"),0;
 	if(iShend > elf->iElfSize)
 		return fprintf(stderr, "Sections header information invalid"),0;
-	//ElfDumpHeader(elf);
+	//elf_dumpHeader(elf);
 	return 0;
 }
 
-int ElfBuildFakeSections(ElfCProcessElf*elf, unsigned int dwDataBase){
+int elf_buildFakeSections(ElfCtx*elf, unsigned int dwDataBase){
 	int blRet = 0;
 
 	if(dwDataBase >= elf->iBinSize){
@@ -149,27 +149,27 @@ int ElfBuildFakeSections(ElfCProcessElf*elf, unsigned int dwDataBase){
 		dwDataBase = 0;
 	}
 
-	elf->pElfSections[3];
+	elf->sections[3];
 	elf->iSHCount = 3;
-	memset(elf->pElfSections, 0, sizeof(ElfSection) * 3);
-	elf->pElfSections[1].iType = SHT_PROGBITS;
-	elf->pElfSections[1].iFlags = SHF_ALLOC | SHF_EXECINSTR;
-	elf->pElfSections[1].pData = elf->pElfBin;
-	elf->pElfSections[1].iSize = dwDataBase>0?dwDataBase:elf->iBinSize;
-	strcpy(elf->pElfSections[1].szName, ".text");
-	elf->pElfSections[2].iType = SHT_PROGBITS;
-	elf->pElfSections[2].iFlags = SHF_ALLOC;
-	elf->pElfSections[2].iAddr = dwDataBase;
-	elf->pElfSections[2].pData = elf->pElfBin + dwDataBase;
-	elf->pElfSections[2].iSize = dwDataBase>0?elf->iBinSize - dwDataBase:elf->iBinSize;
-	strcpy(elf->pElfSections[2].szName, ".data");
+	memset(elf->sections, 0, sizeof(ElfSection) * 3);
+	elf->sections[1].type = SHT_PROGBITS;
+	elf->sections[1].flags = SHF_ALLOC | SHF_EXECINSTR;
+	elf->sections[1].pData = elf->pElfBin;
+	elf->sections[1].iSize = dwDataBase>0?dwDataBase:elf->iBinSize;
+	strcpy(elf->sections[1].szName, ".text");
+	elf->sections[2].type = SHT_PROGBITS;
+	elf->sections[2].flags = SHF_ALLOC;
+	elf->sections[2].iAddr = dwDataBase;
+	elf->sections[2].pData = elf->pElfBin + dwDataBase;
+	elf->sections[2].iSize = dwDataBase>0?elf->iBinSize - dwDataBase:elf->iBinSize;
+	strcpy(elf->sections[2].szName, ".data");
 	return 1;
 }
 
-uint8_t* ElfLoadFileToMem(ElfCProcessElf*elf, const char *szFilename, uint32_t *lSize){
-	FILE *fp = fopen(szFilename, "rb");
+uint8_t* elf_loadFileToMem(ElfCtx*elf, const char *filename, uint32_t *lSize){
+	FILE *fp = fopen(filename, "rb");
 	if(!fp)
-		return fprintf(stderr, "Could not open file %s\n", szFilename),NULL;
+		return fprintf(stderr, "Could not open file %s\n", filename),NULL;
 	fseek(fp, 0, SEEK_END);
 	*lSize = ftell(fp);
 	rewind(fp);
@@ -184,111 +184,111 @@ uint8_t* ElfLoadFileToMem(ElfCProcessElf*elf, const char *szFilename, uint32_t *
 	return NULL;//pData;
 }
 
-int ElfLoadPrograms(ElfCProcessElf*elf){
-	if((!elf->elfHeader.iPhoff) || (!elf->elfHeader.iPhnum) || (!elf->elfHeader.iPhentsize))
+int elf_loadPrograms(ElfCtx*elf){
+	if((!elf->header.PHoff) || (!elf->header.PHnum) || (!elf->header.PHentSize))
 		return 0;
-	uint8_t *pData = elf->pElf + elf->elfHeader.iPhoff;
-	elf->pElfPrograms[elf->elfHeader.iPhnum];
-	if(!elf->pElfPrograms)
+	uint8_t *pData = elf->pElf + elf->header.PHoff;
+	elf->programs[elf->header.PHnum];
+	if(!elf->programs)
 		return 0;
-	elf->iPHCount = elf->elfHeader.iPhnum;
+	elf->iPHCount = elf->header.PHnum;
 	fprintf(stdout, "Program Headers:");
 	for(uint32_t iLoop = 0; iLoop < (uint32_t) elf->iPHCount; iLoop++){
 		Elf32_Phdr *pHeader = (Elf32_Phdr *) pData;
-		elf->pElfPrograms[iLoop].iType   = LW(pHeader->p_type);
-		elf->pElfPrograms[iLoop].iOffset = LW(pHeader->p_offset);
-		elf->pElfPrograms[iLoop].iVaddr  = LW(pHeader->p_vaddr);
-		elf->pElfPrograms[iLoop].iPaddr  = LW(pHeader->p_paddr);
-		elf->pElfPrograms[iLoop].iFilesz = LW(pHeader->p_filesz);
-		elf->pElfPrograms[iLoop].iMemsz  = LW(pHeader->p_memsz);
-		elf->pElfPrograms[iLoop].iFlags  = LW(pHeader->p_flags);
-		elf->pElfPrograms[iLoop].iAlign  = LW(pHeader->p_align);
-		elf->pElfPrograms[iLoop].pData   = elf->pElf + elf->pElfPrograms[iLoop].iOffset;
-		pData += elf->elfHeader.iPhentsize;
+		elf->programs[iLoop].type   = LW(pHeader->p_type);
+		elf->programs[iLoop].iOffset = LW(pHeader->p_offset);
+		elf->programs[iLoop].iVaddr  = LW(pHeader->p_vaddr);
+		elf->programs[iLoop].iPaddr  = LW(pHeader->p_paddr);
+		elf->programs[iLoop].iFilesz = LW(pHeader->p_filesz);
+		elf->programs[iLoop].iMemsz  = LW(pHeader->p_memsz);
+		elf->programs[iLoop].flags  = LW(pHeader->p_flags);
+		elf->programs[iLoop].iAlign  = LW(pHeader->p_align);
+		elf->programs[iLoop].pData   = elf->pElf + elf->programs[iLoop].iOffset;
+		pData += elf->header.PHentSize;
 	}
-	ElfDumpPrograms(elf);
+	elf_dumpPrograms(elf);
 	return 1;
 }
 
-int ElfLoadSymbols(ElfCProcessElf*elf){
+int elf_loadSymbols(ElfCtx*elf){
 	fprintf(stdout,"Size %zu\n", sizeof(Elf32_Sym));
-	ElfSection *pSymtab = ElfFindSection(elf, ".symtab");
-	if((!pSymtab) || (pSymtab->iType != SHT_SYMTAB) || (!pSymtab->pData))
+	ElfSection *pSymtab = elf_findSection(elf, ".symtab");
+	if((!pSymtab) || (pSymtab->type != SHT_SYMTAB) || (!pSymtab->pData))
 		return 0;
 	uint32_t symidx = pSymtab->iLink;
-	elf->iSymCount = pSymtab->iSize / sizeof(Elf32_Sym);
-	elf->pElfSymbols[elf->iSymCount];
+	elf->symbolsCount = pSymtab->iSize / sizeof(Elf32_Sym);
+	elf->symbols[elf->symbolsCount];
 	
 	Elf32_Sym *pSym = (Elf32_Sym*) pSymtab->pData;
-	for(int iLoop = 0; iLoop < elf->iSymCount; iLoop++){
-		elf->pElfSymbols[iLoop].name    = LW(pSym[iLoop].st_name);
-		elf->pElfSymbols[iLoop].symname = ElfGetSymbolName(elf, elf->pElfSymbols[iLoop].name, symidx);
-		elf->pElfSymbols[iLoop].value   = LW(pSym[iLoop].st_value);
-		elf->pElfSymbols[iLoop].size    = LW(pSym[iLoop].st_size);
-		elf->pElfSymbols[iLoop].info    = pSym[iLoop].st_info;
-		elf->pElfSymbols[iLoop].other   = pSym[iLoop].st_other;
-		elf->pElfSymbols[iLoop].shndx   = LH(pSym[iLoop].st_shndx);
+	for(int iLoop = 0; iLoop < elf->symbolsCount; iLoop++){
+		elf->symbols[iLoop].name    = LW(pSym[iLoop].st_name);
+		elf->symbols[iLoop].symname = elf_getSymbolName(elf, elf->symbols[iLoop].name, symidx);
+		elf->symbols[iLoop].value   = LW(pSym[iLoop].st_value);
+		elf->symbols[iLoop].size    = LW(pSym[iLoop].st_size);
+		elf->symbols[iLoop].info    = pSym[iLoop].st_info;
+		elf->symbols[iLoop].other   = pSym[iLoop].st_other;
+		elf->symbols[iLoop].shndx   = LH(pSym[iLoop].st_shndx);
 	}
-	ElfDumpSymbols(elf);
+	elf_dumpSymbols(elf);
 	return 0;
 }
 
-int ElfLoadSections(ElfCProcessElf*elf){
+int elf_loadSections(ElfCtx*elf){
 	int found = 1;
 
 	assert(elf->pElf);
 
-	if((!elf->elfHeader.iShoff) || (!elf->elfHeader.iShnum) || (!elf->elfHeader.iShentsize))
+	if((!elf->header.SHoff) || (!elf->header.SHnum) || (!elf->header.SHentSize))
 		return 1;
-	elf->pElfSections[elf->elfHeader.iShnum];
-	elf->iSHCount = elf->elfHeader.iShnum;
-	memset(elf->pElfSections, 0, sizeof(ElfSection) * elf->iSHCount);
-	uint8_t *pData = elf->pElf + elf->elfHeader.iShoff;
+	elf->sections[elf->header.SHnum];
+	elf->iSHCount = elf->header.SHnum;
+	memset(elf->sections, 0, sizeof(ElfSection) * elf->iSHCount);
+	uint8_t *pData = elf->pElf + elf->header.SHoff;
 
 	for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
-		if(!ElfFillSection(elf, &elf->pElfSections[iLoop], (Elf32_Shdr*) pData)){
+		if(!elf_fillSection(elf, &elf->sections[iLoop], (Elf32_Shdr*) pData)){
 			found = 0;
 			break;
 		}
-		pData += elf->elfHeader.iShentsize;
+		pData += elf->header.SHentSize;
 	}
 
-	if((elf->elfHeader.iShstrndx > 0) && (elf->elfHeader.iShstrndx < (uint32_t) elf->iSHCount)){
-		if(elf->pElfSections[elf->elfHeader.iShstrndx].iType == SHT_STRTAB){
-			//elf->pElfStrtab = &elf->pElfSections[elf->elfHeader.iShstrndx];
+	if((elf->header.SHstrIndex > 0) && (elf->header.SHstrIndex < (uint32_t) elf->iSHCount)){
+		if(elf->sections[elf->header.SHstrIndex].type == SHT_STRTAB){
+			//elf->strtab = &elf->sections[elf->header.SHstrIndex];
 		}
 	}
 
 	if(found){
 		// If we found a string table let's run through the sections fixing up names
-		if(elf->pElfStrtab != NULL){
+		if(elf->strtab != NULL){
 			for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
-				strncpy(elf->pElfSections[iLoop].szName, 
-						(char *) (elf->pElfStrtab->pData + elf->pElfSections[iLoop].iName), ELF_SECT_MAX_NAME - 1);
-				elf->pElfSections[iLoop].szName[ELF_SECT_MAX_NAME-1] = 0;
+				strncpy(elf->sections[iLoop].szName, 
+						(char *) (elf->strtab->pData + elf->sections[iLoop].iName), ELF_SECT_MAX_NAME - 1);
+				elf->sections[iLoop].szName[ELF_SECT_MAX_NAME-1] = 0;
 			}
 		}
-		ElfDumpSections(elf);
+		elf_dumpSections(elf);
 	}
 	return 0;
 }
 
-int ElfLoadFromFile(ElfCProcessElf*elf, const char *szFilename){
-	elf->pElf = ElfLoadFileToMem(elf, szFilename, &elf->iElfSize);
-	if(!elf->pElf || !ElfValidateHeader(elf) || !ElfLoadPrograms(elf) || !ElfLoadSections(elf) || !ElfLoadSymbols(elf) || !ElfBuildBinaryImage(elf))
+int elf_loadFromFile(ElfCtx*elf, const char *filename){
+	elf->pElf = elf_loadFileToMem(elf, filename, &elf->iElfSize);
+	if(!elf->pElf || !elf_validateHeader(elf) || !elf_loadPrograms(elf) || !elf_loadSections(elf) || !elf_loadSymbols(elf) || !elf_buildBinaryImage(elf))
 		return 0;
-	strncpy(elf->szFilename, szFilename, PATH_MAX-1);
-	elf->szFilename[PATH_MAX-1] = 0;
+	strncpy(elf->filename, filename, PATH_MAX-1);
+	elf->filename[PATH_MAX-1] = 0;
 	elf->blElfLoaded = 1;
 
 	return 1;
 }
 
-int ElfLoadFromBinFile(ElfCProcessElf*elf, const char *szFilename, unsigned int dwDataBase){
-	if(!(elf->pElfBin = ElfLoadFileToMem(elf, szFilename, &elf->iBinSize)) || (!ElfBuildFakeSections(elf, dwDataBase)))
+int elf_loadFromBinFile(ElfCtx*elf, const char *filename, unsigned int dwDataBase){
+	if(!(elf->pElfBin = elf_loadFileToMem(elf, filename, &elf->iBinSize)) || (!elf_buildFakeSections(elf, dwDataBase)))
 		return 0;
-	strncpy(elf->szFilename, szFilename, PATH_MAX-1);
-	elf->szFilename[PATH_MAX-1] = 0;
+	strncpy(elf->filename, filename, PATH_MAX-1);
+	elf->filename[PATH_MAX-1] = 0;
 	elf->blElfLoaded = 1;
 	return 1;
 }

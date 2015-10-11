@@ -20,21 +20,23 @@
 #include "arg.c"
 #include "out.c"
 
-#define PRXTOOL_VERSION "1.1"
+#ifndef PRXTOOL_VERSION
+#define PRXTOOL_VERSION ""
+#endif
 
 int main(int argc, char **argv){
-	fprintf(stdout, "PRXTool v%s : (c) TyRaNiD 2k6\n", PRXTOOL_VERSION);
-	fprintf(stdout, "Built: %s %s\n", __DATE__, __TIME__);
+	fprintf(stdout, "PRXTool "PRXTOOL_VERSION" ("__DATE__") \n");
+	fprintf(stdout, "(c) TyRaNiD 2k6\n");
 
 	if(arg_init(argc, argv))
 		return 1;
 	
 	DataBase db = {};
 	if(arg_nidsfile){
-		if(!db_nids_import_xml(NULL,&db.libraries_count,NULL,&db.nids_count,arg_nidsfile)){
+		if(!db_nids_import(NULL,&db.libraries_count,NULL,&db.nids_count,arg_nidsfile)){
 			LibraryEntry l[db.libraries_count];
 			LibraryNid   n[db.nids_count];
-			db_nids_import_xml(db.libraries=l,NULL,db.nids=n,NULL,arg_nidsfile);
+			db_nids_import(db.libraries=l,NULL,db.nids=n,NULL,arg_nidsfile);
 		}
 		fprintf(stderr,"%i nids loaded in %i libraries\n",db.nids_count,db.libraries_count);
 	}
@@ -60,23 +62,23 @@ int main(int argc, char **argv){
 		//output_stubs_xml(&nidData);
 	}
 	if(arg_out_dep){
-		for(int iLoop = 0; iLoop < arg_nbFiles; iLoop++){
-			output_deps(arg_inFiles[iLoop], &db);
+		for(int i = 0; i < arg_nbFiles; i++){
+			output_deps(arg_inFiles[i], &db);
 		}
 	}
 	if(arg_out_mod){
-		for(int iLoop = 0; iLoop < arg_nbFiles; iLoop++){
-			output_mods(arg_inFiles[iLoop], &db);
+		for(int i = 0; i < arg_nbFiles; i++){
+			output_mods(arg_inFiles[i], &db);
 		}
 	}
 	if(arg_out_pstub || arg_out_pstubnew){
-		for(int iLoop = 0; iLoop < arg_nbFiles; iLoop++){
-			output_stubs_prx(arg_inFiles[iLoop], &db);
+		for(int i = 0; i < arg_nbFiles; i++){
+			output_stubs_prx(arg_inFiles[i], &db);
 		}
 	}
 	if(arg_out_impexp){
-		for(int iLoop = 0; iLoop < arg_nbFiles; iLoop++){
-			output_importexport(arg_inFiles[iLoop], &db);
+		for(int i = 0; i < arg_nbFiles; i++){
+			output_importexport(arg_inFiles[i], &db);
 		}
 	}
 	if(arg_out_symbols){
@@ -85,8 +87,8 @@ int main(int argc, char **argv){
 	if(arg_out_xmldb){
 		fprintf(out_fp, "<?xml version=\"1.0\" ?>\n");
 		fprintf(out_fp, "<firmware title=\"%s\">\n", arg_dbTitle);
-		for(int iLoop = 0; iLoop < arg_nbFiles; iLoop++){
-			output_xmldb(arg_inFiles[iLoop], out_fp, &db);
+		for(int i = 0; i < arg_nbFiles; i++){
+			output_xmldb(arg_inFiles[i], out_fp, &db);
 		}
 		fprintf(out_fp, "</firmware>\n");
 	}
@@ -106,9 +108,9 @@ int main(int argc, char **argv){
 			output_disasm(arg_inFiles[0], out_fp, &db);
 		}else{
 			char path[PATH_MAX];
-			for(int iLoop = 0; iLoop < arg_nbFiles; iLoop++){
-				const char *file = strrchr(arg_inFiles[iLoop], '/');
-				int len = snprintf(path, PATH_MAX, arg_xmlOutput?"%s.html":"%s.txt", file?file+1:arg_inFiles[iLoop]);
+			for(int i = 0; i < arg_nbFiles; i++){
+				const char *file = strrchr(arg_inFiles[i], '/');
+				int len = snprintf(path, PATH_MAX, arg_xmlOutput?"%s.html":"%s.txt", file?file+1:arg_inFiles[i]);
 				if((len < 0) || (len >= PATH_MAX))
 					continue;
 				FILE *out = fopen(path, "w");
@@ -116,7 +118,7 @@ int main(int argc, char **argv){
 					fprintf(stdout, "Could not open file %s for writing\n", path);
 					continue;
 				}
-				output_disasm(arg_inFiles[iLoop], out, &db);
+				output_disasm(arg_inFiles[i], out, &db);
 				fclose(out);
 			}
 		}
@@ -126,13 +128,12 @@ int main(int argc, char **argv){
 	if(arg_out_map)/*pSer = new CSerializePrxToMap(out_fp);*/;
 	if(arg_out_idc)/*pSer = new CSerializePrxToIdc(out_fp);*/;
 	//pSer->Begin();
-	//for(int iLoop = 0; iLoop < arg_nbFiles; iLoop++)
-	//	serialize_file(arg_inFiles[iLoop], pSer, &db);
+	//for(int i = 0; i < arg_nbFiles; i++)
+	//	serialize_file(arg_inFiles[i], pSer, &db);
 	//pSer->End();
 
 	if((arg_outfile) && (out_fp))
 		fclose(out_fp);
 	
-	fprintf(stdout, "Done");
 	return 0;
 }

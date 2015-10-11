@@ -2,9 +2,9 @@
 #include <stdlib.h>
 
 typedef struct{
+	char prx[PATH_MAX];
 	char prx_name[64];
 	char lib_name[64];
-	char prx[PATH_MAX];
 	int  flags;
 	int  vcount,fcount;
 }LibraryEntry;
@@ -58,32 +58,26 @@ char* db_nids_findPrxByLibName(LibraryEntry * libs, unsigned libraries_count,cha
 	return NULL;
 }
 
-int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* szFilename){
-	FILE *fp = fopen(szFilename, "r");
+int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* filename){
+	FILE *fp = fopen(filename, "r");
 	if(!fp)
-		return fprintf(stderr,"Unable to Open \"%s\"\n", szFilename),1;
-	char buffer[512];
+		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
+	char buffer[512],*pos;
 	LibraryEntry lib={};
 	LibraryNid nid={};
-	for(int line = 0,l = 0, n = 0;fgets(buffer, sizeof(buffer),fp);line++){
-		if(!nids && !libraries){//counting mode
+	for(unsigned line = 0,l = 0, n = 0;fgets(buffer, sizeof(buffer),fp);line++){
+		if(!nids && !libraries && libraries_count && nids_count){//counting mode
 			if(strstr(buffer,"<LIBRARY>"))
 				(*libraries_count)++;
 			if(strstr(buffer,"<NID>"))
 				(*nids_count)++;
 		}else{//filling mode
-			char*pos;
 			if((pos=strstr(buffer,"<PRX>")))
 				strcpy(lib.prx,db_nids_trim_xml(pos));
 			if((pos=strstr(buffer,"<PRXNAME>")))
 				strcpy(lib.prx_name,db_nids_trim_xml(pos));
-			if((pos=strstr(buffer,"<NAME>"))){
-				if(!lib.lib_name[0])//first NAME is the library name
-					strcpy(lib.lib_name,db_nids_trim_xml(pos));
-				else{//others NAMEs are nids related
-					strcpy(nid.name,db_nids_trim_xml(pos));
-				}
-			}
+			if((pos=strstr(buffer,"<NAME>")))
+				strcpy(lib.lib_name[0]?nid.name:lib.lib_name,db_nids_trim_xml(pos));
 			if((pos=strstr(buffer,"<NID>"))){
 				nid.nid=strtoul(pos+5,NULL,0);
 				nid.owner=&libraries[l];
@@ -91,10 +85,9 @@ int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *
 			if((pos=strstr(buffer,"<FLAGS>")))
 				lib.flags=strtoul(pos+7,NULL,0);
 			if((pos=strstr(buffer,"</LIBRARY>"))){
-				libraries[l]=lib;
-				//clear LIBRARY related attribute (and not PRX one !)
+				libraries[l++]=lib;
+				//clear LIBRARY related attribute (but not PRX one !)
 				lib.vcount=lib.fcount=lib.flags=lib.lib_name[0]=0;
-				l++;
 			}
 			if((pos=strstr(buffer,"</FUNCTION>"))){
 				lib.fcount++;
@@ -108,4 +101,54 @@ int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *
 	}
 	fclose(fp);
 	return 0;
+}
+
+int db_nids_import_yml(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* filename){
+	FILE *fp = fopen(filename, "r");
+	if(!fp)
+		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
+	char buffer[512];
+	for(unsigned line = 0,l = 0, n = 0;fgets(buffer, sizeof(buffer),fp);line++){
+		if(!nids && !libraries && libraries_count && nids_count){//counting mode
+			if(!strncmp(buffer,"  - ",4))
+				(*libraries_count)++;
+			if(!strncmp(buffer,"    - ",6))
+				(*nids_count)++;
+		}else{
+			if(strstr(buffer,".prx ")){//new prx = retreive the prx,prx_name
+				char* prx_name = strchr(buffer,' ')?:buffer;
+				prx_name[0] = 0;
+				prx_name[strlen(prx_name+1)-1]=0;
+				strcpy(libraries[l].prx,buffer);
+				strcpy(libraries[l].prx_name,prx_name+1);
+			}
+			if(!strncmp(buffer,"  - ",4)){//new lib = 
+				char* lib_name = strchr(buffer,' ')?:buffer;
+				lib_name[0] = '\0';
+				strcpy(libraries[l+1].prx_name,libraries[l].prx_name);
+				strcpy(libraries[l+1].prx,libraries[l].prx);
+				strcpy(libraries[l].lib_name,lib_name+1);
+				libraries[l].flags=strtoul(lib_name+1,NULL,0);
+			}
+			if(!strncmp(buffer,"    - ",6) && l){//new nid
+				char* nid_name = (strchr(buffer+6,' ')?:buffer)+1;
+				nids[n].nid=strtoul(buffer+6,NULL,0);
+				int is_var = nid_name[0]=='*';//variable nid name start with a *
+				if(is_var)nid_name++;
+				nid_name[(strlen(nid_name)?:1)-1]=0;
+				strcpy(nids[n].name,nid_name);
+				nids[n++].owner = &libraries[l-1];
+				is_var?libraries[l-1].vcount++:libraries[l-1].fcount++;
+			}
+		}
+	}
+	return 0;
+}
+
+int db_nids_import(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* filename){
+	if(!strcmp(strrchr(filename,'.')?:filename,".xml"))
+		return db_nids_import_xml(libraries, libraries_count, nids, nids_count, filename);
+	if(!strcmp(strrchr(filename,'.')?:filename,".yml"))
+		return db_nids_import_yml(libraries, libraries_count, nids, nids_count, filename);
+	return fprintf(stderr,"Unsupported NID library format\n"),1;
 }

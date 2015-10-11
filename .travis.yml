@@ -1,3 +1,3 @@
 language: c
 compiler: gcc
-script: $CC -std=c99 prxtool.c -o prxtool
+script: $CC -std=c99 prxtool.c -o prxtool -DVERSION=\"$(shell git describe --dirty --always --tags)\"

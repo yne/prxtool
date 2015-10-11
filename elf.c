@@ -19,78 +19,78 @@ typedef struct{
 	uint8_t *pElfBin;//binary image of the elf
 	size_t iBinSize;
 	int blElfLoaded;
-	char szFilename[PATH_MAX];
-	ElfSection pElfSections[64];
+	char filename[PATH_MAX];
+	ElfSection sections[64];
 	size_t iSHCount;
-	ElfProgram pElfPrograms[16];
+	ElfProgram programs[16];
 	size_t iPHCount;
-	ElfSection pElfStrtab[64];
-	ElfHeader elfHeader;
-	ElfSymbol*pElfSymbols;
-	size_t iSymCount;
-	uint32_t iBaseAddr;
-}ElfCProcessElf;
+	ElfSection strtab[64];
+	ElfHeader header;
+	ElfSymbol*symbols;
+	size_t symbolsCount;
+	uint32_t baseAddr;
+}ElfCtx;
 
 
-ElfSection* ElfFindSection(ElfCProcessElf*elf, const char *szName){
-	if((!elf->pElfSections) || (!elf->iSHCount) || (!elf->pElfStrtab))
+ElfSection* elf_findSection(ElfCtx*elf, const char *szName){
+	if((!elf->sections) || (!elf->iSHCount) || (!elf->strtab))
 		return NULL;
 	if(!szName)// Return the default entry, kinda pointless :P
-		return &elf->pElfSections[0];
+		return &elf->sections[0];
 	for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++)
-		if(!strcmp(elf->pElfSections[iLoop].szName, szName))
-			return &elf->pElfSections[iLoop];
+		if(!strcmp(elf->sections[iLoop].szName, szName))
+			return &elf->sections[iLoop];
 	return NULL;
 }
 
-ElfSection *ElfFindSectionByAddr(ElfCProcessElf*elf, unsigned int dwAddr){
-	if((!elf->pElfSections) || (!elf->iSHCount) || (!elf->pElfStrtab))
+ElfSection *elf_findSectionByAddr(ElfCtx*elf, unsigned int dwAddr){
+	if((!elf->sections) || (!elf->iSHCount) || (!elf->strtab))
 		return NULL;
 	for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
-		if(elf->pElfSections[iLoop].iFlags & SHF_ALLOC){
-			uint32_t sectaddr = elf->pElfSections[iLoop].iAddr;
-			uint32_t sectsize = elf->pElfSections[iLoop].iSize;
+		if(elf->sections[iLoop].flags & SHF_ALLOC){
+			uint32_t sectaddr = elf->sections[iLoop].iAddr;
+			uint32_t sectsize = elf->sections[iLoop].iSize;
 			if((dwAddr >= sectaddr) && (dwAddr < (sectaddr + sectsize)))
-				return &elf->pElfSections[iLoop];
+				return &elf->sections[iLoop];
 		}
 	}
 	return NULL;
 }
 
-int ElfAddrIsText(ElfCProcessElf*elf, unsigned int dwAddr){
-	ElfSection *sect = ElfFindSectionByAddr(elf, dwAddr);
-	return sect && (sect->iFlags & SHF_EXECINSTR);
+int elf_addrIsText(ElfCtx*elf, unsigned int dwAddr){
+	ElfSection *sect = elf_findSectionByAddr(elf, dwAddr);
+	return sect && (sect->flags & SHF_EXECINSTR);
 }
 
-const char *ElfGetSymbolName(ElfCProcessElf*elf, uint32_t name, uint32_t shndx){
+const char *elf_getSymbolName(ElfCtx*elf, uint32_t name, uint32_t shndx){
 	if((shndx) && (shndx < (uint32_t) elf->iSHCount))
-		if((elf->pElfSections[shndx].iType == SHT_STRTAB) && (name < elf->pElfSections[shndx].iSize))
-			return (char *) (elf->pElfSections[shndx].pData + name);
+		if((elf->sections[shndx].type == SHT_STRTAB) && (name < elf->sections[shndx].iSize))
+			return (char *) (elf->sections[shndx].pData + name);
 	return "";
 }
 
-uint32_t ElfGetBaseAddr(ElfCProcessElf*elf){
-	return elf->blElfLoaded?elf->iBaseAddr:0;
+uint32_t elf_getBaseAddr(ElfCtx*elf){
+	return elf->blElfLoaded?elf->baseAddr:0;
 }
 
-uint32_t ElfGetTopAddr(ElfCProcessElf*elf){
-	return elf->blElfLoaded?elf->iBaseAddr + elf->iBinSize:0;
+uint32_t elf_getTopAddr(ElfCtx*elf){
+	return elf->blElfLoaded?elf->baseAddr + elf->iBinSize:0;
 }
 
-uint32_t ElfGetLoadSize(ElfCProcessElf*elf){
+uint32_t elf_getLoadSize(ElfCtx*elf){
 	return elf->blElfLoaded?elf->iBinSize:0;
 }
 
-ElfSection* ElfGetSections(ElfCProcessElf*elf, uint32_t *iSHCount){
+ElfSection* elf_getSections(ElfCtx*elf, uint32_t *iSHCount){
 	if(elf->blElfLoaded){
 		*iSHCount = elf->iSHCount;
-		return elf->pElfSections;
+		return elf->sections;
 	}
 	return NULL;
 }
 
-const char *ElfGetElfName(ElfCProcessElf*elf){
-	return elf->szFilename;
+const char *elf_getElfName(ElfCtx*elf){
+	return elf->filename;
 }
 
 #include "elf.dump.c"

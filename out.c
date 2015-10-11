@@ -2,15 +2,15 @@ int compare_symbols(const void *left, const void *right){
 	return ((int) ((ElfSymbol *) left)->value) - ((int) ((ElfSymbol *) right)->value);
 }
 
-int output_symbols2(ElfSymbol *pSymbols,int iSymCount, FILE*out_fp){
+int output_symbols2(ElfSymbol *pSymbols,int symbolsCount, FILE*out_fp){
 	SymfileHeader fileHead;
-	ElfSymbol pSymCopy[iSymCount];
+	ElfSymbol pSymCopy[symbolsCount];
 
 	int iSymCopyCount = 0;
 	int iStrSize = 0;
 	int iStrPos  = 0;
 	// Calculate the sizes
-	for(int i = 0; i < iSymCount; i++){
+	for(int i = 0; i < symbolsCount; i++){
 		int type = ELF32_ST_TYPE(pSymbols[i].info);
 		if(((type == STT_FUNC) || (type == STT_OBJECT)) && (strlen(pSymbols[i].symname) > 0)){
 			memcpy(&pSymCopy[iSymCopyCount], &pSymbols[i], sizeof(ElfSymbol));
@@ -19,8 +19,8 @@ int output_symbols2(ElfSymbol *pSymbols,int iSymCount, FILE*out_fp){
 		}
 	}
 
-	fprintf(stdout,"Removed %d symbols, leaving %d\n", iSymCount - iSymCopyCount, iSymCopyCount);
-	fprintf(stdout,"String size %d/%d\n", iSymCount - iSymCopyCount, iSymCopyCount);
+	fprintf(stdout,"Removed %d symbols, leaving %d\n", symbolsCount - iSymCopyCount, iSymCopyCount);
+	fprintf(stdout,"String size %d/%d\n", symbolsCount - iSymCopyCount, iSymCopyCount);
 	qsort(pSymCopy, iSymCopyCount, sizeof(ElfSymbol), compare_symbols);
 	memcpy(fileHead.magic, SYMFILE_MAGIC, 4);
 	//memcpy(fileHead.modname, PrxGetModuleInfo()->name, PSP_MODULE_MAX_NAME);
@@ -51,9 +51,9 @@ int output_symbols(const char *file, FILE *out_fp){
 	if(!PrxLoadFromFile(&prx,file))
 		return fprintf(stderr, "Couldn't load elf file structures"),0;
 	ElfSymbol *pSymbols;
-	int iSymCount=0;//PrxGetSymbols(&pSymbols);
-	if(iSymCount)
-		output_symbols2(pSymbols, iSymCount, out_fp);
+	int symbolsCount=0;//PrxGetSymbols(&pSymbols);
+	if(symbolsCount)
+		output_symbols2(pSymbols, symbolsCount, out_fp);
 	else
 		fprintf(stderr, "No symbols available");
 	return 0;

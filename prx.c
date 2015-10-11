@@ -115,7 +115,7 @@ static const char* g_szRelTypes[16] = {
 #define MINIMUM_STRING 4
 
 typedef struct{
-	ElfCProcessElf elf;
+	ElfCtx elf;
 	PspModule  module;
 	DataBase   defNidMgr;
 	DataBase*  pCurrNidMgr;
@@ -384,51 +384,51 @@ int PrxCreateFakeSections(CProcessPrx* prx){
 	if(prx->elf.iPHCount < 3)
 		return fprintf(stderr, "Not enough program headers (%d<3)\n", prx->elf.iPHCount),0;
 
-	prx->elf.iSHCount = prx->elf.pElfPrograms[2].iType == PT_PRXRELOC?6:5;
-	prx->elf.pElfSections[0]=(ElfSection){};
-	prx->elf.pElfSections[1]=(ElfSection){
-		.iType = SHT_PROGBITS,
-		.iFlags = SHF_ALLOC | SHF_EXECINSTR,
-		.iAddr = prx->elf.pElfPrograms[0].iVaddr,
-		.pData = prx->elf.pElf + prx->elf.pElfPrograms[0].iOffset,
+	prx->elf.iSHCount = prx->elf.programs[2].type == PT_PRXRELOC?6:5;
+	prx->elf.sections[0]=(ElfSection){};
+	prx->elf.sections[1]=(ElfSection){
+		.type = SHT_PROGBITS,
+		.flags = SHF_ALLOC | SHF_EXECINSTR,
+		.iAddr = prx->elf.programs[0].iVaddr,
+		.pData = prx->elf.pElf + prx->elf.programs[0].iOffset,
 		.iSize = prx->stubBottom,
 		.szName= ".text",
 	};
-	prx->elf.pElfSections[2]=(ElfSection){
-	.iType = SHT_PROGBITS,
-	.iFlags = SHF_ALLOC,
+	prx->elf.sections[2]=(ElfSection){
+	.type = SHT_PROGBITS,
+	.flags = SHF_ALLOC,
 	.iAddr = prx->stubBottom,
-	.pData = prx->elf.pElf + prx->elf.pElfPrograms[0].iOffset + prx->stubBottom,
-	.iSize = prx->elf.pElfPrograms[0].iMemsz - prx->stubBottom,
+	.pData = prx->elf.pElf + prx->elf.programs[0].iOffset + prx->stubBottom,
+	.iSize = prx->elf.programs[0].iMemsz - prx->stubBottom,
 	.szName=".rodata",
 	};
-	prx->elf.pElfSections[3]=(ElfSection){
-		.iType = SHT_PROGBITS,
-		.iFlags = SHF_ALLOC | SHF_WRITE,
-		.iAddr = prx->elf.pElfPrograms[1].iVaddr,
-		.pData = prx->elf.pElf + prx->elf.pElfPrograms[1].iOffset,
-		.iSize = prx->elf.pElfPrograms[1].iFilesz,
+	prx->elf.sections[3]=(ElfSection){
+		.type = SHT_PROGBITS,
+		.flags = SHF_ALLOC | SHF_WRITE,
+		.iAddr = prx->elf.programs[1].iVaddr,
+		.pData = prx->elf.pElf + prx->elf.programs[1].iOffset,
+		.iSize = prx->elf.programs[1].iFilesz,
 		.szName= ".data",
 	};
-	prx->elf.pElfSections[4]=(ElfSection){
-		.iType = SHT_NOBITS,
-		.iFlags = SHF_ALLOC | SHF_WRITE,
-		.iAddr = prx->elf.pElfPrograms[1].iVaddr + prx->elf.pElfPrograms[1].iFilesz,
-		.pData = prx->elf.pElf + prx->elf.pElfPrograms[1].iOffset + prx->elf.pElfPrograms[1].iFilesz,
-		.iSize = prx->elf.pElfPrograms[1].iMemsz - prx->elf.pElfPrograms[1].iFilesz,
+	prx->elf.sections[4]=(ElfSection){
+		.type = SHT_NOBITS,
+		.flags = SHF_ALLOC | SHF_WRITE,
+		.iAddr = prx->elf.programs[1].iVaddr + prx->elf.programs[1].iFilesz,
+		.pData = prx->elf.pElf + prx->elf.programs[1].iOffset + prx->elf.programs[1].iFilesz,
+		.iSize = prx->elf.programs[1].iMemsz - prx->elf.programs[1].iFilesz,
 		.szName= ".bss",
 	};
-	prx->elf.pElfSections[5]=prx->elf.pElfPrograms[2].iType == PT_PRXRELOC?(ElfSection){
-		.iType = SHT_PRXRELOC,
-		.iFlags = 0,
+	prx->elf.sections[5]=prx->elf.programs[2].type == PT_PRXRELOC?(ElfSection){
+		.type = SHT_PRXRELOC,
+		.flags = 0,
 		.iAddr = 0,
-		.pData = prx->elf.pElf + prx->elf.pElfPrograms[2].iOffset,
-		.iSize = prx->elf.pElfPrograms[2].iFilesz,
+		.pData = prx->elf.pElf + prx->elf.programs[2].iOffset,
+		.iSize = prx->elf.programs[2].iFilesz,
 		.iInfo = 1,// Bind to section 1, not that is matters 
 		.szName= ".reloc",
 	}:(ElfSection){};
 
-	//ElfDumpSections();
+	//elf_dumpSections();
 	return 1;
 }
 
@@ -436,27 +436,27 @@ int PrxCountRelocs(CProcessPrx* prx){
 	int  iRelocCount = 0;
 
 	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
-		if((prx->elf.pElfSections[iLoop].iType == SHT_PRXRELOC) || (prx->elf.pElfSections[iLoop].iType == SHT_REL)){
-			if(prx->elf.pElfSections[iLoop].iSize % sizeof(Elf32_Rel))
+		if((prx->elf.sections[iLoop].type == SHT_PRXRELOC) || (prx->elf.sections[iLoop].type == SHT_REL)){
+			if(prx->elf.sections[iLoop].iSize % sizeof(Elf32_Rel))
 				fprintf(stdout,"Invalid Relocation section #%i\n",iLoop);
-			iRelocCount += prx->elf.pElfSections[iLoop].iSize / sizeof(Elf32_Rel);
+			iRelocCount += prx->elf.sections[iLoop].iSize / sizeof(Elf32_Rel);
 		}
 	}
 
 	for(int iLoop = 0; iLoop < prx->elf.iPHCount; iLoop++){
-		if(prx->elf.pElfPrograms[iLoop].iType != PT_PRXRELOC2)
+		if(prx->elf.programs[iLoop].type != PT_PRXRELOC2)
 			continue;
-		if (prx->elf.pElfPrograms[iLoop].pData[0] || prx->elf.pElfPrograms[iLoop].pData[1])
+		if (prx->elf.programs[iLoop].pData[0] || prx->elf.programs[iLoop].pData[1])
 			return fprintf(stdout,"Should start with 0x00 0x00\n"),0;
 		
 		uint8_t
-			part1s = prx->elf.pElfPrograms[iLoop].pData[2],
-			part2s = prx->elf.pElfPrograms[iLoop].pData[3],
-			block1s = prx->elf.pElfPrograms[iLoop].pData[4],
-			*block1 = &prx->elf.pElfPrograms[iLoop].pData[4],
+			part1s = prx->elf.programs[iLoop].pData[2],
+			part2s = prx->elf.programs[iLoop].pData[3],
+			block1s = prx->elf.programs[iLoop].pData[4],
+			*block1 = &prx->elf.programs[iLoop].pData[4],
 			*block2 = block1 + block1s,
 			block2s = block2[0],
-			*end = &prx->elf.pElfPrograms[iLoop].pData[prx->elf.pElfPrograms[iLoop].iFilesz];
+			*end = &prx->elf.programs[iLoop].pData[prx->elf.programs[iLoop].iFilesz];
 		for (uint8_t*pos = block2 + block2s;pos < end;iRelocCount++) {
 			uint32_t cmd = pos[0] | (pos[1] << 16);
 			pos += 2;
@@ -487,10 +487,10 @@ int PrxLoadRelocsTypeA(CProcessPrx* prx,ElfReloc *pRelocs){
 	int iCurrRel = 0;
 	
 	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
-		if((prx->elf.pElfSections[iLoop].iType == SHT_PRXRELOC) || (prx->elf.pElfSections[iLoop].iType == SHT_REL)){
-			const Elf32_Rel *reloc = (const Elf32_Rel *) prx->elf.pElfSections[iLoop].pData;
-			for(int i = 0; i < prx->elf.pElfSections[iLoop].iSize / sizeof(Elf32_Rel); i++) {    
-				pRelocs[iCurrRel].secname = prx->elf.pElfSections[iLoop].szName;
+		if((prx->elf.sections[iLoop].type == SHT_PRXRELOC) || (prx->elf.sections[iLoop].type == SHT_REL)){
+			const Elf32_Rel *reloc = (const Elf32_Rel *) prx->elf.sections[iLoop].pData;
+			for(int i = 0; i < prx->elf.sections[iLoop].iSize / sizeof(Elf32_Rel); i++) {    
+				pRelocs[iCurrRel].secname = prx->elf.sections[iLoop].szName;
 				pRelocs[iCurrRel].base = 0;
 				pRelocs[iCurrRel].type = ELF32_R_TYPE(LW(reloc->r_info));
 				pRelocs[iCurrRel].symbol = ELF32_R_SYM(LW(reloc->r_info));
@@ -515,15 +515,15 @@ int PrxLoadRelocsTypeB(CProcessPrx* prx,ElfReloc *pRelocs){
 	int iLoop, iCurrRel = 0;
 	
 	for(iLoop = 0; iLoop < prx->elf.iPHCount; iLoop++){
-		if(prx->elf.pElfPrograms[iLoop].iType == PT_PRXRELOC2){
-			part1s = prx->elf.pElfPrograms[iLoop].pData[2];
-			part2s = prx->elf.pElfPrograms[iLoop].pData[3];
-			block1s =prx->elf.pElfPrograms[iLoop].pData[4];
-			block1 = &prx->elf.pElfPrograms[iLoop].pData[4];
+		if(prx->elf.programs[iLoop].type == PT_PRXRELOC2){
+			part1s = prx->elf.programs[iLoop].pData[2];
+			part2s = prx->elf.programs[iLoop].pData[3];
+			block1s =prx->elf.programs[iLoop].pData[4];
+			block1 = &prx->elf.programs[iLoop].pData[4];
 			block2 = block1 + block1s;
 			block2s = block2[0];
 			pos = block2 + block2s;
-			end = &prx->elf.pElfPrograms[iLoop].pData[prx->elf.pElfPrograms[iLoop].iFilesz];
+			end = &prx->elf.programs[iLoop].pData[prx->elf.programs[iLoop].iFilesz];
 			
 			for (nbits = 1; (1 << nbits) < iLoop; nbits++) {
 				if (nbits >= 33) {
@@ -606,7 +606,7 @@ int PrxLoadRelocsTypeB(CProcessPrx* prx,ElfReloc *pRelocs){
 						return 0;
 					}
 					
-					if (!(offset < prx->elf.pElfPrograms[ofsbase].iFilesz)) {
+					if (!(offset < prx->elf.programs[ofsbase].iFilesz)) {
 						fprintf(stdout,"invalid relocation offset\n");
 						return 0;
 					}
@@ -763,29 +763,29 @@ int PrxBuildMaps(CProcessPrx*prx){
 
 	// Build symbols for branches in the code 
 	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
-		if(prx->pElfSections[iLoop].iFlags & SHF_EXECINSTR){
+		if(prx->sections[iLoop].flags & SHF_EXECINSTR){
 			uint32_t iILoop;
 			uint32_t dwAddr;
 			uint32_t *pInst;
-			dwAddr = prx->pElfSections[iLoop].iAddr;
+			dwAddr = prx->sections[iLoop].iAddr;
 			pInst  = (uint32_t*) VmemGetPtr(dwAddr);
 
-			for(iILoop = 0; iILoop < (prx->pElfSections[iLoop].iSize / 4); iILoop++){
+			for(iILoop = 0; iILoop < (prx->sections[iLoop].iSize / 4); iILoop++){
 				disasmAddBranchSymbols(LW(pInst[iILoop]), dwAddr + prx->dwBase, prx->syms);
 				dwAddr += 4;
 			}
 		}
 	}
 
-	if(prx->syms[prx->elfHeader.iEntry + prx->dwBase] == NULL){
+	if(prx->syms[prx->header.entry + prx->dwBase] == NULL){
 		SymbolEntry *s;
 		s = new SymbolEntry;
 		// Hopefully most functions will start with a SP assignment 
 		s->type = SYMBOL_FUNC;
-		s->addr = prx->elfHeader.iEntry + prx->dwBase;
+		s->addr = prx->header.entry + prx->dwBase;
 		s->size = 0;
 		s->name = "_start";
-		prx->syms[prx->elfHeader.iEntry + prx->dwBase] = s;
+		prx->syms[prx->header.entry + prx->dwBase] = s;
 	}
 
 	MapFuncExtents(prx->syms);
@@ -802,12 +802,12 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 		return;
 	}
 
-	if((prx->elfHeader.iPhnum < 1) || (prx->elfHeader.iPhentsize == 0) || (prx->elfHeader.iPhoff == 0)){
+	if((prx->header.PHnum < 1) || (prx->header.PHentSize == 0) || (prx->header.PHoff == 0)){
 		return;
 	}
 
 	// We dont support ELF relocs as they are not very special 
-	if(prx->elfHeader.iType != ELF_PRX_TYPE){
+	if(prx->header.type != ELF_PRX_TYPE){
 		return;
 	}
 
@@ -825,8 +825,8 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 			fprintf(stdout,"Invalid relocation PH sets (%d, %d)\n", iOfsPH, iValPH);
 			continue;
 		}
-		dwRealOfs = rel->offset + prx->elf.pElfPrograms[iOfsPH].iVaddr;
-		dwCurrBase = dwBase + prx->elf.pElfPrograms[iValPH].iVaddr;
+		dwRealOfs = rel->offset + prx->elf.programs[iOfsPH].iVaddr;
+		dwCurrBase = dwBase + prx->elf.programs[iValPH].iVaddr;
 		pData = (uint32_t*) VmemGetPtr(dwRealOfs);
 		if(pData == NULL){
 			fprintf(stdout,"Invalid offset for relocation (%08X)\n", dwRealOfs);
@@ -840,7 +840,7 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 				int lowaddr, hiaddr, addr;
 			  	int loinst;
 			  	ImmEntry *imm;
-			  	int ofsph = prx->elf.pElfPrograms[iOfsPH].iVaddr;
+			  	int ofsph = prx->elf.programs[iOfsPH].iVaddr;
 			  	
 				inst = LW(*pData);
 				addr = ((inst & 0xFFFF) << 16) + dwCurrBase;
@@ -873,7 +873,7 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 					imm = new ImmEntry;
 					imm->addr = dwBase + ofsph + prx->pElfRelocs[iLoop].offset;
 					imm->target = addr;
-					imm->text = ElfAddrIsText(addr - dwBase);
+					imm->text = elf_addrIsText(addr - dwBase);
 					imms[dwBase + ofsph + prx->pElfRelocs[iLoop].offset] = imm;
 
 			  		if (prx->pElfRelocs[++iLoop].type != R_MIPS_LO16) break;
@@ -895,7 +895,7 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 				imm = new ImmEntry;
 				imm->addr = dwRealOfs + dwBase;
 				imm->target = addr;
-				imm->text = ElfAddrIsText(addr - dwBase);
+				imm->text = elf_addrIsText(addr - dwBase);
 				imms[dwRealOfs + dwBase] = imm;
 
 				loinst &= ~0xFFFF;
@@ -917,7 +917,7 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 				imm = new ImmEntry;
 				imm->addr = dwRealOfs + dwBase;
 				imm->target = addr;
-				imm->text = ElfAddrIsText(addr - dwBase);
+				imm->text = elf_addrIsText(addr - dwBase);
 				imms[dwRealOfs + dwBase] = imm;
 
 				hiinst &= ~0xFFFF;
@@ -934,12 +934,12 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 				uint32_t offs2 = 0;
 				while (++iLoop < prx->iRelocCount){
 					rel2 = &prx->pElfRelocs[iLoop];
-					if (rel2->type == R_MIPS_X_JAL26 && (dwBase + prx->elf.pElfPrograms[(rel2->symbol >> 8) & 0xFF].iVaddr) == dwCurrBase)
+					if (rel2->type == R_MIPS_X_JAL26 && (dwBase + prx->elf.programs[(rel2->symbol >> 8) & 0xFF].iVaddr) == dwCurrBase)
 						break;
 				}
 
 				if (iLoop < prx->iRelocCount) {
-					offs2 = rel2->offset + prx->elf.pElfPrograms[rel2->symbol & 0xFF].iVaddr;
+					offs2 = rel2->offset + prx->elf.programs[rel2->symbol & 0xFF].iVaddr;
 					off = LW(*(uint32_t*) VmemGetPtr(offs2));
 				}
 
@@ -954,7 +954,7 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 					imm = new ImmEntry;
 					imm->addr = dwRealOfs + dwBase;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = ElfAddrIsText(imm->target - dwBase);
+					imm->text = elf_addrIsText(imm->target - dwBase);
 					imms[dwRealOfs + dwBase] = imm;
 				}
 				// already add the JAL26 symbol so we don't have to search for the J26 there
@@ -962,7 +962,7 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 					imm = new ImmEntry;
 					imm->addr = offs2 + dwBase;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = ElfAddrIsText(imm->target - dwBase);
+					imm->text = elf_addrIsText(imm->target - dwBase);
 					imms[offs2 + dwBase] = imm;
 				}
 
@@ -1004,7 +1004,7 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 					imm = new ImmEntry;
 					imm->addr = dwRealOfs + dwBase;
 					imm->target = (dwData & 0x03FFFFFF) << 2;;
-					imm->text = ElfAddrIsText(dwData - dwBase);
+					imm->text = elf_addrIsText(dwData - dwBase);
 					imms[dwRealOfs + dwBase] = imm;
 				}
 			}
@@ -1016,9 +1016,9 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 	*/
 }
 
-int PrxLoadFromFile(CProcessPrx* prx,const char *szFilename){
+int PrxLoadFromFile(CProcessPrx* prx,const char *filename){
 	int blRet = 0;
-	if(!ElfLoadFromFile(&prx->elf, szFilename))
+	if(!elf_loadFromFile(&prx->elf, filename))
 		return 1;
 	// Do PRX specific stuff 
 	uint8_t *pData = NULL;
@@ -1026,12 +1026,12 @@ int PrxLoadFromFile(CProcessPrx* prx,const char *szFilename){
 
 	prx->blPrxLoaded = 0;
 
-	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.iBaseAddr, MEM_LITTLE_ENDIAN};
+	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 
-	ElfSection *pInfoSect = ElfFindSection(&prx->elf, PSP_MODULE_INFO_NAME);
+	ElfSection *pInfoSect = elf_findSection(&prx->elf, PSP_MODULE_INFO_NAME);
 	if(!pInfoSect && prx->elf.iPHCount > 0){
 		// Get from program headers 
-		iAddr = (prx->elf.pElfPrograms[0].iPaddr & 0x7FFFFFFF) - prx->elf.pElfPrograms[0].iOffset;
+		iAddr = (prx->elf.programs[0].iPaddr & 0x7FFFFFFF) - prx->elf.programs[0].iOffset;
 		pData = prx->elf.pElfBin + iAddr;
 	}else{
 		iAddr = pInfoSect->iAddr;
@@ -1055,19 +1055,19 @@ int PrxLoadFromFile(CProcessPrx* prx,const char *szFilename){
 	if(!PrxCreateFakeSections(prx))
 		return fprintf(stderr, "Could not create fake sections\n"),1;
 		
-	fprintf(stdout, "Loaded PRX %s successfully\n", szFilename);
+	fprintf(stdout, "Loaded PRX %s successfully\n", filename);
 	PrxBuildMaps(prx);
 	return 0;
 }
 
-int PrxLoadFromBinFile(CProcessPrx* prx,const char *szFilename, unsigned int dwDataBase){
-	if(!ElfLoadFromBinFile(&prx->elf, szFilename, dwDataBase))
+int PrxLoadFromBinFile(CProcessPrx* prx,const char *filename, unsigned int dwDataBase){
+	if(!elf_loadFromBinFile(&prx->elf, filename, dwDataBase))
 		return 0;
 	prx->blPrxLoaded = 0;
 
-	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.iBaseAddr, MEM_LITTLE_ENDIAN};
+	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 
-	fprintf(stdout, "Loaded BIN %s successfully\n", szFilename);
+	fprintf(stdout, "Loaded BIN %s successfully\n", filename);
 	prx->blPrxLoaded = 1;
 	PrxBuildMaps(prx);
 	return 1;
@@ -1084,22 +1084,22 @@ void PrxCalcElfSize(CProcessPrx* prx,size_t *iTotal, size_t *iSectCount, size_t 
 
 /*
 	for(i = 1; i < prx->iSHCount; i++){
-		if(prx->pElfSections[i].iFlags & SHF_ALLOC){
+		if(prx->sections[i].flags & SHF_ALLOC){
 			iSectCount++;
-			iStrSize += strlen(prx->pElfSections[i].szName) + 1;
+			iStrSize += strlen(prx->sections[i].szName) + 1;
 		}
 	}
 */
 	*iTotal = sizeof(Elf32_Ehdr) + (sizeof(Elf32_Shdr)* *iSectCount) + *iStrSize;
 }
 
-int PrxOutputElfHeader(CProcessPrx* prx,FILE *fp, size_t iSectCount){
+int PrxOutputheader(CProcessPrx* prx,FILE *fp, size_t iSectCount){
 	Elf32_Ehdr hdr={.e_class = 1,.e_data = 1,.e_idver = 1};
 	SW(hdr.e_magic, ELF_MAGIC);
 	SH(hdr.e_type, ELF_MIPS_TYPE);
 	SH(hdr.e_machine, 8); 
 	SW(hdr.e_version, 1);
-	SW(hdr.e_entry, prx->dwBase + prx->elf.elfHeader.iEntry); 
+	SW(hdr.e_entry, prx->dwBase + prx->elf.header.entry); 
 	SW(hdr.e_phoff, 0);
 	SW(hdr.e_shoff, sizeof(Elf32_Ehdr));
 	SW(hdr.e_flags, 0x10a23001);
@@ -1136,26 +1136,26 @@ int PrxOutputSections(CProcessPrx* prx,FILE *fp, size_t iElfHeadSize, size_t iSe
 	}
 
 	for(i = 1; i < prx->iSHCount; i++){
-		if(prx->pElfSections[i].iFlags & SHF_ALLOC){
+		if(prx->sections[i].flags & SHF_ALLOC){
 			SW(shdr.sh_name, iStrPointer);
-			SW(shdr.sh_type, prx->pElfSections[i].iType);
-			SW(shdr.sh_flags, prx->pElfSections[i].iFlags);
-			SW(shdr.sh_addr, prx->pElfSections[i].iAddr + prx->dwBase);
-			if(prx->pElfSections[i].iType == SHT_NOBITS){
+			SW(shdr.sh_type, prx->sections[i].type);
+			SW(shdr.sh_flags, prx->sections[i].flags);
+			SW(shdr.sh_addr, prx->sections[i].iAddr + prx->dwBase);
+			if(prx->sections[i].type == SHT_NOBITS){
 				SW(shdr.sh_offset, iBinBase + prx->iElfSize);
 			}else{
-				SW(shdr.sh_offset, iBinBase + prx->pElfSections[i].iAddr);
+				SW(shdr.sh_offset, iBinBase + prx->sections[i].iAddr);
 			}
-			SW(shdr.sh_size, prx->pElfSections[i].iSize);
+			SW(shdr.sh_size, prx->sections[i].iSize);
 			SW(shdr.sh_link, 0);
 			SW(shdr.sh_info, 0);
-			SW(shdr.sh_addralign, prx->pElfSections[i].iAddralign);
+			SW(shdr.sh_addralign, prx->sections[i].iAddralign);
 			SW(shdr.sh_entsize, 0);
 			if(fwrite(&shdr, 1, sizeof(shdr), fp) != sizeof(shdr)){
 				return 0;
 			}
-			strcpy(&pStrings[iStrPointer], prx->pElfSections[i].szName);
-			iStrPointer += strlen(prx->pElfSections[i].szName) + 1;
+			strcpy(&pStrings[iStrPointer], prx->sections[i].szName);
+			iStrPointer += strlen(prx->sections[i].szName) + 1;
 		}
 	}
 
@@ -1201,7 +1201,7 @@ int PrxPrxToElf(CProcessPrx* prx,FILE *fp){
 
 	CalcElfSize(iElfHeadSize, iSectCount, iStrSize);
 	fprintf(stdout, "size: %d, sectcount: %d, strsize: %d\n", iElfHeadSize, iSectCount, iStrSize);
-	if(!OutputElfHeader(fp, iSectCount)){
+	if(!Outputheader(fp, iSectCount)){
 		fprintf(stdout, "Could not write ELF header\n");
 		return 0;
 	}
@@ -1241,29 +1241,29 @@ void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 	int iLoop;
 /*
 	// If we have a symbol table then no point building from imports/exports 
-	if(prx->pElfSymbols){
+	if(prx->symbols){
 		int i;
 
-		for(i = 0; i < prx->iSymCount; i++){
-			int iType;
-			iType = ELF32_ST_TYPE(prx->pElfSymbols[i].info);
-			if((iType == STT_FUNC) || (iType == STT_OBJECT)){
+		for(i = 0; i < prx->symbolsCount; i++){
+			int type;
+			type = ELF32_ST_TYPE(prx->symbols[i].info);
+			if((type == STT_FUNC) || (type == STT_OBJECT)){
 				SymbolEntry *s;
-				s = syms[prx->pElfSymbols[i].value + dwBase];
+				s = syms[prx->symbols[i].value + dwBase];
 				if(s == NULL){
 					s = new SymbolEntry;
-					s->addr = prx->pElfSymbols[i].value + dwBase;
-					if(iType == STT_FUNC){
+					s->addr = prx->symbols[i].value + dwBase;
+					if(type == STT_FUNC){
 						s->type = SYMBOL_FUNC;
 					}else{
 						s->type = SYMBOL_DATA;
 					}
-					s->size = prx->pElfSymbols[i].size;
-					s->name = prx->pElfSymbols[i].symname; 
-					syms[prx->pElfSymbols[i].value + dwBase] = s;
+					s->size = prx->symbols[i].size;
+					s->name = prx->symbols[i].symname; 
+					syms[prx->symbols[i].value + dwBase] = s;
 				}else{
-					if(strcmp(s->name.c_str(), prx->pElfSymbols[i].symname)){
-						s->alias.insert(s->alias.end(), prx->pElfSymbols[i].symname);
+					if(strcmp(s->name.c_str(), prx->symbols[i].symname)){
+						s->alias.insert(s->alias.end(), prx->symbols[i].symname);
 					}
 				}
 			}
@@ -1928,23 +1928,23 @@ void PrxDump(CProcessPrx*prx,FILE *fp, const char *disopts){
 		fprintf(fp, "<html><body><pre>\n");
 	}
 	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
-		if(prx->pElfSections[iLoop].iFlags & (SHF_EXECINSTR | SHF_ALLOC)){
-			if((prx->pElfSections[iLoop].iSize > 0) && (prx->pElfSections[iLoop].iType == SHT_PROGBITS)){
+		if(prx->sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
+			if((prx->sections[iLoop].iSize > 0) && (prx->sections[iLoop].type == SHT_PROGBITS)){
 				fprintf(fp, "\n; ==== Section %s - Address 0x%08X Size 0x%08X Flags 0x%04X\n", 
-						prx->pElfSections[iLoop].szName, prx->pElfSections[iLoop].iAddr + prx->dwBase, 
-						prx->pElfSections[iLoop].iSize, prx->pElfSections[iLoop].iFlags);
-				if(prx->pElfSections[iLoop].iFlags & SHF_EXECINSTR){
-					Disasm(fp, prx->pElfSections[iLoop].iAddr + prx->dwBase, 
-							prx->pElfSections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(prx->pElfSections[iLoop].iAddr),
+						prx->sections[iLoop].szName, prx->sections[iLoop].iAddr + prx->dwBase, 
+						prx->sections[iLoop].iSize, prx->sections[iLoop].flags);
+				if(prx->sections[iLoop].flags & SHF_EXECINSTR){
+					Disasm(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
+							prx->sections[iLoop].iSize, 
+							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr),
 							prx->imms, prx->dwBase);
 				}else{
-					DumpData(fp, prx->pElfSections[iLoop].iAddr + prx->dwBase, 
-							prx->pElfSections[iLoop].iSize,
-							(uint8_t*) VmemGetPtr(prx->pElfSections[iLoop].iAddr));
-					DumpStrings(fp, prx->pElfSections[iLoop].iAddr + prx->dwBase, 
-							prx->pElfSections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(prx->pElfSections[iLoop].iAddr));
+					DumpData(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
+							prx->sections[iLoop].iSize,
+							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr));
+					DumpStrings(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
+							prx->sections[iLoop].iSize, 
+							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr));
 				}
 			}
 		}
@@ -1964,9 +1964,9 @@ void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
 	disasmSetSymbols(&prx->syms);
 	disasmSetOpts(disopts, 1);
 
-	slash = strrchr(prx->szFilename, '/');
+	slash = strrchr(prx->filename, '/');
 	if(!slash){
-		slash = prx->szFilename;
+		slash = prx->filename;
 	}else{
 		slash++;
 	}
@@ -1986,13 +1986,13 @@ void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
 	fprintf(fp, "</exports>\n");
 
 	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
-		if(prx->pElfSections[iLoop].iFlags & (SHF_EXECINSTR | SHF_ALLOC)){
-			if((prx->pElfSections[iLoop].iSize > 0) && (prx->pElfSections[iLoop].iType == SHT_PROGBITS)){
-				if(prx->pElfSections[iLoop].iFlags & SHF_EXECINSTR){
+		if(prx->sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
+			if((prx->sections[iLoop].iSize > 0) && (prx->sections[iLoop].type == SHT_PROGBITS)){
+				if(prx->sections[iLoop].flags & SHF_EXECINSTR){
 					fprintf(fp, "<disasm>\n");
-					DisasmXML(fp, prx->pElfSections[iLoop].iAddr + prx->dwBase, 
-							prx->pElfSections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(prx->pElfSections[iLoop].iAddr),
+					DisasmXML(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
+							prx->sections[iLoop].iSize, 
+							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr),
 							prx->imms, prx->dwBase);
 					fprintf(fp, "</disasm>\n");
 				}

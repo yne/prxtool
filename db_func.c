@@ -17,10 +17,10 @@ char *db_func_strip_whitesp(char *str){
 	return len?str:NULL;
 }
 
-int db_func_import(FunctionType *func,unsigned*count,const char* szFilename){
-	FILE *fp = fopen(szFilename, "r");
+int db_func_import(FunctionType *func,unsigned*count,const char* filename){
+	FILE *fp = fopen(filename, "r");
 	if(!fp)
-		return fprintf(stderr,"Unable to Open \"%s\"\n", szFilename),1;
+		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
 	
 	char line[512];
 	for(int i=0; fgets(line, sizeof(line), fp);){

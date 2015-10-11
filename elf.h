@@ -3,8 +3,8 @@
 /* Structure defining a single elf section */
 typedef struct{
 	uint32_t iName;
-	uint32_t iType;
-	uint32_t iFlags;
+	uint32_t type;
+	uint32_t flags;
 	uint32_t iAddr;
 	uint32_t iOffset;
 	uint32_t iSize;
@@ -20,13 +20,13 @@ typedef struct{
 }ElfSection;
 
 typedef struct{
-	uint32_t iType;
+	uint32_t type;
 	uint32_t iOffset;
 	uint32_t iVaddr;
 	uint32_t iPaddr;
 	uint32_t iFilesz;
 	uint32_t iMemsz;
-	uint32_t iFlags;
+	uint32_t flags;
 	uint32_t iAlign;
 
 	/* Aliased pointer to the data (in the original Elf)*/
@@ -35,23 +35,23 @@ typedef struct{
 
 /* Structure to hold elf header data, in native format */
 typedef struct{
-	uint32_t iMagic;
+	uint32_t magic;
 	uint32_t iClass;
 	uint32_t iData;
 	uint32_t iIdver;
-	uint32_t iType; 
+	uint32_t type; 
 	uint32_t iMachine; 
 	uint32_t iVersion; 
-	uint32_t iEntry; 
-	uint32_t iPhoff; 
-	uint32_t iShoff; 
-	uint32_t iFlags; 
-	uint32_t iEhsize;
-	uint32_t iPhentsize; 
-	uint32_t iPhnum; 
-	uint32_t iShentsize; 
-	uint32_t iShnum; 
-	uint32_t iShstrndx; 
+	uint32_t entry; 
+	uint32_t PHoff; 
+	uint32_t SHoff; 
+	uint32_t flags; 
+	uint32_t EHsize;
+	uint32_t PHentSize; 
+	uint32_t PHnum; 
+	uint32_t SHentSize; 
+	uint32_t SHnum; 
+	uint32_t SHstrIndex; 
 }ElfHeader;
 
 typedef struct{

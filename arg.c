@@ -1,21 +1,21 @@
 char**   arg_inFiles      = NULL;
 int      arg_nbFiles      = 0;
 char *   arg_outfile      = NULL;
-int      arg_out_idc      = 0;
-int      arg_out_map      = 0;
-int      arg_out_xml      = 0;
-int      arg_out_elf      = 0;
-int      arg_out_stub     = 0;
-int      arg_out_stubnew  = 0;
-int      arg_out_dep      = 0;
-int      arg_out_mod      = 0;
-int      arg_out_pstub    = 0;
-int      arg_out_pstubnew = 0;
-int      arg_out_impexp   = 0;
-int      arg_out_ent      = 0;
-int      arg_out_disasm   = 0;
-int      arg_out_symbols  = 0;
-int      arg_out_xmldb    = 0;
+char *   arg_out_idc      = NULL;
+char *   arg_out_map      = NULL;
+char *   arg_out_xml      = NULL;
+char *   arg_out_elf      = NULL;
+char *   arg_out_stub     = NULL;
+char *   arg_out_stubnew  = NULL;
+char *   arg_out_dep      = NULL;
+char *   arg_out_mod      = NULL;
+char *   arg_out_pstub    = NULL;
+char *   arg_out_pstubnew = NULL;
+char *   arg_out_impexp   = NULL;
+char *   arg_out_ent      = NULL;
+char *   arg_out_disasm   = NULL;
+char *   arg_out_symbols  = NULL;
+char *   arg_out_xmldb    = NULL;
 char *   arg_funcfile     = "functions.txt";
 char *   arg_nidsfile     = "psplibdoc.xml";
 char *   arg_iSMask       = "ixrl";
@@ -32,24 +32,24 @@ char*    arg_disopts      = "";
 typedef struct{
 	void*   argvoid           ;char*label  ,type, *help;}ArgEntry;
 ArgEntry cmd_options[] = {
-	{(void*) &arg_outfile     ,"output"    , 's', "Output destination. (NULL=stdout)"},
-	{(void*) &arg_out_idc     ,"outidc"    , 'i', "Output an IDC file"},
-	{(void*) &arg_out_map     ,"outmap"    , 'i', "Output a MAP file"},
-	{(void*) &arg_out_xml     ,"outxml"    , 'i', "Output an XML file"},
-	{(void*) &arg_out_elf     ,"outelf"    , 'i', "Output an ELF from a PRX"},
-	{(void*) &arg_out_stub    ,"outstub"   , 'i', "Output old stub files from an XML"},
-	{(void*) &arg_out_stubnew ,"outstub2"  , 'i', "Output new stub files from an XML"},
-	{(void*) &arg_out_dep     ,"outstubEx" , 'i', "Output old stub files from an XML exports" },
-	{(void*) &arg_out_mod     ,"outstubEx2", 'i', "Output new stub files from an XML exports"},
-	{(void*) &arg_out_pstub   ,"outdeps"   , 'i', "Output dependencies"},
-	{(void*) &arg_out_pstubnew,"outinfo"   , 'i', "Output information"},
-	{(void*) &arg_out_impexp  ,"outexp"    , 'i', "Output imports/exports"},
-	{(void*) &arg_out_ent     ,"outent"    , 'i', "Output entries"},
-	{(void*) &arg_out_disasm  ,"outdis"    , 'i', "Output disassembly"},
-	{(void*) &arg_out_symbols ,"outsym"    , 'i', "Output a symbol file"},
-	{(void*) &arg_out_xmldb   ,"outxdb"    , 'i', "Output an XML disassembly database"},
+	{(void*) &arg_outfile     ,"output"    , 's', "Output path of destination"},
+	{(void*) &arg_out_idc     ,"outidc"    , 's', "Output path of an IDC file"},
+	{(void*) &arg_out_map     ,"outmap"    , 's', "Output path of a MAP file"},
+	{(void*) &arg_out_xml     ,"outxml"    , 's', "Output path of an XML file"},
+	{(void*) &arg_out_elf     ,"outelf"    , 's', "Output path of an ELF from a PRX"},
+	{(void*) &arg_out_stub    ,"outstub"   , 's', "Output path of old stub files from an XML"},
+	{(void*) &arg_out_stubnew ,"outstub2"  , 's', "Output path of new stub files from an XML"},
+	{(void*) &arg_out_dep     ,"outstubEx" , 's', "Output path of old stub files from an XML exports" },
+	{(void*) &arg_out_mod     ,"outstubEx2", 's', "Output path of new stub files from an XML exports"},
+	{(void*) &arg_out_pstub   ,"outdeps"   , 's', "Output path of dependencies"},
+	{(void*) &arg_out_pstubnew,"outinfo"   , 's', "Output path of information"},
+	{(void*) &arg_out_impexp  ,"outexp"    , 's', "Output path of imports/exports"},
+	{(void*) &arg_out_ent     ,"outent"    , 's', "Output path of entries"},
+	{(void*) &arg_out_disasm  ,"outdis"    , 's', "Output path of disassembly"},
+	{(void*) &arg_out_symbols ,"outsym"    , 's', "Output path of a symbol file"},
+	{(void*) &arg_out_xmldb   ,"outxdb"    , 's', "Output path of an XML disassembly database"},
 	{(void*) &arg_funcfile    ,"funcs"     , 's', "Path to a disassembly functions file"},
-	{(void*) &arg_nidsfile    ,"xmlfile"   , 's', "Path to a NID table XML"},
+	{(void*) &arg_nidsfile    ,"nidfile"   , 's', "Path to a NID table XML"},
 	{(void*) &arg_iSMask      ,"serialize" , 's', "What to serialize: Imp,eXp,Rel,Sec,sysLibexp "},
 	{(void*) &arg_dwBase      ,"reloc"     , 'i', "Relocate the PRX to a different address"},
 	{(void*) &arg_dbTitle     ,"xmldb"     , 's', "XML disassembly database title" },
@@ -95,6 +95,7 @@ char **arg_parse(int *argc, char **argv, ArgEntry *entry, int entrycount){
 	}
 	return argv;
 }
+
 int arg_usage(ArgEntry *entry, int entrycount, ArgDisEntry *disentry, int disentrycount){
 	fprintf(stdout, "Usage: prxtool [option=value ...] file\nOptions:\n");
 	
@@ -104,7 +105,7 @@ int arg_usage(ArgEntry *entry, int entrycount, ArgDisEntry *disentry, int disent
 		if(ent->type=='i')
 			snprintf(argbuf,sizeof(argbuf),"--%s=%i",ent->label,*(int*)ent->argvoid);
 		if(ent->type=='s')
-			snprintf(argbuf,sizeof(argbuf),"--%s=\"%s\"",ent->label,*(char**)(ent->argvoid));
+			snprintf(argbuf,sizeof(argbuf),"--%s=\"%s\"",ent->label,*(char**)(ent->argvoid)?:"");
 		fprintf(stdout,"%-*s %s\n",(int)sizeof(argbuf)-1,argbuf, ent->help);
 	}
 	fprintf(stdout, "\nDisassembler Options:\n");
