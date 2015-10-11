@@ -2,11 +2,11 @@
 #include "db_nids.c"
 
 typedef struct{
-	unsigned      nids_count;
+	size_t        nids_count;
 	LibraryNid*   nids;
-	unsigned      libraries_count;
+	size_t        libraries_count;
 	LibraryEntry* libraries;
-	unsigned      functions_count;
+	size_t        functions_count;
 	FunctionType* functions;
 }DataBase;
 

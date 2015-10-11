@@ -1,0 +1,441 @@
+#Macro
+0x00000000	0xFFFFFFFF	_	_	nop	
+0x24000000	0xFFE00000	_	_	li	%t, %i
+0x34000000	0xFFE00000	_	_	li	%t, %I
+0x00000021	0xFC1F07FF	_	_	move	%d, %s
+0x00000025	0xFC1F07FF	_	_	move	%d, %s
+0x10000000	0xFFFF0000	h	b	b 	%O
+0x04010000	0xFFFF0000	h	b	b 	%O
+0x04110000	0xFFFF0000	h	j	bal	%O
+0x14000000	0xFC1F0000	h	b	bnez	%s, %O
+0x54000000	0xFC1F0000	h	b	bnezl	%s, %O
+0x10000000	0xFC1F0000	h	b	beqz	%s, %O
+0x50000000	0xFC1F0000	h	b	beqzl	%s, %O
+0x00000022	0xFFE007FF	_	_	neg	%d, %t
+0x00000023	0xFFE007FF	_	_	negu	%d, %t
+0x00000027	0xFC1F07FF	_	_	not	%d, %s
+0x0000F809	0xFC1FFFFF	r	j	jalr	%J
+#MIPS
+0x00000020	0xFC0007FF	_	_	add	%d, %s, %t
+0x20000000	0xFC000000	_	_	addi	%t, %s, %i
+0x24000000	0xFC000000	_	_	addiu	%t, %s, %i
+0x00000021	0xFC0007FF	_	_	addu	%d, %s, %t
+0x00000024	0xFC0007FF	_	_	and	%d, %s, %t
+0x30000000	0xFC000000	_	_	andi	%t, %s, %I
+0x10000000	0xFC000000	h	b	beq	%s, %t, %O
+0x50000000	0xFC000000	h	b	beql	%s, %t, %O
+0x04010000	0xFC1F0000	h	b	bgez	%s, %O
+0x04110000	0xFC1F0000	h	j	bgezal	%s, %O
+0x04030000	0xFC1F0000	h	b	bgezl	%s, %O
+0x1C000000	0xFC1F0000	h	b	bgtz	%s, %O
+0x5C000000	0xFC1F0000	h	b	bgtzl	%s, %O
+0x7C000520	0xFFE007FF	_	p	bitrev	%d, %t
+0x18000000	0xFC1F0000	h	b	blez	%s, %O
+0x58000000	0xFC1F0000	h	b	blezl	%s, %O
+0x04000000	0xFC1F0000	h	b	bltz	%s, %O
+0x04020000	0xFC1F0000	h	b	bltzl	%s, %O
+0x04100000	0xFC1F0000	h	j	bltzal	%s, %O
+0x04120000	0xFC1F0000	h	j	bltzall	%s, %O
+0x14000000	0xFC000000	h	b	bne	%s, %t, %O
+0x54000000	0xFC000000	h	b	bnel	%s, %t, %O
+0x0000000D	0xFC00003F	_	_	break	%c
+0xbc000000	0xfc000000	_	_	cache	%k, %o
+0x40400000	0xFFE007FF	_	p	cfc0	%t, %p
+0x00000017	0xFC1F07FF	_	p	clo	%d, %s
+0x00000016	0xFC1F07FF	_	p	clz	%d, %s
+0x40C00000	0xFFE007FF	_	p	ctc0	%t, %p
+0x0000002C	0xFC0007FF	_	p	max	%d, %s, %t
+0x0000002D	0xFC0007FF	_	p	min	%d, %s, %t
+0x7000003F	0xFFFFFFFF	_	p	dbreak	
+0x0000001A	0xFC00FFFF	_	_	div	%s, %t
+0x0000001B	0xFC00FFFF	_	_	divu	%s, %t
+0x7000003E	0xFFFFFFFF	_	p	dret	
+0x42000018	0xFFFFFFFF	_	_	eret	
+0x7C000000	0xFC00003F	_	p	ext	%t, %s, %a, %ne
+0x7C000004	0xFC00003F	_	p	ins	%t, %s, %a, %ni
+0x08000000	0xFC000000	l	J	j 	%j
+0x00000008	0xFC1FFFFF	r	J	jr	%J
+0x00000009	0xFC1F07FF	r	j	jalr	%J, %d
+0x0C000000	0xFC000000	l	j	jal	%j
+0x80000000	0xFC000000	_	_	lb	%t, %o
+0x90000000	0xFC000000	_	_	lbu	%t, %o
+0x84000000	0xFC000000	_	_	lh	%t, %o
+0x94000000	0xFC000000	_	_	lhu	%t, %o
+0xC0000000	0xFC000000	_	_	ll	%t, %o
+0x3C000000	0xFFE00000	_	_	lui	%t, %I
+0x8C000000	0xFC000000	_	_	lw	%t, %o
+0x88000000	0xFC000000	_	_	lwl	%t, %o
+0x98000000	0xFC000000	_	_	lwr	%t, %o
+0x0000001C	0xFC00FFFF	_	p	madd	%s, %t
+0x0000001D	0xFC00FFFF	_	p	maddu	%s, %t
+0x40000000	0xFFE007FF	_	_	mfc0	%t, %0
+0x7000003D	0xFFE007FF	_	p	mfdr	%t, %r
+0x00000010	0xFFFF07FF	_	_	mfhi	%d
+0x70000024	0xFFE007FF	_	p	mfic	%t, %p
+0x00000012	0xFFFF07FF	_	_	mflo	%d
+0x0000000B	0xFC0007FF	_	p	movn	%d, %s, %t
+0x0000000A	0xFC0007FF	_	p	movz	%d, %s, %t
+0x0000002e	0xfc00ffff	_	p	msub	%d, %t
+0x0000002f	0xfc00ffff	_	p	msubu	%d, %t
+0x40800000	0xFFE007FF	_	_	mtc0	%t, %0
+0x7080003D	0xFFE007FF	_	p	mtdr	%t, %r
+0x70000026	0xFFE007FF	_	p	mtic	%t, %p
+0x70000000	0xFFFFFFFF	_	p	halt	
+0x00000011	0xFC1FFFFF	_	_	mthi	%s
+0x00000013	0xFC1FFFFF	_	_	mtlo	%s
+0x00000018	0xFC00FFFF	_	_	mult	%s, %t
+0x00000019	0xFC0007FF	_	_	multu	%s, %t
+0x00000027	0xFC0007FF	_	_	nor	%d, %s, %t
+0x00000025	0xFC0007FF	_	_	or	%d, %s, %t
+0x34000000	0xFC000000	_	_	ori	%t, %s, %I
+0x00200002	0xFFE0003F	_	_	rotr	%d, %t, %a
+0x00000046	0xFC0007FF	_	_	rotv	%d, %t, %s
+0x7C000420	0xFFE007FF	_	_	seb	%d, %t
+0x7C000620	0xFFE007FF	_	_	seh	%d, %t
+0xA0000000	0xFC000000	_	_	sb	%t, %o
+0xE0000000	0xFC000000	_	_	sc	%t, %o
+0xA4000000	0xFC000000	_	_	sh	%t, %o
+0x00000004	0xFC0007FF	_	_	sllv	%d, %t, %s
+0x00000000	0xFFE0003F	_	_	sll	%d, %t, %a
+0x0000002A	0xFC0007FF	_	_	slt	%d, %s, %t
+0x28000000	0xFC000000	_	_	slti	%t, %s, %i
+0x2C000000	0xFC000000	_	_	sltiu	%t, %s, %i
+0x0000002B	0xFC0007FF	_	_	sltu	%d, %s, %t
+0x00000003	0xFFE0003F	_	_	sra	%d, %t, %a
+0x00000007	0xFC0007FF	_	_	srav	%d, %t, %s
+0x00000006	0xFC0007FF	_	_	srlv	%d, %t, %s
+0x00000002	0xFFE0003F	_	_	srl	%d, %t, %a
+0xAC000000	0xFC000000	_	_	sw	%t, %o
+0xA8000000	0xFC000000	_	_	swl	%t, %o
+0xB8000000	0xFC000000	_	_	swr	%t, %o
+0x00000022	0xFC0007FF	_	_	sub	%d, %s, %t
+0x00000023	0xFC0007FF	_	_	subu	%d, %s, %t
+0x0000000F	0xFFFFFFFF	_	_	sync	
+0x0000000C	0xFC00003F	_	_	syscall	%C
+0x00000026	0xFC0007FF	_	_	xor	%d, %s, %t
+0x38000000	0xFC000000	_	_	xori	%t, %s, %I
+0x7C0000A0	0xFFE007FF	_	p	wsbh	%d, %t
+0x7C0000E0	0xFFE007FF	_	p	wsbw	%d, %t
+#FPU
+0x46000005	0xFFFF003F	_	_	abs.s	%D, %S
+0x46000000	0xFFE0003F	_	_	add.s	%D, %S, %T
+0x45000000	0xFFFF0000	h	b	bc1f	%O
+0x45020000	0xFFFF0000	h	b	bc1fl	%O
+0x45010000	0xFFFF0000	h	b	bc1t	%O
+0x45030000	0xFFFF0000	h	b	bc1tl	%O
+0x46000030	0xFFE007FF	_	_	c.f.s	%S, %T
+0x46000031	0xFFE007FF	_	_	c.un.s	%S, %T
+0x46000032	0xFFE007FF	_	_	c.eq.s	%S, %T
+0x46000033	0xFFE007FF	_	_	c.ueq.s	%S, %T
+0x46000034	0xFFE007FF	_	_	c.olt.s	%S, %T
+0x46000035	0xFFE007FF	_	_	c.ult.s	%S, %T
+0x46000036	0xFFE007FF	_	_	c.ole.s	%S, %T
+0x46000037	0xFFE007FF	_	_	c.ule.s	%S, %T
+0x46000038	0xFFE007FF	_	_	c.sf.s	%S, %T
+0x46000039	0xFFE007FF	_	_	c.ngle.s	%S, %T
+0x4600003A	0xFFE007FF	_	_	c.seq.s	%S, %T
+0x4600003B	0xFFE007FF	_	_	c.ngl.s	%S, %T
+0x4600003C	0xFFE007FF	_	_	c.lt.s	%S, %T
+0x4600003D	0xFFE007FF	_	_	c.nge.s	%S, %T
+0x4600003E	0xFFE007FF	_	_	c.le.s	%S, %T
+0x4600003F	0xFFE007FF	_	_	c.ngt.s	%S, %T
+0x4600000E	0xFFFF003F	_	_	ceil.w.s	%D, %S
+0x44400000	0xFFE007FF	_	_	cfc1	%t, %p
+0x44c00000	0xFFE007FF	_	_	ctc1	%t, %p
+0x46800020	0xFFFF003F	_	_	cvt.s.w	%D, %S
+0x46000024	0xFFFF003F	_	_	cvt.w.s	%D, %S
+0x46000003	0xFFE0003F	_	_	div.s	%D, %S, %T
+0x4600000F	0xFFFF003F	_	_	floor.w.s	%D, %S
+0xc4000000	0xFC000000	_	_	lwc1	%T, %o
+0x44000000	0xFFE007FF	_	_	mfc1	%t, %1
+0x46000006	0xFFFF003F	_	_	mov.s	%D, %S
+0x44800000	0xFFE007FF	_	_	mtc1	%t, %1
+0x46000002	0xFFE0003F	_	_	mul.s	%D, %S, %T
+0x46000007	0xFFFF003F	_	_	neg.s	%D, %S
+0x4600000C	0xFFFF003F	_	_	round.w.s	%D, %S
+0x46000004	0xFFFF003F	_	_	sqrt.s	%D, %S
+0x46000001	0xFFE0003F	_	_	sub.s	%D, %S, %T
+0xe4000000	0xFC000000	_	_	swc1	%T, %o
+0x4600000D	0xFFFF003F	_	_	trunc.w.s	%D, %S
+#VPU
+0x49000000	0xFFE30000	h	P	bvf	%Zc, %O
+0x49020000	0xFFE30000	h	P	bvfl	%Zc, %O
+0x49010000	0xFFE30000	h	P	bvt	%Zc, %O
+0x49030000	0xFFE30000	h	P	bvtl	%Zc, %O
+0xD8000000	0xFC000002	_	p	lv.q	%Xq, %Y
+0xC8000000	0xFC000000	_	p	lv.s	%Xs, %Y
+0xD4000000	0xFC000002	_	p	lvl.q	%Xq, %Y
+0xD4000002	0xFC000002	_	p	lvr.q	%Xq, %Y
+0x48600000	0xFFE0FF80	_	p	mfv	%t, %zs
+0x48600000	0xFFE0FF00	_	p	mfvc	%t, %2d
+0x48E00000	0xFFE0FF80	_	p	mtv	%t, %zs
+0x48E00000	0xFFE0FF00	_	p	mtvc	%t, %2d
+0xF8000000	0xFC000002	_	p	sv.q	%Xq, %Y
+0xE8000000	0xFC000000	_	p	sv.s	%Xs, %Y
+0xF4000000	0xFC000002	_	p	svl.q	%Xq, %Y
+0xF4000002	0xFC000002	_	p	svr.q	%Xq, %Y
+0xD0010080	0xFFFF8080	_	p	vabs.p	%zp, %yp
+0xD0018080	0xFFFF8080	_	p	vabs.q	%zq, %yq
+0xD0010000	0xFFFF8080	_	p	vabs.s	%zs, %ys
+0xD0018000	0xFFFF8080	_	p	vabs.t	%zt, %yt
+0x60000080	0xFF808080	_	p	vadd.p	%zp, %yp, %xp
+0x60008080	0xFF808080	_	p	vadd.q	%zq, %yq, %xq
+0x60000000	0xFF808080	_	p	vadd.s	%zs, %ys, %xs
+0x60008000	0xFF808080	_	p	vadd.t	%zt, %yt, %xt
+0xD0170080	0xFFFF8080	_	p	vasin.p	%zp, %yp
+0xD0178080	0xFFFF8080	_	p	vasin.q	%zq, %yq
+0xD0170000	0xFFFF8080	_	p	vasin.s	%zs, %ys
+0xD0178000	0xFFFF8080	_	p	vasin.t	%zt, %yt
+0xD0470080	0xFFFF8080	_	p	vavg.p	%zp, %yp
+0xD0478080	0xFFFF8080	_	p	vavg.q	%zq, %yq
+0xD0478000	0xFFFF8080	_	p	vavg.t	%zt, %yt
+0xD0420080	0xFFFF8080	_	p	vbfy1.p	%zp, %yp
+0xD0428080	0xFFFF8080	_	p	vbfy1.q	%zq, %yq
+0xD0438080	0xFFFF8080	_	p	vbfy2.q	%zq, %yq
+0xD2A80080	0xFFF88080	_	p	vcmovf.p	%zp, %yp, %v3
+0xD2A88080	0xFFF88080	_	p	vcmovf.q	%zq, %yq, %v3
+0xD2A80000	0xFFF88080	_	p	vcmovf.s	%zs, %ys, %v3
+0xD2A88000	0xFFF88080	_	p	vcmovf.t	%zt, %yt, %v3
+0xD2A00080	0xFFF88080	_	p	vcmovt.p	%zp, %yp, %v3
+0xD2A08080	0xFFF88080	_	p	vcmovt.q	%zq, %yq, %v3
+0xD2A00000	0xFFF88080	_	p	vcmovt.s	%zs, %ys, %v3
+0xD2A08000	0xFFF88080	_	p	vcmovt.t	%zt, %yt, %v3
+0x6C000080	0xFF8080F0	_	p	vcmp.p	%Zn, %yp, %xp
+0x6C000080	0xFFFF80F0	_	p	vcmp.p	%Zn, %yp
+0x6C000080	0xFFFFFFF0	_	p	vcmp.p	%Zn
+0x6C008080	0xFF8080F0	_	p	vcmp.q	%Zn, %yq, %xq
+0x6C008080	0xFFFF80F0	_	p	vcmp.q	%Zn, %yq
+0x6C008080	0xFFFFFFF0	_	p	vcmp.q	%Zn
+0x6C000000	0xFF8080F0	_	p	vcmp.s	%Zn, %ys, %xs
+0x6C000000	0xFFFF80F0	_	p	vcmp.s	%Zn, %ys
+0x6C000000	0xFFFFFFF0	_	p	vcmp.s	%Zn
+0x6C008000	0xFF8080F0	_	p	vcmp.t	%Zn, %yt, %xt
+0x6C008000	0xFFFF80F0	_	p	vcmp.t	%Zn, %yt
+0x6C008000	0xFFFFFFF0	_	p	vcmp.t	%Zn
+0xD0130080	0xFFFF8080	_	p	vcos.p	%zp, %yp
+0xD0138080	0xFFFF8080	_	p	vcos.q	%zq, %yq
+0xD0130000	0xFFFF8080	_	p	vcos.s	%zs, %ys
+0xD0138000	0xFFFF8080	_	p	vcos.t	%zt, %yt
+0x66808000	0xFF808080	_	p	vcrs.t	%zt, %yt, %xt
+0xF2808000	0xFF808080	_	p	vcrsp.t	%zt, %yt, %xt
+0xD0600080	0xFFE0FF80	_	p	vcst.p	%zp, %vk
+0xD0608080	0xFFE0FF80	_	p	vcst.q	%zq, %vk
+0xD0600000	0xFFE0FF80	_	p	vcst.s	%zs, %vk
+0xD0608000	0xFFE0FF80	_	p	vcst.t	%zt, %vk
+0x67000080	0xFF808080	_	p	vdet.p	%zs, %yp, %xp
+0x63800080	0xFF808080	_	p	vdiv.p	%zp, %yp, %xp
+0x63808080	0xFF808080	_	p	vdiv.q	%zq, %yq, %xq
+0x63800000	0xFF808080	_	p	vdiv.s	%zs, %ys, %xs
+0x63808000	0xFF808080	_	p	vdiv.t	%zt, %yt, %xt
+0x64800080	0xFF808080	_	p	vdot.p	%zs, %yp, %xp
+0x64808080	0xFF808080	_	p	vdot.q	%zs, %yq, %xq
+0x64808000	0xFF808080	_	p	vdot.t	%zs, %yt, %xt
+0xD0140080	0xFFFF8080	_	p	vexp2.p	%zp, %yp
+0xD0148080	0xFFFF8080	_	p	vexp2.q	%zq, %yq
+0xD0140000	0xFFFF8080	_	p	vexp2.s	%zs, %ys
+0xD0148000	0xFFFF8080	_	p	vexp2.t	%zt, %yt
+0xD0320080	0xFFFF8080	_	p	vf2h.p	%zs, %yp
+0xD0328080	0xFFFF8080	_	p	vf2h.q	%zp, %yq
+0xD2600080	0xFFE08080	_	p	vf2id.p	%zp, %yp, %v5
+0xD2608080	0xFFE08080	_	p	vf2id.q	%zq, %yq, %v5
+0xD2600000	0xFFE08080	_	p	vf2id.s	%zs, %ys, %v5
+0xD2608000	0xFFE08080	_	p	vf2id.t	%zt, %yt, %v5
+0xD2000080	0xFFE08080	_	p	vf2in.p	%zp, %yp, %v5
+0xD2008080	0xFFE08080	_	p	vf2in.q	%zq, %yq, %v5
+0xD2000000	0xFFE08080	_	p	vf2in.s	%zs, %ys, %v5
+0xD2008000	0xFFE08080	_	p	vf2in.t	%zt, %yt, %v5
+0xD2400080	0xFFE08080	_	p	vf2iu.p	%zp, %yp, %v5
+0xD2408080	0xFFE08080	_	p	vf2iu.q	%zq, %yq, %v5
+0xD2400000	0xFFE08080	_	p	vf2iu.s	%zs, %ys, %v5
+0xD2408000	0xFFE08080	_	p	vf2iu.t	%zt, %yt, %v5
+0xD2200080	0xFFE08080	_	p	vf2iz.p	%zp, %yp, %v5
+0xD2208080	0xFFE08080	_	p	vf2iz.q	%zq, %yq, %v5
+0xD2200000	0xFFE08080	_	p	vf2iz.s	%zs, %ys, %v5
+0xD2208000	0xFFE08080	_	p	vf2iz.t	%zt, %yt, %v5
+0xD0460080	0xFFFF8080	_	p	vfad.p	%zp, %yp
+0xD0468080	0xFFFF8080	_	p	vfad.q	%zq, %yq
+0xD0468000	0xFFFF8080	_	p	vfad.t	%zt, %yt
+0xDF800000	0xFF800000	_	p	vfim.s	%xs, %vh
+0xFFFF040D	0xFFFFFFFF	_	p	vflush	
+0xD0330080	0xFFFF8080	_	p	vh2f.p	%zq, %yp
+0xD0330000	0xFFFF8080	_	p	vh2f.s	%zp, %ys
+0x66000080	0xFF808080	_	p	vhdp.p	%zs, %yp, %xp
+0x66008080	0xFF808080	_	p	vhdp.q	%zs, %yq, %xq
+0x66008000	0xFF808080	_	p	vhdp.t	%zs, %yt, %xt
+0xF0800000	0xFF808080	_	p	vhtfm2.p	%zp, %ym, %xp
+0xF1000080	0xFF808080	_	p	vhtfm3.t	%zt, %yn, %xt
+0xF1808000	0xFF808080	_	p	vhtfm4.q	%zq, %yo, %xq
+0xD03D8080	0xFFFF8080	_	p	vi2c.q	%zs, %yq
+0xD2800080	0xFFE08080	_	p	vi2f.p	%zp, %yp, %v5
+0xD2808080	0xFFE08080	_	p	vi2f.q	%zq, %yq, %v5
+0xD2800000	0xFFE08080	_	p	vi2f.s	%zs, %ys, %v5
+0xD2808000	0xFFE08080	_	p	vi2f.t	%zt, %yt, %v5
+0xD03F0080	0xFFFF8080	_	p	vi2s.p	%zs, %yp
+0xD03F8080	0xFFFF8080	_	p	vi2s.q	%zp, %yq
+0xD03C8080	0xFFFF8080	_	p	vi2uc.q	%zq, %yq
+0xD03E0080	0xFFFF8080	_	p	vi2us.p	%zq, %yq
+0xD03E8080	0xFFFF8080	_	p	vi2us.q	%zq, %yq
+0xD0030080	0xFFFFFF80	_	p	vidt.p	%zp
+0xD0038080	0xFFFFFF80	_	p	vidt.q	%zq
+0xDF000000	0xFF800000	_	p	viim.s	%xs, %vi
+0xD0370000	0xFFFF8080	_	p	vlgb.s	%zs, %ys
+0xD0150080	0xFFFF8080	_	p	vlog2.p	%zp, %yp
+0xD0158080	0xFFFF8080	_	p	vlog2.q	%zq, %yq
+0xD0150000	0xFFFF8080	_	p	vlog2.s	%zs, %ys
+0xD0158000	0xFFFF8080	_	p	vlog2.t	%zt, %yt
+0x6D800080	0xFF808080	_	p	vmax.p	%zp, %yp, %xp
+0x6D808080	0xFF808080	_	p	vmax.q	%zq, %yq, %xq
+0x6D800000	0xFF808080	_	p	vmax.s	%zs, %ys, %xs
+0x6D808000	0xFF808080	_	p	vmax.t	%zt, %yt, %xt
+0xD0500000	0xFFFF0080	_	p	vmfvc	%zs, %2s
+0xF3830080	0xFFFFFF80	_	p	vmidt.p	%zm
+0xF3838080	0xFFFFFF80	_	p	vmidt.q	%zo
+0xF3838000	0xFFFFFF80	_	p	vmidt.t	%zn
+0x6D000080	0xFF808080	_	p	vmin.p	%zp, %yp, %xp
+0x6D008080	0xFF808080	_	p	vmin.q	%zq, %yq, %xq
+0x6D000000	0xFF808080	_	p	vmin.s	%zs, %ys, %xs
+0x6D008000	0xFF808080	_	p	vmin.t	%zt, %yt, %xt
+0xF3800080	0xFFFF8080	_	p	vmmov.p	%zm, %ym
+0xF3808080	0xFFFF8080	_	p	vmmov.q	%zo, %yo
+0xF3808000	0xFFFF8080	_	p	vmmov.t	%zn, %yn
+0xF0000080	0xFF808080	_	p	vmmul.p	%?%zm, %ym, %xm
+0xF0008080	0xFF808080	_	p	vmmul.q	%?%zo, %yo, %xo
+0xF0008000	0xFF808080	_	p	vmmul.t	%?%zn, %yn, %xn
+0xF3870080	0xFFFFFF80	_	p	vmone.p	%zp
+0xF3878080	0xFFFFFF80	_	p	vmone.q	%zq
+0xF3878000	0xFFFFFF80	_	p	vmone.t	%zt
+0xD0000080	0xFFFF8080	_	p	vmov.p	%zp, %yp
+0xD0008080	0xFFFF8080	_	p	vmov.q	%zq, %yq
+0xD0000000	0xFFFF8080	_	p	vmov.s	%zs, %ys
+0xD0008000	0xFFFF8080	_	p	vmov.t	%zt, %yt
+0xF2000080	0xFF808080	_	p	vmscl.p	%zm, %ym, %xs
+0xF2008080	0xFF808080	_	p	vmscl.q	%zo, %yo, %xs
+0xF2008000	0xFF808080	_	p	vmscl.t	%zn, %yn, %xs
+0xD0510000	0xFFFF8000	_	p	vmtvc	%2d, %ys
+0x64000080	0xFF808080	_	p	vmul.p	%zp, %yp, %xp
+0x64008080	0xFF808080	_	p	vmul.q	%zq, %yq, %xq
+0x64000000	0xFF808080	_	p	vmul.s	%zs, %ys, %xs
+0x64008000	0xFF808080	_	p	vmul.t	%zt, %yt, %xt
+0xF3860080	0xFFFFFF80	_	p	vmzero.p	%zm
+0xF3868080	0xFFFFFF80	_	p	vmzero.q	%zo
+0xF3868000	0xFFFFFF80	_	p	vmzero.t	%zn
+0xD0020080	0xFFFF8080	_	p	vneg.p	%zp, %yp
+0xD0028080	0xFFFF8080	_	p	vneg.q	%zq, %yq
+0xD0020000	0xFFFF8080	_	p	vneg.s	%zs, %ys
+0xD0028000	0xFFFF8080	_	p	vneg.t	%zt, %yt
+0xFFFF0000	0xFFFFFFFF	_	p	vnop	
+0xD0180080	0xFFFF8080	_	p	vnrcp.p	%zp, %yp
+0xD0188080	0xFFFF8080	_	p	vnrcp.q	%zq, %yq
+0xD0180000	0xFFFF8080	_	p	vnrcp.s	%zs, %ys
+0xD0188000	0xFFFF8080	_	p	vnrcp.t	%zt, %yt
+0xD01A0080	0xFFFF8080	_	p	vnsin.p	%zp, %yp
+0xD01A8080	0xFFFF8080	_	p	vnsin.q	%zq, %yq
+0xD01A0000	0xFFFF8080	_	p	vnsin.s	%zs, %ys
+0xD01A8000	0xFFFF8080	_	p	vnsin.t	%zt, %yt
+0xD0440080	0xFFFF8080	_	p	vocp.p	%zp, %yp
+0xD0448080	0xFFFF8080	_	p	vocp.q	%zq, %yq
+0xD0440000	0xFFFF8080	_	p	vocp.s	%zs, %ys
+0xD0448000	0xFFFF8080	_	p	vocp.t	%zt, %yt
+0xD0070080	0xFFFFFF80	_	p	vone.p	%zp
+0xD0078080	0xFFFFFF80	_	p	vone.q	%zq
+0xD0070000	0xFFFFFF80	_	p	vone.s	%zs
+0xD0078000	0xFFFFFF80	_	p	vone.t	%zt
+0xDE000000	0xFF000000	_	p	vpfxd	[%vp4, %vp5, %vp6, %vp7]
+0xDC000000	0xFF000000	_	p	vpfxs	[%vp0, %vp1, %vp2, %vp3]
+0xDD000000	0xFF000000	_	p	vpfxt	[%vp0, %vp1, %vp2, %vp3]
+0xF2808080	0xFF808080	_	p	vqmul.q	%zq, %yq, %xq
+0xD0100080	0xFFFF8080	_	p	vrcp.p	%zp, %yp
+0xD0108080	0xFFFF8080	_	p	vrcp.q	%zq, %yq
+0xD0100000	0xFFFF8080	_	p	vrcp.s	%zs, %ys
+0xD0108000	0xFFFF8080	_	p	vrcp.t	%zt, %yt
+0xD01C0080	0xFFFF8080	_	p	vrexp2.p	%zp, %yp
+0xD01C8080	0xFFFF8080	_	p	vrexp2.q	%zq, %yq
+0xD01C0000	0xFFFF8080	_	p	vrexp2.s	%zs, %ys
+0xD01C8000	0xFFFF8080	_	p	vrexp2.t	%zt, %yt
+0xD0220080	0xFFFFFF80	_	p	vrndf1.p	%zp
+0xD0228080	0xFFFFFF80	_	p	vrndf1.q	%zq
+0xD0220000	0xFFFFFF80	_	p	vrndf1.s	%zs
+0xD0228000	0xFFFFFF80	_	p	vrndf1.t	%zt
+0xD0230080	0xFFFFFF80	_	p	vrndf2.p	%zp
+0xD0238080	0xFFFFFF80	_	p	vrndf2.q	%zq
+0xD0230000	0xFFFFFF80	_	p	vrndf2.s	%zs
+0xD0238000	0xFFFFFF80	_	p	vrndf2.t	%zt
+0xD0210080	0xFFFFFF80	_	p	vrndi.p	%zp
+0xD0218080	0xFFFFFF80	_	p	vrndi.q	%zq
+0xD0210000	0xFFFFFF80	_	p	vrndi.s	%zs
+0xD0218000	0xFFFFFF80	_	p	vrndi.t	%zt
+0xD0200000	0xFFFF80FF	_	p	vrnds.s	%ys
+0xF3A00080	0xFFE08080	_	p	vrot.p	%zp, %ys, %vr
+0xF3A08080	0xFFE08080	_	p	vrot.q	%zq, %ys, %vr
+0xF3A08000	0xFFE08080	_	p	vrot.t	%zt, %ys, %vr
+0xD0110080	0xFFFF8080	_	p	vrsq.p	%zp, %yp
+0xD0118080	0xFFFF8080	_	p	vrsq.q	%zq, %yq
+0xD0110000	0xFFFF8080	_	p	vrsq.s	%zs, %ys
+0xD0118000	0xFFFF8080	_	p	vrsq.t	%zt, %yt
+0xD03B0080	0xFFFF8080	_	p	vs2i.p	%zq, %yp
+0xD03B0000	0xFFFF8080	_	p	vs2i.s	%zp, %ys
+0xD0040080	0xFFFF8080	_	p	vsat0.p	%zp, %yp
+0xD0048080	0xFFFF8080	_	p	vsat0.q	%zq, %yq
+0xD0040000	0xFFFF8080	_	p	vsat0.s	%zs, %ys
+0xD0048000	0xFFFF8080	_	p	vsat0.t	%zt, %yt
+0xD0050080	0xFFFF8080	_	p	vsat1.p	%zp, %yp
+0xD0058080	0xFFFF8080	_	p	vsat1.q	%zq, %yq
+0xD0050000	0xFFFF8080	_	p	vsat1.s	%zs, %ys
+0xD0058000	0xFFFF8080	_	p	vsat1.t	%zt, %yt
+0x61000000	0xFF808080	_	p	vsbn.s	%zs, %ys, %xs
+0xD0360000	0xFFFF8080	_	p	vsbz.s	%zs, %ys
+0x65000080	0xFF808080	_	p	vscl.p	%zp, %yp, %xs
+0x65008080	0xFF808080	_	p	vscl.q	%zq, %yq, %xs
+0x65008000	0xFF808080	_	p	vscl.t	%zt, %yt, %xs
+0x6E800080	0xFF808080	_	p	vscmp.p	%zp, %yp, %xp
+0x6E808080	0xFF808080	_	p	vscmp.q	%zq, %yq, %xq
+0x6E800000	0xFF808080	_	p	vscmp.s	%zs, %ys, %xs
+0x6E808000	0xFF808080	_	p	vscmp.t	%zt, %yt, %xt
+0x6F000080	0xFF808080	_	p	vsge.p	%zp, %yp, %xp
+0x6F008080	0xFF808080	_	p	vsge.q	%zq, %yq, %xq
+0x6F000000	0xFF808080	_	p	vsge.s	%zs, %ys, %xs
+0x6F008000	0xFF808080	_	p	vsge.t	%zt, %yt, %xt
+0xD04A0080	0xFFFF8080	_	p	vsgn.p	%zp, %yp
+0xD04A8080	0xFFFF8080	_	p	vsgn.q	%zq, %yq
+0xD04A0000	0xFFFF8080	_	p	vsgn.s	%zs, %ys
+0xD04A8000	0xFFFF8080	_	p	vsgn.t	%zt, %yt
+0xD0120080	0xFFFF8080	_	p	vsin.p	%zp, %yp
+0xD0128080	0xFFFF8080	_	p	vsin.q	%zq, %yq
+0xD0120000	0xFFFF8080	_	p	vsin.s	%zs, %ys
+0xD0128000	0xFFFF8080	_	p	vsin.t	%zt, %yt
+0x6F800080	0xFF808080	_	p	vslt.p	%zp, %yp, %xp
+0x6F808080	0xFF808080	_	p	vslt.q	%zq, %yq, %xq
+0x6F800000	0xFF808080	_	p	vslt.s	%zs, %ys, %xs
+0x6F808000	0xFF808080	_	p	vslt.t	%zt, %yt, %xt
+0xD0450080	0xFFFF8080	_	p	vsocp.p	%zq, %yp
+0xD0450000	0xFFFF8080	_	p	vsocp.s	%zp, %ys
+0xD0160080	0xFFFF8080	_	p	vsqrt.p	%zp, %yp
+0xD0168080	0xFFFF8080	_	p	vsqrt.q	%zq, %yq
+0xD0160000	0xFFFF8080	_	p	vsqrt.s	%zs, %ys
+0xD0168000	0xFFFF8080	_	p	vsqrt.t	%zt, %yt
+0xD0408080	0xFFFF8080	_	p	vsrt1.q	%zq, %yq
+0xD0418080	0xFFFF8080	_	p	vsrt2.q	%zq, %yq
+0xD0488080	0xFFFF8080	_	p	vsrt3.q	%zq, %yq
+0xD0498080	0xFFFF8080	_	p	vsrt4.q	%zq, %yq
+0x60800080	0xFF808080	_	p	vsub.p	%zp, %yp, %xp
+0x60808080	0xFF808080	_	p	vsub.q	%zq, %yq, %xq
+0x60800000	0xFF808080	_	p	vsub.s	%zs, %ys, %xs
+0x60808000	0xFF808080	_	p	vsub.t	%zt, %yt, %xt
+0xFFFF0000	0xFFFF0000	_	p	vsync	%I
+0xFFFF0320	0xFFFFFFFF	_	p	vsync	
+0xD0598080	0xFFFF8080	_	p	vt4444.q	%zq, %yq
+0xD05A8080	0xFFFF8080	_	p	vt5551.q	%zq, %yq
+0xD05B8080	0xFFFF8080	_	p	vt5650.q	%zq, %yq
+0xF0800080	0xFF808080	_	p	vtfm2.p	%zp, %ym, %xp
+0xF1008000	0xFF808080	_	p	vtfm3.t	%zt, %yn, %xt
+0xF1808080	0xFF808080	_	p	vtfm4.q	%zq, %yo, %xq
+0xD03A0080	0xFFFF8080	_	p	vus2i.p	%zq, %yp
+0xD03A0000	0xFFFF8080	_	p	vus2i.s	%zp, %ys
+0xF8000002	0xFC000002	_	p	vwb.q	%Xq, %Y
+0xD3000000	0xFF008080	_	p	vwbn.s	%zs, %xs, %I
+0xD0060080	0xFFFFFF80	_	p	vzero.p	%zp
+0xD0068080	0xFFFFFF80	_	p	vzero.q	%zq
+0xD0060000	0xFFFFFF80	_	p	vzero.s	%zs
+0xD0068000	0xFFFFFF80	_	p	vzero.t	%zt
+0x68000000	0xFC000000	_	_	mfvme	%t, %i
+0xb0000000	0xFC000000	_	_	mtvme	%t, %i

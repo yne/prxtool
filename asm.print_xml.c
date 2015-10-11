@@ -447,33 +447,29 @@ void format_line_xml(char *code, int codelen, const char *addr, unsigned int opc
 	snprintf(code, codelen, "<name>%s</name><opcode>0x%08X</opcode>%s", name, opcode, args);
 }
 
-const char *disasmInstructionXML(unsigned int opcode, unsigned int PC){
+const char *disasmInstructionXML(unsigned int opcode, unsigned int PC,Instruction*macro,size_t macro_count, Instruction*inst, size_t inst_count){
 	static char code[1024];
 	const char *name = NULL;
 	char args[1024];
 	char addr[1024];
-	int size;
-	int i;
 	Instruction *ix = NULL;
 
 	sprintf(addr, "0x%08X", PC);
 	g_regmask = 0;
 
 	if(!g_macroon){
-		size = sizeof(g_macro) / sizeof(Instruction);
-		for(i = 0; i < size; i++){
-			if((opcode & g_macro[i].mask) == g_macro[i].opcode){
-				ix = &g_macro[i];
+		for(int i = 0; i < macro_count; i++){
+			if((opcode & macro[i].mask) == macro[i].opcode){
+				ix = &macro[i];
 				break;
 			}
 		}
 	}
 
 	if(!ix){
-		size = sizeof(g_inst) / sizeof(Instruction);
-		for(i = 0; i < size; i++){
-			if((opcode & g_inst[i].mask) == g_inst[i].opcode){
-				ix = &g_inst[i];
+		for(int i = 0; i < inst_count; i++){
+			if((opcode & inst[i].mask) == inst[i].opcode){
+				ix = &inst[i];
 				break;
 			}
 		}

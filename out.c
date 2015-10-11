@@ -50,7 +50,7 @@ int output_symbols(const char *file, FILE *out_fp){
 	fprintf(stdout, "Loading %s\n", file);
 	if(!PrxLoadFromFile(&prx,file))
 		return fprintf(stderr, "Couldn't load elf file structures"),0;
-	ElfSymbol *pSymbols;
+	ElfSymbol *pSymbols=NULL;
 	int symbolsCount=0;//PrxGetSymbols(&pSymbols);
 	if(symbolsCount)
 		output_symbols2(pSymbols, symbolsCount, out_fp);
@@ -125,7 +125,7 @@ int output_elf(const char *file, FILE *out_fp){//TODO
 
 	if(!PrxLoadFromFile(&prx,file))
 		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
-	if(!PrxPrxToElf(&prx,out_fp))
+	if(!PrxToElf(&prx,out_fp))
 		return fprintf(stderr, "Failed to create a fixed up ELF\n"),1;
 	return 0;
 }
@@ -236,6 +236,7 @@ int output_deps(const char *file, DataBase *pNids){
 			snprintf(path, PATH_MAX, "Unknown (%s)", pHead->name);
 		fprintf(stdout, "Dependency %d for%s: %s\n", i++, pHead->name, path);
 	}
+	return 0;
 }
 
 int write_stub(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
@@ -366,28 +367,27 @@ int output_ents(const char *file, DataBase *pNids, FILE *f){
 	//PrxGetExports(&prx,&pHead);
 	for(PspEntries*pHead=prx.module.exports;pHead;/*pHead = pHead->next*/)
 		write_ent(pHead, f);
+	return 0;
 }
 
 int output_stubs_xml(DataBase *pNids){
-	PspEntries *pExp;
-
 	for(LibraryEntry *pLib = pNids->libraries;pLib;/*pLib = pLib->pNext;*/){
 		// Convery the LibraryEntry into a valid PspEntries
-		memset(pExp, 0, sizeof(PspEntries));
-		strcpy(pExp->name, pLib->lib_name);
-		pExp->f_count = pLib->fcount;
-		pExp->v_count = pLib->vcount;
-		pExp->stub.flags = pLib->flags;
+		PspEntries pExp={};
+		strcpy(pExp.name, pLib->lib_name);
+		pExp.f_count = pLib->fcount;
+		pExp.v_count = pLib->vcount;
+		pExp.stub.flags = pLib->flags;
 
-		for(int i = 0; i < pExp->f_count; i++){
-			//pExp->funcs[i].nid = pLib->pNids[i].nid;
-			//strcpy(pExp->funcs[i].name, pLib->pNids[i].name);
+		for(int i = 0; i < pExp.f_count; i++){
+			//pExp.funcs[i].nid = pLib->pNids[i].nid;
+			//strcpy(pExp.funcs[i].name, pLib->pNids[i].name);
 		}
 
 		if(arg_out_stubnew)
-			write_stub_new("", pExp, NULL);
+			write_stub_new("", &pExp, NULL);
 		else
-			write_stub("", pExp, NULL);
+			write_stub("", &pExp, NULL);
 	}
 	return 0;
 }

@@ -12,6 +12,12 @@
 #define PSP_IMPORT_BASE_SIZE (5*4)
 #define SYMFILE_MAGIC "SYMS"
 
+#define RELOC_OFS_TEXT 0   // .text section relative reloc offset 
+#define RELOC_OFS_DATA 1   // .data section relative reloc offset
+#define RELOC_REL_DATA 256 // reloc'ed field should be fixed up relative to the data section base 
+
+#define MINIMUM_STRING 4
+
 typedef enum {
 	PSP_ENTRY_FUNC = 0,
 	PSP_ENTRY_VAR = 1
@@ -57,7 +63,7 @@ typedef struct{
 	uint16_t f_count;
 	uint8_t v_count;
 	PspModuleImport stub;
-	//PspModuleExport stub;
+	PspModuleExport export;
 	PspEntry funcs[2000],vars[255];
 }PspEntries;
 
@@ -65,6 +71,7 @@ typedef struct{
 	PspModuleInfo info;
 	uint32_t addr;
 	PspEntries *exports,*imports;
+	size_t exports_count,imports_count;
 }PspModule;
 
 typedef struct{
@@ -75,7 +82,7 @@ typedef struct{
 	uint32_t  strsize;
 } __attribute__ ((packed)) SymfileHeader;
 
-typedef struct {
+typedef struct{
 	uint32_t name;
 	uint32_t addr;
 	uint32_t size;
@@ -83,6 +90,24 @@ typedef struct {
 
 #include "vmem.c"
 #include "asm.c"
+
+typedef struct{
+	ElfCtx elf;
+	PspModule  module;
+	DataBase   defNidMgr;
+	DataBase*  pCurrNidMgr;
+	Vmem vMem;
+	int blPrxLoaded;
+	ElfReloc  *pElfRelocs;// Pointer to the allocated relocation entries, if available 
+	int iRelocCount;// Number of relocations 
+	Imms*imms;
+	//Symbols syms;
+	uint32_t dwBase;
+	uint32_t stubBottom;
+	int blXmlDump;
+	Instruction*macro;
+	size_t macro_count;
+}CProcessPrx;
 
 static const char* g_szRelTypes[16] = {
 	"R_NONE",
@@ -101,34 +126,7 @@ static const char* g_szRelTypes[16] = {
 	"X_HI16",
 	"X_J26",
 	"X_JAL26"
-	
 };
-
-// Flag indicates the reloc offset field is relative to the text section base 
-#define RELOC_OFS_TEXT 0
-// Flag indicates the reloc offset field is relative to the data section base 
-#define RELOC_OFS_DATA 1
-// Flag indicates the reloc'ed field should be fixed up relative to the data section base 
-#define RELOC_REL_DATA 256
-
-// Minimum string size 
-#define MINIMUM_STRING 4
-
-typedef struct{
-	ElfCtx elf;
-	PspModule  module;
-	DataBase   defNidMgr;
-	DataBase*  pCurrNidMgr;
-	Vmem vMem;
-	int blPrxLoaded;
-	ElfReloc  *pElfRelocs;// Pointer to the allocated relocation entries, if available 
-	int iRelocCount;// Number of relocations 
-	//Imms imms;
-	//Symbols syms;
-	uint32_t dwBase;
-	uint32_t stubBottom;
-	int blXmlDump;
-}CProcessPrx;
 
 int PrxLoadImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr){
 	char*pName,*dep,*slash;
@@ -211,145 +209,89 @@ int PrxLoadImports(CProcessPrx* prx){
 }
 
 int PrxLoadExport(CProcessPrx* prx,PspModuleExport *pExport, uint32_t addr){
-	int blError = 1;
-	int count = 0;
-	int iLoop;
-	PspEntries* pLib = NULL;
-	uint32_t expAddr;
+	assert(pExport);
 
-/*
-	assert(pExport != NULL);
-
-	SAFE_ALLOC(pLib, PspEntries);
-	if(pLib != NULL){
-		do{
-			memset(pLib, 0, sizeof(PspEntries));
-			pLib->addr = addr;
-			pLib->stub.name = LW(pExport->name);
-			pLib->stub.flags = LW(pExport->flags);
-			pLib->stub.counts = LW(pExport->counts);
-			pLib->stub.exports = LW(pExport->exports);
-
-			if(pLib->stub.name == 0){
-				// If 0 then this is the system, this should be the only one 
-				strcpy(pLib->name, PSP_SYSTEM_EXPORT);
-			}else{
-				char *pName = (char*) VmemGetPtr(pLib->stub.name);
-				if(pName == NULL){
-					fprintf(stderr, "Invalid memory address for export name (0x%08X)\n", pLib->stub.name);
-					break;
-				}
-
-				strcpy(pLib->name, pName);
-			}
-
-			fprintf(stdout,"Found export library '%s'\n", pLib->name);
-			fprintf(stdout,"Flags %08X, counts %08X, exports %08X\n", 
-					pLib->stub.flags, pLib->stub.counts, pLib->stub.exports);
-
-			pLib->v_count = (pLib->stub.counts >> 8) & 0xFF;
-			pLib->f_count = (pLib->stub.counts >> 16) & 0xFFFF;
-			count = pLib->stub.counts & 0xFF;
-			expAddr = pLib->stub.exports;
-
-			if(VmemGetSize(expAddr) < (sizeof(uint32_t) * (pLib->v_count + pLib->f_count))){
-				fprintf(stderr, "Invalid memory address for exports (0x%08X)\n", pLib->stub.exports);
-				break;
-			}
-
-			for(iLoop = 0; iLoop < pLib->f_count; iLoop++){
-				// We will fix up the names later 
-				pLib->funcs[iLoop].nid = VmemGetU32(expAddr);
-				strcpy(pLib->funcs[iLoop].name, prx->pCurrNidMgr->FindLibName(pLib->name, pLib->funcs[iLoop].nid));
-				pLib->funcs[iLoop].type = PSP_ENTRY_FUNC;
-				pLib->funcs[iLoop].addr = VmemGetU32(expAddr + (sizeof(uint32_t) * (pLib->v_count + pLib->f_count)));
-				pLib->funcs[iLoop].nid_addr = expAddr; 
-				fprintf(stdout,"Found export nid:0x%08X func:0x%08X name:%s\n", 
-											pLib->funcs[iLoop].nid, pLib->funcs[iLoop].addr, pLib->funcs[iLoop].name);
-				expAddr += 4;
-			}
-
-			for(iLoop = 0; iLoop < pLib->v_count; iLoop++){
-				// We will fix up the names later 
-				pLib->vars[iLoop].nid = VmemGetU32(expAddr);
-				strcpy(pLib->vars[iLoop].name, prx->pCurrNidMgr->FindLibName(pLib->name, pLib->vars[iLoop].nid));
-				pLib->vars[iLoop].type = PSP_ENTRY_FUNC;
-				pLib->vars[iLoop].addr = VmemGetU32(expAddr + (sizeof(uint32_t) * (pLib->v_count + pLib->f_count)));
-				pLib->vars[iLoop].nid_addr = expAddr; 
-				fprintf(stdout,"Found export nid:0x%08X var:0x%08X name:%s\n", 
-											pLib->vars[iLoop].nid, pLib->vars[iLoop].addr, pLib->vars[iLoop].name);
-				expAddr += 4;
-			}
-
-			if(prx->module.exports == NULL){
-				pLib->next = NULL;
-				pLib->prev = NULL;
-				prx->module.exports = pLib;
-			}else{
-				// Search for the end of the list
-				PspEntries* pExport;
-
-				pExport = prx->module.exports;
-				while(pExport->next != NULL){
-					pExport = pExport->next;
-				}
-
-				pExport->next = pLib;
-				pLib->prev = pExport;
-				pLib->next = NULL;
-			}
-
-			blError = 0;
-
+	PspEntries pLib = (PspEntries){
+		.addr = addr,
+		.export = {
+			.name = LW(pExport->name),
+			.flags = LW(pExport->flags),
+			.counts = LW(pExport->counts),
+			.exports = LW(pExport->exports),
 		}
-		while(0);
+	};
+	
+	if(pLib.export.name == 0){
+		// If 0 then this is the system, this should be the only one 
+		strcpy(pLib.name, PSP_SYSTEM_EXPORT);
 	}else{
-		fprintf(stderr, "Couldn't allocate memory for export\n");
+		char *pName = (char*) VmemGetPtr(&prx->vMem, pLib.export.name);
+		if(!pName)
+			return fprintf(stderr, "Invalid memory address for export name (0x%08X)\n", pLib.export.name),0;
+		strcpy(pLib.name, pName);
 	}
 
-	if(blError){
-		count = 0;
-		if(pLib != NULL){
-			delete pLib;
-			pLib = NULL;
-		}
+	fprintf(stdout,"Found export library '%s'\n", pLib.name);
+	fprintf(stdout,"Flags %08X, counts %08X, exports %08X\n", pLib.export.flags, pLib.export.counts, pLib.export.exports);
+
+	pLib.v_count = (pLib.export.counts >> 8) & 0xFF;
+	pLib.f_count = (pLib.export.counts >> 16) & 0xFFFF;
+	int count = pLib.export.counts & 0xFF;
+	uint32_t expAddr = pLib.export.exports;
+
+	if(VmemGetSize(&prx->vMem,expAddr) < (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)))
+		return fprintf(stderr, "Invalid memory address for exports (0x%08X)\n", pLib.export.exports),0;
+
+	for(int iLoop = 0; iLoop < pLib.f_count; iLoop++){
+		// We will fix up the names later 
+		pLib.funcs[iLoop].nid = VmemGetU32(&prx->vMem,expAddr);
+		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->libraries_count, pLib.name, pLib.funcs[iLoop].nid));
+		pLib.funcs[iLoop].type = PSP_ENTRY_FUNC;
+		pLib.funcs[iLoop].addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
+		pLib.funcs[iLoop].nid_addr = expAddr; 
+		fprintf(stdout,"Found export nid:0x%08X func:0x%08X name:%s\n", pLib.funcs[iLoop].nid, pLib.funcs[iLoop].addr, pLib.funcs[iLoop].name);
+		expAddr += 4;
 	}
-*/
+
+	for(int iLoop = 0; iLoop < pLib.v_count; iLoop++){
+		// We will fix up the names later 
+		pLib.vars[iLoop].nid = VmemGetU32(&prx->vMem,expAddr);
+		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->libraries_count, pLib.name, pLib.vars[iLoop].nid));
+		pLib.vars[iLoop].type = PSP_ENTRY_FUNC;
+		pLib.vars[iLoop].addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
+		pLib.vars[iLoop].nid_addr = expAddr; 
+		fprintf(stdout,"Found export nid:0x%08X var:0x%08X name:%s\n", pLib.vars[iLoop].nid, pLib.vars[iLoop].addr, pLib.vars[iLoop].name);
+		expAddr += 4;
+	}
+
+	if(!prx->module.exports){
+		prx->module.exports = &pLib;
+	}else{
+		// Search for the end of the list
+		//while(PspEntries* prx->module.exports;pExport->next;pExport = pExport->next)
+		//pExport->next = pLib;
+	}
+
 	return count;
 }
 
 int PrxLoadExports(CProcessPrx* prx){
-	int blRet = 1;
-	uint32_t exp_base;
-	uint32_t exp_end;
-/*
 	assert(prx->module.exports == NULL);
 
-	exp_base = prx->module.info.exports;
-	exp_end =  prx->module.info.exp_end;
-	if(exp_base != 0){
-		while((exp_end - exp_base) >= sizeof(PspModuleExport)){
-			uint32_t count;
-			PspModuleExport *pExport;
-
-			pExport = (PspModuleExport*) VmemGetPtr(exp_base);
-
-			if(pExport != NULL){
-				count = LoadSingleExport(pExport, exp_base);
-				if(count > 0){
-					exp_base += (count * sizeof(uint32_t));
-				}else{
-					blRet = 0;
-					break;
-				}
-			}else{
-				blRet = 0;
-				break;
-			}
-		}
+	uint32_t exp_base = prx->module.info.exports;
+	uint32_t exp_end =  prx->module.info.exp_end;
+	if(!exp_base)
+		return 0;
+	while((exp_end - exp_base) >= sizeof(PspModuleExport)){
+		PspModuleExport *pExport = (PspModuleExport*) VmemGetPtr(&prx->vMem,exp_base);
+		if(!pExport)
+			return 0;
+		uint32_t count = PrxLoadExport(prx, pExport, exp_base);
+		if(!count)
+			return 0;
+		exp_base += (count * sizeof(uint32_t));
 	}
-*/
-	return blRet;
+	return 1;
 }
 
 int PrxFillModule(CProcessPrx* prx,PspModuleInfo *pData, uint32_t iAddr){
@@ -451,7 +393,7 @@ int PrxCountRelocs(CProcessPrx* prx){
 		
 		uint8_t
 			part1s = prx->elf.programs[iLoop].pData[2],
-			part2s = prx->elf.programs[iLoop].pData[3],
+			//part2s = prx->elf.programs[iLoop].pData[3],
 			block1s = prx->elf.programs[iLoop].pData[4],
 			*block1 = &prx->elf.programs[iLoop].pData[4],
 			*block2 = block1 + block1s,
@@ -718,9 +660,8 @@ int PrxLoadRelocs(CProcessPrx* prx){
 
 	return 1;
 }
-
+//TODO
 int PrxBuildMaps(CProcessPrx*prx){
-	int iLoop;
 /*
 	BuildSymbols(prx->syms, prx->dwBase);
 
@@ -762,7 +703,7 @@ int PrxBuildMaps(CProcessPrx*prx){
 	}
 
 	// Build symbols for branches in the code 
-	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
+	for(int iLoop = 0; iLoop < prx->iSHCount; iLoop++){
 		if(prx->sections[iLoop].flags & SHF_EXECINSTR){
 			uint32_t iILoop;
 			uint32_t dwAddr;
@@ -771,7 +712,7 @@ int PrxBuildMaps(CProcessPrx*prx){
 			pInst  = (uint32_t*) VmemGetPtr(dwAddr);
 
 			for(iILoop = 0; iILoop < (prx->sections[iLoop].iSize / 4); iILoop++){
-				disasmAddBranchSymbols(LW(pInst[iILoop]), dwAddr + prx->dwBase, prx->syms);
+				disasmAddBranchSymbols(LW(pInst[iILoop]), dwAddr + prx->dwBase, prx->syms, prx-instr, prx-instr_count);
 				dwAddr += 4;
 			}
 		}
@@ -792,11 +733,10 @@ int PrxBuildMaps(CProcessPrx*prx){
 */
 	return 1;
 }
+//TODO
 void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
-	int iLoop;
-	uint32_t *pData;
-	uint32_t regs[32];
 /*
+	uint32_t regs[32];
 	// Fixup the elf file and output it to fp 
 	if((prx->blPrxLoaded == 0)){
 		return;
@@ -811,8 +751,8 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 		return;
 	}
 
-	pData = NULL;
-	for(iLoop = 0; iLoop < prx->iRelocCount; iLoop++){
+	uint32_t *pData = NULL;
+	for(int iLoop = 0; iLoop < prx->iRelocCount; iLoop++){
 		ElfReloc *rel = &prx->pElfRelocs[iLoop];
 		uint32_t dwRealOfs;
 		uint32_t dwCurrBase;
@@ -1017,7 +957,6 @@ void PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 }
 
 int PrxLoadFromFile(CProcessPrx* prx,const char *filename){
-	int blRet = 0;
 	if(!elf_loadFromFile(&prx->elf, filename))
 		return 1;
 	// Do PRX specific stuff 
@@ -1074,22 +1013,18 @@ int PrxLoadFromBinFile(CProcessPrx* prx,const char *filename, unsigned int dwDat
 }
 
 void PrxCalcElfSize(CProcessPrx* prx,size_t *iTotal, size_t *iSectCount, size_t *iStrSize){
-	int i;
-	int iBinBase = 0;
 	// Sect count 2 for NULL and string sections 
 	*iSectCount = 2;
 	*iTotal = 0;
 	// 1 for NUL for NULL section 
 	*iStrSize = 2 + strlen(".shstrtab"); 
 
-/*
-	for(i = 1; i < prx->iSHCount; i++){
-		if(prx->sections[i].flags & SHF_ALLOC){
-			iSectCount++;
-			iStrSize += strlen(prx->sections[i].szName) + 1;
+	for(int i = 1; i < prx->elf.iSHCount; i++){
+		if(prx->elf.sections[i].flags & SHF_ALLOC){
+			*iSectCount++;
+			*iStrSize += strlen(prx->elf.sections[i].szName) + 1;
 		}
 	}
-*/
 	*iTotal = sizeof(Elf32_Ehdr) + (sizeof(Elf32_Shdr)* *iSectCount) + *iStrSize;
 }
 
@@ -1118,44 +1053,37 @@ int PrxOutputheader(CProcessPrx* prx,FILE *fp, size_t iSectCount){
 int PrxOutputSections(CProcessPrx* prx,FILE *fp, size_t iElfHeadSize, size_t iSectCount, size_t iStrSize){
 	Elf32_Shdr shdr;
 	size_t iStrPointer = 1;
-	size_t iBinBase;
-	int i;
-	char *pStrings;
-/*
-	pStrings = new char[iStrSize];
-	if(pStrings == NULL){
-		return 0;
-	}
-	memset(pStrings, 0, iStrSize);
-
-	iBinBase = (iElfHeadSize + 15) & ~15;
+	char pStrings[iStrSize];
+	memset(pStrings,0,iStrSize);
+	
+	size_t iBinBase = (iElfHeadSize + 15) & ~15;
 	memset(&shdr, 0, sizeof(shdr));
 	// Write NULL section 
 	if(fwrite(&shdr, 1, sizeof(shdr), fp) != sizeof(shdr)){
 		return 0;
 	}
 
-	for(i = 1; i < prx->iSHCount; i++){
-		if(prx->sections[i].flags & SHF_ALLOC){
+	for(int i = 1; i < prx->elf.iSHCount; i++){
+		if(prx->elf.sections[i].flags & SHF_ALLOC){
 			SW(shdr.sh_name, iStrPointer);
-			SW(shdr.sh_type, prx->sections[i].type);
-			SW(shdr.sh_flags, prx->sections[i].flags);
-			SW(shdr.sh_addr, prx->sections[i].iAddr + prx->dwBase);
-			if(prx->sections[i].type == SHT_NOBITS){
-				SW(shdr.sh_offset, iBinBase + prx->iElfSize);
+			SW(shdr.sh_type, prx->elf.sections[i].type);
+			SW(shdr.sh_flags, prx->elf.sections[i].flags);
+			SW(shdr.sh_addr, prx->elf.sections[i].iAddr + prx->dwBase);
+			if(prx->elf.sections[i].type == SHT_NOBITS){
+				SW(shdr.sh_offset, iBinBase + prx->elf.iElfSize);
 			}else{
-				SW(shdr.sh_offset, iBinBase + prx->sections[i].iAddr);
+				SW(shdr.sh_offset, iBinBase + prx->elf.sections[i].iAddr);
 			}
-			SW(shdr.sh_size, prx->sections[i].iSize);
+			SW(shdr.sh_size, prx->elf.sections[i].iSize);
 			SW(shdr.sh_link, 0);
 			SW(shdr.sh_info, 0);
-			SW(shdr.sh_addralign, prx->sections[i].iAddralign);
+			SW(shdr.sh_addralign, prx->elf.sections[i].iAddralign);
 			SW(shdr.sh_entsize, 0);
 			if(fwrite(&shdr, 1, sizeof(shdr), fp) != sizeof(shdr)){
 				return 0;
 			}
-			strcpy(&pStrings[iStrPointer], prx->sections[i].szName);
-			iStrPointer += strlen(prx->sections[i].szName) + 1;
+			strcpy(&pStrings[iStrPointer], prx->elf.sections[i].szName);
+			iStrPointer += strlen(prx->elf.sections[i].szName) + 1;
 		}
 	}
 
@@ -1179,66 +1107,50 @@ int PrxOutputSections(CProcessPrx* prx,FILE *fp, size_t iElfHeadSize, size_t iSe
 
 	assert(iStrSize == iStrPointer);
 
-	if(fwrite(pStrings, 1, iStrSize, fp) != (unsigned) iStrSize){
+	if(fwrite(pStrings, 1, iStrSize, fp) != (unsigned) iStrSize)
 		return 0;
-	}
 
-	delete pStrings;
-*/
 	return 1;
 }
 
-int PrxPrxToElf(CProcessPrx* prx,FILE *fp){
+int PrxToElf(CProcessPrx* prx,FILE *fp){
+	// Fixup the elf file and output it to fp 
+	if((!fp) || (!prx->blPrxLoaded))
+		return 0;
+
 	size_t iElfHeadSize = 0;
 	size_t iSectCount = 0;
 	size_t iStrSize = 0;
-	size_t iAlign = 0;
-/*
-	// Fixup the elf file and output it to fp 
-	if((fp == NULL) || (prx->blPrxLoaded == 0)){
-		return 0;
-	}
-
-	CalcElfSize(iElfHeadSize, iSectCount, iStrSize);
+	PrxCalcElfSize(prx, &iElfHeadSize, &iSectCount, &iStrSize);
 	fprintf(stdout, "size: %d, sectcount: %d, strsize: %d\n", iElfHeadSize, iSectCount, iStrSize);
-	if(!Outputheader(fp, iSectCount)){
+	if(!PrxOutputheader(prx, fp, iSectCount)){
 		fprintf(stdout, "Could not write ELF header\n");
 		return 0;
 	}
 
-	if(!OutputSections(fp, iElfHeadSize, iSectCount, iStrSize)){
-		fprintf(stdout, "Could not write ELF sections\n");
-		return 0;
-	}
+	if(!PrxOutputSections(prx, fp, iElfHeadSize, iSectCount, iStrSize))
+		return fprintf(stdout, "Could not write ELF sections\n"),0;
 
 	// Align data size 
-	iAlign = iElfHeadSize & 15;
+	size_t iAlign = iElfHeadSize & 15;
 	if(iAlign > 0){
 		char align[16];
 
 		iAlign = 16 - iAlign;
 		memset(align, 0, sizeof(align));
-		if(fwrite(align, 1, iAlign, fp) != iAlign){
-			fprintf(stdout, "Could not write alignment\n");
-			return 0;
-		}
+		if(fwrite(align, 1, iAlign, fp) != iAlign)
+			return fprintf(stdout, "Could not write alignment\n"),0;
 	}
 
-	if(fwrite(prx->elf.pElfBin, 1, prx->iElfSize, fp) != prx->iElfSize){
-		fprintf(stdout, "Could not write out binary image\n");
-		return 0;
-	}
+	if(fwrite(prx->elf.pElfBin, 1, prx->elf.iElfSize, fp) != prx->elf.iElfSize)
+		return fprintf(stdout, "Could not write out binary image\n"),0;
 
 	fflush(fp);
-*/
 	return 1;
 }
-
+//TODO
 void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 	// First map in imports and exports 
-	PspEntries *pExport;
-	PspEntries *pImport;
-	int iLoop;
 /*
 	// If we have a symbol table then no point building from imports/exports 
 	if(prx->symbols){
@@ -1269,12 +1181,12 @@ void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 			}
 		}
 	}else{
-		pExport = prx->module.exports;
-		pImport = prx->module.imports;
+		PspEntries *pExport = prx->module.exports;
+		PspEntries *pImport = prx->module.imports;
 
 		while(pExport != NULL){
 			if(pExport->f_count > 0){
-				for(iLoop = 0; iLoop < pExport->f_count; iLoop++){
+				for(int iLoop = 0; iLoop < pExport->f_count; iLoop++){
 					SymbolEntry *s;
 
 					s = syms[pExport->funcs[iLoop].addr + dwBase];
@@ -1296,7 +1208,7 @@ void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 			}
 
 			if(pExport->v_count > 0){
-				for(iLoop = 0; iLoop < pExport->v_count; iLoop++){
+				for(int iLoop = 0; iLoop < pExport->v_count; iLoop++){
 					SymbolEntry *s;
 
 					s = syms[pExport->vars[iLoop].addr + dwBase];
@@ -1322,7 +1234,7 @@ void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 
 		while(pImport != NULL){
 			if(pImport->f_count > 0){
-				for(iLoop = 0; iLoop < pImport->f_count; iLoop++){
+				for(int iLoop = 0; iLoop < pImport->f_count; iLoop++){
 					SymbolEntry *s = new SymbolEntry;
 					s->addr = pImport->funcs[iLoop].addr + dwBase;
 					s->type = SYMBOL_FUNC;
@@ -1334,7 +1246,7 @@ void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 			}
 
 			if(pImport->v_count > 0){
-				for(iLoop = 0; iLoop < pImport->v_count; iLoop++){
+				for(int iLoop = 0; iLoop < pImport->v_count; iLoop++){
 					SymbolEntry *s = new SymbolEntry;
 					s->addr = pImport->vars[iLoop].addr + dwBase;
 					s->type = SYMBOL_DATA;
@@ -1350,7 +1262,7 @@ void PrxBuildSymbols(CProcessPrx* prx,/*Symbols *syms,*/ uint32_t dwBase){
 	}
 	*/
 }
-
+//TODO
 void PrxFreeSymbols(CProcessPrx* prx/*Symbols &syms*/){
 /*
 	Symbols::iterator start = syms.begin();
@@ -1367,7 +1279,7 @@ void PrxFreeSymbols(CProcessPrx* prx/*Symbols &syms*/){
 	}
 	*/
 }
-
+//TODO
 void PrxFreeImms(CProcessPrx* prx/*Imms &imms*/){
 /*
 	Imms::iterator start = imms.begin();
@@ -1385,17 +1297,15 @@ void PrxFreeImms(CProcessPrx* prx/*Imms &imms*/){
 	}
 	*/
 }
-
+//TODO
 // Print a row of a memory dump, up to row_size 
 void PrxPrintRow(CProcessPrx* prx,FILE *fp, const uint32_t* row, int32_t row_size, uint32_t addr){
-	char buffer[512];
-	char *p = buffer;
-	int i = 0;
+	char buffer[512],*p = buffer;
 /*
 	sprintf(p, "0x%08X - ", addr);
 	p += strlen(p);
 
-	for(i = 0; i < 16; i++){
+	for(int i = 0; i < 16; i++){
 		if(i < row_size){
 			sprintf(p, "%02X ", row[i]);
 		}else{
@@ -1413,7 +1323,7 @@ void PrxPrintRow(CProcessPrx* prx,FILE *fp, const uint32_t* row, int32_t row_siz
 	sprintf(p, "- ");
 	p += strlen(p);
 
-	for(i = 0; i < 16; i++){
+	for(int i = 0; i < 16; i++){
 		if(i < row_size){
 			if((row[i] >= 32) && (row[i] < 127)){
 				if(prx->blXmlDump && (row[i] == '<')){
@@ -1429,22 +1339,19 @@ void PrxPrintRow(CProcessPrx* prx,FILE *fp, const uint32_t* row, int32_t row_siz
 			*p++ = '.';
 		}
 	}
-	*p = 0;
 */
+	*p = 0;
 	fprintf(fp, "%s\n", buffer);
 }
-
+//TODO
 void PrxDumpData(CProcessPrx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
-	uint32_t i;
-	uint32_t row[16];
-	int row_size;
-
 	fprintf(fp, "           - 00 01 02 03 | 04 05 06 07 | 08 09 0A 0B | 0C 0D 0E 0F - 0123456789ABCDEF\n");
 	fprintf(fp, "-------------------------------------------------------------------------------------\n");
 	/*
+	uint32_t row[16];
 	memset(row, 0, sizeof(row));
-	row_size = 0;
-	for(i = 0; i < iSize; i++){
+	int row_size = 0;
+	for(int i = 0; i < iSize; i++){
 		row[row_size] = pData[i];
 		row_size++;
 		if(row_size == 16){
@@ -1469,7 +1376,6 @@ void PrxDumpData(CProcessPrx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 #define ISSPACE(x) ((x) == '\t' || (x) == '\r' || (x) == '\n' || (x) == '\v' || (x) == '\f')
 
 int PrxReadString(CProcessPrx* prx,uint32_t dwAddr, char*str, int unicode, uint32_t *dwRet){
-	char* curr = "";
 	int iSize = 0;//VmemGetSize(dwAddr);
 	int iRealLen = 0;
 
@@ -1530,20 +1436,18 @@ void PrxDumpStrings(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, u
 		}
 	}
 }
-
-void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData/*, Imms &imms*/, uint32_t dwBase){
-	uint32_t iILoop;
-	uint32_t *pInst = (uint32_t*) pData;
-	uint32_t inst;
+//TODO
+void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imms* imms, uint32_t dwBase){
 /*
+	uint32_t *pInst = (uint32_t*) pData;
 	SymbolEntry *lastFunc = NULL;
 	unsigned int lastFuncAddr = 0;
-	for(iILoop = 0; iILoop < (iSize / 4); iILoop++){
+	for(int iILoop = 0; iILoop < (iSize / 4); iILoop++){
 		SymbolEntry *s;
 		FunctionType *t;
 		ImmEntry *imm;
 
-		inst = LW(pInst[iILoop]);
+		uint32_t inst = LW(pInst[iILoop]);
 		s = disasmFindSymbol(dwAddr);
 		if(s){
 			switch(s->type){
@@ -1691,7 +1595,7 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 		if(prx->blXmlDump){
 			fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr);
 		}
-		fprintf(fp, "\t%-40s\n", disasmInstruction(inst, dwAddr, NULL, NULL, 0));
+		fprintf(fp, "\t%-40s\n", disasmInstruction(inst, dwAddr, NULL, NULL, 0, prx->macro, prx->macro_count));
 		dwAddr += 4;
 		if((lastFunc != NULL) && (dwAddr >= lastFuncAddr)){
 			fprintf(fp, "\n; End Subroutine %s\n", lastFunc->name.c_str());
@@ -1702,14 +1606,14 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 	}
 	*/
 }
-
-void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData/*, Imms &imms*/, uint32_t dwBase){
+//TODO
+void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imms* imms, uint32_t dwBase){
+/*
 	uint32_t iILoop;
 	uint32_t *pInst;
 	pInst  = (uint32_t*) pData;
 	uint32_t inst;
 	int infunc = 0;
-/*
 	for(iILoop = 0; iILoop < (iSize / 4); iILoop++){
 		SymbolEntry *s;
 		//FunctionType *t;
@@ -1890,61 +1794,42 @@ void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 int PrxFindFuncExtent(CProcessPrx*prx,uint32_t dwStart, uint8_t *pTouchMap){
 	return 0;
 }
-
-void PrxMapFuncExtents(CProcessPrx*prx/*,Symbols &syms*/){
-/*
-	Symbols::iterator start = syms.begin();
-	Symbols::iterator end = syms.end();
-	uint8_t *pTouchMap;
-
-	pTouchMap = new uint8_t[prx->elf.iBinSize];
+//TODO
+void PrxMapFuncExtents(CProcessPrx*prx,Symbols*syms){
+	uint8_t pTouchMap[prx->elf.iBinSize];
 	memset(pTouchMap, 0, prx->elf.iBinSize);
 
-	while(start != end){
-		SymbolEntry *s;
-		s = syms[(*start).first];
-		if((s->type == SYMBOL_FUNC) && (s->size == 0)){
-			int size;
-
-			size = FindFuncExtent(s->addr, pTouchMap);
-			if(size > 0){
-				s->size = size;
-			}
-		}
-
-		start++;
-	}
-	*/
+	for(int i=0;i<syms->length;i++)
+		if((syms[i].symbols->type == SYMBOL_FUNC) && (syms[i].symbols->size == 0))
+			syms[i].symbols->size = PrxFindFuncExtent(prx, syms[i].symbols->addr, pTouchMap)?:syms[i].symbols->size;
 }
 
 void PrxDump(CProcessPrx*prx,FILE *fp, const char *disopts){
-	int iLoop;
-/*
-	disasmSetSymbols(&prx->syms);
+//	disasmSetSymbols(&prx->syms);
 	disasmSetOpts(disopts, 1);
 
 	if(prx->blXmlDump){
 		disasmSetXmlOutput();
 		fprintf(fp, "<html><body><pre>\n");
 	}
-	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
-		if(prx->sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
-			if((prx->sections[iLoop].iSize > 0) && (prx->sections[iLoop].type == SHT_PROGBITS)){
+	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
+		if(prx->elf.sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
+			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
 				fprintf(fp, "\n; ==== Section %s - Address 0x%08X Size 0x%08X Flags 0x%04X\n", 
-						prx->sections[iLoop].szName, prx->sections[iLoop].iAddr + prx->dwBase, 
-						prx->sections[iLoop].iSize, prx->sections[iLoop].flags);
-				if(prx->sections[iLoop].flags & SHF_EXECINSTR){
-					Disasm(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
-							prx->sections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr),
+						prx->elf.sections[iLoop].szName, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+						prx->elf.sections[iLoop].iSize, prx->elf.sections[iLoop].flags);
+				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
+					PrxDisasm(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+							prx->elf.sections[iLoop].iSize, 
+							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),
 							prx->imms, prx->dwBase);
 				}else{
-					DumpData(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
-							prx->sections[iLoop].iSize,
-							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr));
-					DumpStrings(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
-							prx->sections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr));
+					PrxDumpData(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+							prx->elf.sections[iLoop].iSize,
+							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr));
+					PrxDumpStrings(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+							prx->elf.sections[iLoop].iSize, 
+							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr));
 				}
 			}
 		}
@@ -1953,47 +1838,36 @@ void PrxDump(CProcessPrx*prx,FILE *fp, const char *disopts){
 		fprintf(fp, "</pre></body></html>\n");
 	}
 	disasmSetSymbols(NULL);
-*/
 }
 
 void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
-	int iLoop;
-	char *slash;
-	PspEntries *pExport;
-/*
-	disasmSetSymbols(&prx->syms);
+	//disasmSetSymbols(&prx->syms);
 	disasmSetOpts(disopts, 1);
 
-	slash = strrchr(prx->filename, '/');
+	char *slash = strrchr(prx->elf.filename, '/');
 	if(!slash){
-		slash = prx->filename;
+		slash = prx->elf.filename;
 	}else{
 		slash++;
 	}
 
-	fprintf(fp, "<prx file=\"%s\" name=\"%s\">\n", slash, prx->module.name);
+	fprintf(fp, "<prx file=\"%s\" name=\"%s\">\n", slash, prx->module.info.name);
 	fprintf(fp, "<exports>\n");
-	pExport = prx->module.exports;
-	while(pExport){
+	for(int i;i<prx->module.exports_count;i++){
+		PspEntries *pExport = &prx->module.exports[i];
 		fprintf(fp, "<lib name=\"%s\">\n", pExport->name);
-		for(int i = 0; i < pExport->f_count; i++){
-			fprintf(fp, "<func nid=\"0x%08X\" name=\"%s\" ref=\"0x%08X\" />\n", pExport->funcs[i].nid, pExport->funcs[i].name,
-					pExport->funcs[i].addr);
-		}
+		for(int i = 0; i < pExport->f_count; i++)
+			fprintf(fp, "<func nid=\"0x%08X\" name=\"%s\" ref=\"0x%08X\" />\n", pExport->funcs[i].nid, pExport->funcs[i].name,pExport->funcs[i].addr);
 		fprintf(fp, "</lib>\n");
-		pExport = pExport->next;
 	}
 	fprintf(fp, "</exports>\n");
 
-	for(iLoop = 0; iLoop < prx->iSHCount; iLoop++){
-		if(prx->sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
-			if((prx->sections[iLoop].iSize > 0) && (prx->sections[iLoop].type == SHT_PROGBITS)){
-				if(prx->sections[iLoop].flags & SHF_EXECINSTR){
+	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
+		if(prx->elf.sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
+			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
+				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
 					fprintf(fp, "<disasm>\n");
-					DisasmXML(fp, prx->sections[iLoop].iAddr + prx->dwBase, 
-							prx->sections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(prx->sections[iLoop].iAddr),
-							prx->imms, prx->dwBase);
+					PrxDisasmXML(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imms, prx->dwBase);
 					fprintf(fp, "</disasm>\n");
 				}
 			}
@@ -2001,7 +1875,6 @@ void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
 	}
 	fprintf(fp, "</prx>\n");
 	disasmSetSymbols(NULL);
-*/
 }
 
 void PrxSetNidMgr(CProcessPrx*prx,DataBase* nidMgr){

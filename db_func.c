@@ -17,7 +17,7 @@ char *db_func_strip_whitesp(char *str){
 	return len?str:NULL;
 }
 
-int db_func_import(FunctionType *func,unsigned*count,const char* filename){
+int db_func_import(FunctionType *func,unsigned*count,const char* filename, char field_sep){
 	FILE *fp = fopen(filename, "r");
 	if(!fp)
 		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
@@ -29,9 +29,9 @@ int db_func_import(FunctionType *func,unsigned*count,const char* filename){
 		if(!(name = db_func_strip_whitesp(line)) || name[0] == '#')
 			continue;
 		
-		if((args = strchr(name, '|'))){
+		if((args = strchr(name, field_sep))){
 			*args++ = 0;
-			if((ret = strchr(args, '|')))
+			if((ret = strchr(args, field_sep)))
 				*ret++ = 0;
 		}
 		if(func){//fill mode

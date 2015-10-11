@@ -89,8 +89,7 @@ uint32_t VmemGetSize(Vmem*mem, uint32_t iAddr){
 uint32_t VmemCopy   (Vmem*mem, uint32_t iAddr, void *pDest, uint32_t iSize){
 	uint32_t size = VmemGetSize(mem,iAddr);
 	uint32_t iCopySize = size > iSize ? iSize : size;
-	void *ptr;
 	if(iCopySize > 0)
-		memcpy(VmemGetPtr(mem,iAddr), ptr, iCopySize);
+		memcpy(pDest, VmemGetPtr(mem,iAddr), iCopySize);
 	return iCopySize;
 }

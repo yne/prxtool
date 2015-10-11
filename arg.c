@@ -1,26 +1,27 @@
 char**   arg_inFiles      = NULL;
 int      arg_nbFiles      = 0;
-char *   arg_outfile      = NULL;
-char *   arg_out_idc      = NULL;
-char *   arg_out_map      = NULL;
-char *   arg_out_xml      = NULL;
-char *   arg_out_elf      = NULL;
-char *   arg_out_stub     = NULL;
-char *   arg_out_stubnew  = NULL;
-char *   arg_out_dep      = NULL;
-char *   arg_out_mod      = NULL;
-char *   arg_out_pstub    = NULL;
-char *   arg_out_pstubnew = NULL;
-char *   arg_out_impexp   = NULL;
-char *   arg_out_ent      = NULL;
-char *   arg_out_disasm   = NULL;
-char *   arg_out_symbols  = NULL;
-char *   arg_out_xmldb    = NULL;
-char *   arg_funcfile     = "functions.txt";
-char *   arg_nidsfile     = "psplibdoc.xml";
-char *   arg_iSMask       = "ixrl";
+char*    arg_outfile      = NULL;
+char*    arg_out_idc      = NULL;
+char*    arg_out_map      = NULL;
+char*    arg_out_xml      = NULL;
+char*    arg_out_elf      = NULL;
+char*    arg_out_stub     = NULL;
+char*    arg_out_stubnew  = NULL;
+char*    arg_out_dep      = NULL;
+char*    arg_out_mod      = NULL;
+char*    arg_out_pstub    = NULL;
+char*    arg_out_pstubnew = NULL;
+char*    arg_out_impexp   = NULL;
+char*    arg_out_ent      = NULL;
+char*    arg_out_disasm   = NULL;
+char*    arg_out_symbols  = NULL;
+char*    arg_out_xmldb    = NULL;
+char*    arg_funcfile     = "functions.txt";
+char*    arg_funcfile_sep = "	";
+char*    arg_nidsfile     = "psplibdoc.xml";
+char*    arg_iSMask       = "ixrl";
 uint32_t arg_dwBase       = 0;
-char *   arg_dbTitle      = "";
+char*    arg_dbTitle      = "";
 int      arg_xmlOutput    = 0;
 int      arg_loadbin      = 0;
 uint32_t arg_database     = 0;
@@ -28,7 +29,6 @@ int      arg_aliasOutput  = 0;
 int      arg_verbose      = 0;
 int      arg_showusage    = 0;
 char*    arg_disopts      = "";
-
 typedef struct{
 	void*   argvoid           ;char*label  ,type, *help;}ArgEntry;
 ArgEntry cmd_options[] = {
@@ -49,6 +49,7 @@ ArgEntry cmd_options[] = {
 	{(void*) &arg_out_symbols ,"outsym"    , 's', "Output path of a symbol file"},
 	{(void*) &arg_out_xmldb   ,"outxdb"    , 's', "Output path of an XML disassembly database"},
 	{(void*) &arg_funcfile    ,"funcs"     , 's', "Path to a disassembly functions file"},
+	{(void*) &arg_funcfile_sep,"funcssep"  , 's', "Functions file field separator character"},
 	{(void*) &arg_nidsfile    ,"nidfile"   , 's', "Path to a NID table XML"},
 	{(void*) &arg_iSMask      ,"serialize" , 's', "What to serialize: Imp,eXp,Rel,Sec,sysLibexp "},
 	{(void*) &arg_dwBase      ,"reloc"     , 'i', "Relocate the PRX to a different address"},

@@ -17,22 +17,19 @@ int elf_buildBinaryImageFromSection(ElfCtx*elf){
 		}
 	}
 	fprintf(stdout,"Min Address %08X, Max Address %08X, Max Size %ld\n", iMinAddr, iMaxAddr, iMaxSize);
-	if(iMinAddr != ~0){
-		elf->iBinSize = iMaxAddr - iMinAddr + iMaxSize;
-		elf->pElfBin[elf->iBinSize];
-		if(elf->pElfBin){
-			memset(elf->pElfBin, 0, elf->iBinSize);
-			for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
-				ElfSection* pSection = &elf->sections[iLoop];
-				if((pSection->flags & SHF_ALLOC) && (pSection->type != SHT_NOBITS) && (pSection->pData)){
-					memcpy(elf->pElfBin + (pSection->iAddr - iMinAddr), pSection->pData, pSection->iSize);
-				}
-			}
-			elf->baseAddr = iMinAddr;
-			return 1;
+	if(iMinAddr == ~0)
+		return 0;
+	elf->iBinSize = iMaxAddr - iMinAddr + iMaxSize;
+	elf->pElfBin[elf->iBinSize];
+	memset(elf->pElfBin, 0, elf->iBinSize);
+	for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++){
+		ElfSection* pSection = &elf->sections[iLoop];
+		if((pSection->flags & SHF_ALLOC) && (pSection->type != SHT_NOBITS) && (pSection->pData)){
+			memcpy(elf->pElfBin + (pSection->iAddr - iMinAddr), pSection->pData, pSection->iSize);
 		}
 	}
-	return 0;
+	elf->baseAddr = iMinAddr;
+	return 1;
 }
 
 int elf_buildBinaryImageFromProgram(ElfCtx*elf){
@@ -48,23 +45,20 @@ int elf_buildBinaryImageFromProgram(ElfCtx*elf){
 		}
 	}
 	fprintf(stdout,"Min Address %08X, Max Address %08X\n", iMinAddr, iMaxAddr);
-	if(iMinAddr != ~0){
-		elf->iBinSize = iMaxAddr - iMinAddr;
-		elf->pElfBin[elf->iBinSize];
-		if(elf->pElfBin != NULL){
-			memset(elf->pElfBin, 0, elf->iBinSize);
-			for(int iLoop = 0; iLoop < elf->iPHCount; iLoop++){
-				ElfProgram* pProgram = &elf->programs[iLoop];
-				if((pProgram->type == PT_LOAD) && (pProgram->pData != NULL)){
-					fprintf(stdout,"Loading program %d 0x%08X\n", iLoop, pProgram->type);
-					memcpy(elf->pElfBin + (pProgram->iVaddr - iMinAddr), pProgram->pData, pProgram->iFilesz);
-				}
-			}
-			elf->baseAddr = iMinAddr;
-			return 1;
+	if(iMinAddr == ~0)
+		return 0;
+	elf->iBinSize = iMaxAddr - iMinAddr;
+	elf->pElfBin[elf->iBinSize];
+	memset(elf->pElfBin, 0, elf->iBinSize);
+	for(int iLoop = 0; iLoop < elf->iPHCount; iLoop++){
+		ElfProgram* pProgram = &elf->programs[iLoop];
+		if((pProgram->type == PT_LOAD) && (pProgram->pData != NULL)){
+			fprintf(stdout,"Loading program %d 0x%08X\n", iLoop, pProgram->type);
+			memcpy(elf->pElfBin + (pProgram->iVaddr - iMinAddr), pProgram->pData, pProgram->iFilesz);
 		}
 	}
-	return 0;
+	elf->baseAddr = iMinAddr;
+	return 1;
 }
 
 int elf_buildBinaryImage(ElfCtx*elf){
@@ -141,28 +135,29 @@ int elf_validateHeader(ElfCtx*elf){
 }
 
 int elf_buildFakeSections(ElfCtx*elf, unsigned int dwDataBase){
-	int blRet = 0;
-
 	if(dwDataBase >= elf->iBinSize){
 		// If invalid then set to 0
 		fprintf(stdout, "Invalid data base address (%d), defaulting to 0\n", dwDataBase);
 		dwDataBase = 0;
 	}
 
-	elf->sections[3];
 	elf->iSHCount = 3;
-	memset(elf->sections, 0, sizeof(ElfSection) * 3);
-	elf->sections[1].type = SHT_PROGBITS;
-	elf->sections[1].flags = SHF_ALLOC | SHF_EXECINSTR;
-	elf->sections[1].pData = elf->pElfBin;
-	elf->sections[1].iSize = dwDataBase>0?dwDataBase:elf->iBinSize;
-	strcpy(elf->sections[1].szName, ".text");
-	elf->sections[2].type = SHT_PROGBITS;
-	elf->sections[2].flags = SHF_ALLOC;
-	elf->sections[2].iAddr = dwDataBase;
-	elf->sections[2].pData = elf->pElfBin + dwDataBase;
-	elf->sections[2].iSize = dwDataBase>0?elf->iBinSize - dwDataBase:elf->iBinSize;
-	strcpy(elf->sections[2].szName, ".data");
+	elf->sections[0]=(ElfSection){};
+	elf->sections[1]=(ElfSection){
+		.type  = SHT_PROGBITS,
+		.flags = SHF_ALLOC | SHF_EXECINSTR,
+		.pData = elf->pElfBin,
+		.szName= ".text",
+		.iSize = dwDataBase>0?dwDataBase:elf->iBinSize,
+	};
+	elf->sections[2]=(ElfSection){
+		.type  = SHT_PROGBITS,
+		.flags = SHF_ALLOC,
+		.iAddr = dwDataBase,
+		.pData = elf->pElfBin + dwDataBase,
+		.iSize = dwDataBase>0?elf->iBinSize - dwDataBase:elf->iBinSize,
+		.szName= ".data",
+	};
 	return 1;
 }
 
@@ -177,7 +172,7 @@ uint8_t* elf_loadFileToMem(ElfCtx*elf, const char *filename, size_t *lSize){
 	if(*lSize >= sizeof(Elf32_Ehdr)){
 		uint8_t pData[*lSize];
 		if(fread(pData, 1, *lSize, fp) == *lSize){
-			fprintf(stdout, "ELF Loaded (%d bytes)",*lSize);
+			fprintf(stdout, "ELF Loaded (%zu bytes)",*lSize);
 		}else fprintf(stderr, "Could not read in file data");
 	}else fprintf(stderr, "File not large enough to contain an ELF");
 	fclose(fp);

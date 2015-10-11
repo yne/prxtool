@@ -435,13 +435,10 @@ int format_line(char *code, int codelen, const char *addr, unsigned int opcode, 
 
 }
 
-char* disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int *realregs, unsigned int *regmask, int noaddr){
+char* disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int *realregs, unsigned int *regmask, int noaddr, Instruction*macro, size_t macro_count, Instruction*inst, size_t inst_count){
 	static char code[1024];
-	const char *name = NULL;
 	char args[1024];
 	char addr[1024];
-	int size;
-	int i;
 	Instruction *ix = NULL;
 
 	sprintf(addr, "0x%08X", PC);
@@ -453,15 +450,14 @@ char* disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int *real
 	}
 
 	g_regmask = 0;
-
 	if(!g_macroon)
-		for(i = 0; i < (sizeof(g_macro) / sizeof(Instruction)) && !ix; i++)
-			if((opcode & g_macro[i].mask) == g_macro[i].opcode)
-				ix = &g_macro[i];
+		for(int i = 0; (i < macro_count) && !ix; i++)
+			if((opcode & macro[i].mask) == macro[i].opcode)
+				ix = &macro[i];
 
-	for(i = 0; i < (sizeof(g_inst) / sizeof(Instruction)) && !ix; i++)
-		if((opcode & g_inst[i].mask) == g_inst[i].opcode)
-			ix = &g_inst[i];
+	for(int i = 0; (i < inst_count) && !ix; i++)
+		if((opcode & inst[i].mask) == inst[i].opcode)
+			ix = &inst[i];
 
 	if(ix){
 		decode_args(opcode, PC, ix->fmt, args, realregs);

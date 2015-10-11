@@ -45,20 +45,20 @@ void db_nids_print(LibraryEntry *library, LibraryNid *nids,int nids_count){
 }
 
 // find a function name by owner name + nid
-char* db_nids_getFunctionName(LibraryNid * nids, unsigned nids_length,char*lib_name, uint32_t nid){
+char* db_nids_getFunctionName (LibraryNid   * nids, size_t nids_length    ,char*lib_name, uint32_t nid){
 	for(int i=0;i<nids_length;i++)
 		if((nids[i].nid == nid) && !strcmp(nids[i].owner->lib_name,lib_name))
 			return nids[i].name;
 	return NULL;
 }
-char* db_nids_findPrxByLibName(LibraryEntry * libs, unsigned libraries_count,char*lib_name){
+char* db_nids_findPrxByLibName(LibraryEntry * libs, size_t libraries_count,char*lib_name){
 	for(int i=0;i<libraries_count;i++)
 		if(!strcmp(libs[i].lib_name,lib_name))
 			return libs[i].prx;
 	return NULL;
 }
 
-int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* filename){
+int db_nids_import_xml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, const char* filename){
 	FILE *fp = fopen(filename, "r");
 	if(!fp)
 		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
@@ -103,7 +103,7 @@ int db_nids_import_xml(LibraryEntry *libraries,int*libraries_count, LibraryNid *
 	return 0;
 }
 
-int db_nids_import_yml(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* filename){
+int db_nids_import_yml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, const char* filename){
 	FILE *fp = fopen(filename, "r");
 	if(!fp)
 		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
@@ -145,7 +145,7 @@ int db_nids_import_yml(LibraryEntry *libraries,int*libraries_count, LibraryNid *
 	return 0;
 }
 
-int db_nids_import(LibraryEntry *libraries,int*libraries_count, LibraryNid *nids,int*nids_count, const char* filename){
+int db_nids_import(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, const char* filename){
 	if(!strcmp(strrchr(filename,'.')?:filename,".xml"))
 		return db_nids_import_xml(libraries, libraries_count, nids, nids_count, filename);
 	if(!strcmp(strrchr(filename,'.')?:filename,".yml"))

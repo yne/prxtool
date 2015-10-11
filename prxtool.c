@@ -41,9 +41,9 @@ int main(int argc, char **argv){
 		fprintf(stderr,"%i nids loaded in %i libraries\n",db.nids_count,db.libraries_count);
 	}
 	if(arg_funcfile){
-		if(!db_func_import(NULL,&db.functions_count,arg_funcfile)){
+		if(!db_func_import(NULL,&db.functions_count,arg_funcfile,arg_funcfile_sep[0])){
 			FunctionType f[db.functions_count];
-			db_func_import(db.functions=f,NULL,arg_funcfile);
+			db_func_import(db.functions=f,NULL,arg_funcfile,arg_funcfile_sep[0]);
 		}
 		fprintf(stderr,"%i prototypes loaded\n",db.functions_count);
 	}

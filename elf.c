@@ -14,21 +14,21 @@
 #include "endianness.c"
 
 typedef struct{
-	uint8_t *pElf;//original elf from file
-	size_t iElfSize;
-	uint8_t *pElfBin;//binary image of the elf
-	size_t iBinSize;
-	int blElfLoaded;
-	char filename[PATH_MAX];
+	uint8_t*   pElf;//original elf from file
+	size_t     iElfSize;
+	uint8_t*   pElfBin;//binary image of the elf
+	size_t     iBinSize;
+	int        blElfLoaded;
+	char       filename[PATH_MAX];
 	ElfSection sections[64];
-	size_t iSHCount;
+	size_t     iSHCount;
 	ElfProgram programs[16];
-	size_t iPHCount;
+	size_t     iPHCount;
 	ElfSection strtab[64];
-	ElfHeader header;
-	ElfSymbol*symbols;
-	size_t symbolsCount;
-	uint32_t baseAddr;
+	ElfHeader  header;
+	ElfSymbol* symbols;
+	size_t     symbolsCount;
+	uint32_t   baseAddr;
 }ElfCtx;
 
 
