@@ -59,12 +59,12 @@ int output_symbols(const char *file, FILE *out_fp){
 	return 0;
 }
 
-int output_disasm(const char *file, FILE *out_fp, DataBase *nids){
+int output_disasm(const char *file, FILE *out_fp, DataBase *pNids){
 	CProcessPrx prx;
 	int blRet;
 
 	fprintf(stdout, "Loading %s\n", file);
-	PrxSetNidMgr(&prx, nids);
+	PrxSetNidMgr(&prx,pNids);
 	if(arg_loadbin){
 		blRet = PrxLoadFromBinFile(&prx,file, arg_database);
 	}else{
@@ -81,9 +81,9 @@ int output_disasm(const char *file, FILE *out_fp, DataBase *nids){
 	return 0;
 }
 
-int output_xmldb(const char *file, FILE *out_fp, DataBase *nids){
+int output_xmldb(const char *file, FILE *out_fp, DataBase *pNids){
 	CProcessPrx prx;
-	PrxSetNidMgr(&prx,nids);
+	PrxSetNidMgr(&prx,pNids);
 
 	if(!(arg_loadbin?PrxLoadFromBinFile(&prx,file, arg_database):PrxLoadFromFile(&prx,file)))
 		return fprintf(stderr, "Couldn't load elf file structures"),1;

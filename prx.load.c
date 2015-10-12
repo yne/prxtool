@@ -285,7 +285,7 @@ int PrxLoadFromFile(CProcessPrx* prx,const char *filename){
 		return fprintf(stderr, "Could not load relocs\n"),1;
 	prx->blPrxLoaded = 1;
 	if(prx->pElfRelocs){
-		PrxFixupRelocs(prx, prx->dwBase/*, prx->imms*/);
+		PrxFixupRelocs(prx, prx->dwBase, prx->imms);
 	}
 	if(!PrxLoadExports(prx))
 		return fprintf(stderr, "Could not load exports\n"),1;

@@ -94,8 +94,7 @@ int main(int argc, char **argv){
 	}
 	if(arg_out_ent){
 		FILE *f = fopen("exports.exp", "w");
-
-		if (f != NULL){
+		if (f){
 			fprintf(f, "# Export file automatically generated with prxtool\n");
 			fprintf(f, "PSP_BEGIN_EXPORTS\n\n");
 			output_ents(arg_inFiles[0], &db, f);

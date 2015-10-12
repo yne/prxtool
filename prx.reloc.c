@@ -286,24 +286,16 @@ int PrxLoadRelocs(CProcessPrx* prx){
 	return 1;
 }
 //TODO
-int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
-/*
-	uint32_t regs[32];
+int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase, Imms* imms){
+	//uint32_t regs[32];
 	// Fixup the elf file and output it to fp 
-	if((prx->blPrxLoaded == 0)){
-		return;
-	}
-
-	if((prx->header.PHnum < 1) || (prx->header.PHentSize == 0) || (prx->header.PHoff == 0)){
-		return;
-	}
-
+	if((prx->blPrxLoaded == 0))
+		return 1;
+	if((prx->elf.header.PHnum < 1) || (prx->elf.header.PHentSize == 0) || (prx->elf.header.PHoff == 0))
+		return 1;
 	// We dont support ELF relocs as they are not very special 
-	if(prx->header.type != ELF_PRX_TYPE){
-		return;
-	}
-
-	uint32_t *pData = NULL;
+	if(prx->elf.header.type != ELF_PRX_TYPE)
+		return 1;
 	for(int iLoop = 0; iLoop < prx->iRelocCount; iLoop++){
 		ElfReloc *rel = &prx->pElfRelocs[iLoop];
 		uint32_t dwRealOfs;
@@ -319,7 +311,7 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 		}
 		dwRealOfs = rel->offset + prx->elf.programs[iOfsPH].iVaddr;
 		dwCurrBase = dwBase + prx->elf.programs[iValPH].iVaddr;
-		pData = (uint32_t*) VmemGetPtr(dwRealOfs);
+		uint32_t *pData = (uint32_t*) VmemGetPtr(&prx->vMem, dwRealOfs);
 		if(pData == NULL){
 			fprintf(stdout,"Invalid offset for relocation (%08X)\n", dwRealOfs);
 			continue;
@@ -330,19 +322,18 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 				uint32_t inst;
 				int base = iLoop;
 				int lowaddr, hiaddr, addr;
-			  	int loinst;
-			  	ImmEntry *imm;
-			  	int ofsph = prx->elf.programs[iOfsPH].iVaddr;
-			  	
+				int loinst;
+				int ofsph = prx->elf.programs[iOfsPH].iVaddr;
+				
 				inst = LW(*pData);
 				addr = ((inst & 0xFFFF) << 16) + dwCurrBase;
 				fprintf(stdout,"Hi at (%08X) %d\n", dwRealOfs, iLoop);
-			  	while (++iLoop < prx->iRelocCount) {
-			  		if (prx->pElfRelocs[iLoop].type != R_MIPS_HI16) break;
-			  	}
+				while (++iLoop < prx->iRelocCount) {
+					if (prx->pElfRelocs[iLoop].type != R_MIPS_HI16) break;
+				}
 				fprintf(stdout,"Matching low at %d\n", iLoop);
-			  	if (iLoop < prx->iRelocCount) {
-					loinst = LW(*((uint32_t*) VmemGetPtr(prx->pElfRelocs[iLoop].offset+ofsph)));
+				if (iLoop < prx->iRelocCount) {
+					loinst = LW(*((uint32_t*) VmemGetPtr(&prx->vMem, prx->pElfRelocs[iLoop].offset+ofsph)));
 				} else {
 					loinst = 0;
 				}
@@ -351,24 +342,24 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 				lowaddr = addr & 0xFFFF;
 				hiaddr = (((addr >> 15) + 1) >> 1) & 0xFFFF;
 				while (base < iLoop) {
-					inst = LW(*((uint32_t*)VmemGetPtr(prx->pElfRelocs[base].offset+ofsph)));
+					inst = LW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->pElfRelocs[base].offset+ofsph)));
 					inst = (inst & ~0xFFFF) | hiaddr;
-					SW(*((uint32_t*)VmemGetPtr(prx->pElfRelocs[base].offset+ofsph)), inst);
+					SW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->pElfRelocs[base].offset+ofsph)), inst);
 					base++;
 				}
-			  	while (iLoop < prx->iRelocCount) {
-					inst = LW(*((uint32_t*)VmemGetPtr(prx->pElfRelocs[iLoop].offset+ofsph)));
+				while (iLoop < prx->iRelocCount) {
+					inst = LW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->pElfRelocs[iLoop].offset+ofsph)));
 					if ((inst & 0xFFFF) != (loinst & 0xFFFF)) break;
 					inst = (inst & ~0xFFFF) | lowaddr;
-					SW(*((uint32_t*)VmemGetPtr(prx->pElfRelocs[iLoop].offset+ofsph)), inst);
+					SW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->pElfRelocs[iLoop].offset+ofsph)), inst);
 									
-					imm = new ImmEntry;
+					ImmEntry*imm=NULL;
 					imm->addr = dwBase + ofsph + prx->pElfRelocs[iLoop].offset;
 					imm->target = addr;
-					imm->text = elf_addrIsText(addr - dwBase);
-					imms[dwBase + ofsph + prx->pElfRelocs[iLoop].offset] = imm;
+					imm->text = elf_addrIsText(&prx->elf, addr - dwBase);
+					//imms[dwBase + ofsph + prx->pElfRelocs[iLoop].offset].imms = *imm;
 
-			  		if (prx->pElfRelocs[++iLoop].type != R_MIPS_LO16) break;
+					if (prx->pElfRelocs[++iLoop].type != R_MIPS_LO16) break;
 				}
 				iLoop--;
 				fprintf(stdout,"Finished at %d\n", iLoop);
@@ -376,19 +367,15 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 			break;
 			case R_MIPS_16:
 			case R_MIPS_LO16: {
-				uint32_t loinst;
-				uint32_t addr;
-				ImmEntry *imm;
-
-				loinst = LW(*pData);
-				addr = ((int16_t) (loinst & 0xFFFF) & 0xFFFF) + dwCurrBase;
+				uint32_t loinst = LW(*pData);
+				uint32_t addr = ((int16_t) (loinst & 0xFFFF) & 0xFFFF) + dwCurrBase;
 				fprintf(stdout,"Low at (%08X)\n", dwRealOfs);
 
-				imm = new ImmEntry;
+				ImmEntry*imm=NULL;
 				imm->addr = dwRealOfs + dwBase;
 				imm->target = addr;
-				imm->text = elf_addrIsText(addr - dwBase);
-				imms[dwRealOfs + dwBase] = imm;
+				imm->text = elf_addrIsText(&prx->elf, addr - dwBase);
+				//imms[dwRealOfs + dwBase] = imm;
 
 				loinst &= ~0xFFFF;
 				loinst |= addr;
@@ -396,21 +383,17 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 			}
 			break;
 			case R_MIPS_X_HI16: {
-				uint32_t hiinst;
-				uint32_t addr, hiaddr;
-				ImmEntry *imm;
-
-				hiinst = LW(*pData);
-				addr = (hiinst & 0xFFFF) << 16;
+				uint32_t hiinst = LW(*pData);
+				uint32_t addr = (hiinst & 0xFFFF) << 16;
 				addr += rel->base + dwCurrBase;
-				hiaddr = (((addr >> 15) + 1) >> 1) & 0xFFFF;
+				uint32_t hiaddr = (((addr >> 15) + 1) >> 1) & 0xFFFF;
 				fprintf(stdout,"Extended hi at (%08X)\n", dwRealOfs);
 
-				imm = new ImmEntry;
+				ImmEntry*imm=NULL;
 				imm->addr = dwRealOfs + dwBase;
 				imm->target = addr;
-				imm->text = elf_addrIsText(addr - dwBase);
-				imms[dwRealOfs + dwBase] = imm;
+				imm->text = elf_addrIsText(&prx->elf, addr - dwBase);
+				//imms[dwRealOfs + dwBase] = imm;
 
 				hiinst &= ~0xFFFF;
 				hiinst |= (hiaddr & 0xFFFF);
@@ -418,10 +401,8 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 			}
 			break;
 			case R_MIPS_X_J26: {
-				uint32_t dwData, dwInst;
 				uint32_t off = 0;
 				int base = iLoop;
-				ImmEntry *imm;
 				ElfReloc *rel2 = NULL;
 				uint32_t offs2 = 0;
 				while (++iLoop < prx->iRelocCount){
@@ -432,30 +413,30 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 
 				if (iLoop < prx->iRelocCount) {
 					offs2 = rel2->offset + prx->elf.programs[rel2->symbol & 0xFF].iVaddr;
-					off = LW(*(uint32_t*) VmemGetPtr(offs2));
+					off = LW(*(uint32_t*) VmemGetPtr(&prx->vMem, offs2));
 				}
 
-				dwInst = LW(*pData);
-				dwData = dwInst + (dwCurrBase >> 16);
+				uint32_t dwInst = LW(*pData);
+				uint32_t dwData = dwInst + (dwCurrBase >> 16);
 				SW(*pData, dwData);
 
 				if (off & 0x8000)
 				    dwInst--;
 
-				if ((dwData >> 26) != 2) // not J instruction
-					imm = new ImmEntry;
+				if ((dwData >> 26) != 2){// not J instruction
+					ImmEntry*imm=NULL;
 					imm->addr = dwRealOfs + dwBase;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = elf_addrIsText(imm->target - dwBase);
-					imms[dwRealOfs + dwBase] = imm;
+					imm->text = elf_addrIsText(&prx->elf, imm->target - dwBase);
+					//imms[dwRealOfs + dwBase] = imm;
 				}
 				// already add the JAL26 symbol so we don't have to search for the J26 there
-				if (iLoop < prx->iRelocCount && (dwData >> 26) != 3) // not JAL instruction{
-					imm = new ImmEntry;
+				if (iLoop < prx->iRelocCount && (dwData >> 26) != 3){// not JAL instruction
+					ImmEntry*imm=NULL;
 					imm->addr = offs2 + dwBase;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = elf_addrIsText(imm->target - dwBase);
-					imms[offs2 + dwBase] = imm;
+					imm->text = elf_addrIsText(&prx->elf, imm->target - dwBase);
+					//imms[offs2 + dwBase] = imm;
 				}
 
 				iLoop = base;
@@ -463,8 +444,6 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 			break;
 			case R_MIPS_X_JAL26: {
 				uint32_t dwData, dwInst;
-				ImmEntry *imm;
-
 				dwInst = LW(*pData);
 				dwData = dwInst + (dwCurrBase & 0xFFFF);
 				SW(*pData, dwData);
@@ -485,19 +464,18 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 			break;
 			case R_MIPS_32: {
 				uint32_t dwData;
-				ImmEntry *imm;
 
 				dwData = LW(*pData);
 				dwData += (dwCurrBase & 0x03FFFFFF);
 				dwData += (dwBase >> 2) & 0x03FFFFFF;
 				SW(*pData, dwData);
 
-				if ((dwData >> 26) != 2) // not J instruction{
-					imm = new ImmEntry;
+				if ((dwData >> 26) != 2){// not J instruction
+					ImmEntry*imm=NULL;
 					imm->addr = dwRealOfs + dwBase;
 					imm->target = (dwData & 0x03FFFFFF) << 2;;
-					imm->text = elf_addrIsText(dwData - dwBase);
-					imms[dwRealOfs + dwBase] = imm;
+					imm->text = elf_addrIsText(&prx->elf, dwData - dwBase);
+					//imms[dwRealOfs + dwBase] = imm;
 				}
 			}
 			break;
@@ -505,6 +483,5 @@ int PrxFixupRelocs(CProcessPrx* prx,uint32_t dwBase/*, Imms &imms*/){
 			break;
 		};
 	}
-	*/
 	return 0;
 }
