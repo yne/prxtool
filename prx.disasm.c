@@ -1,11 +1,11 @@
 //TODO
-void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imms* imms, uint32_t dwBase){
+void PrxDisasm(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imms, size_t imms_count, uint32_t base){
 	uint32_t *pInst = (uint32_t*) pData;
-	SymbolEntry *lastFunc = NULL;
+	Symbol *lastFunc = NULL;
 	unsigned int lastFuncAddr = 0;
 	for(int iILoop = 0; iILoop < (iSize / 4); iILoop++){
 		uint32_t inst = LW(pInst[iILoop]);
-		SymbolEntry *s = disasmFindSymbol(dwAddr);
+		Symbol *s = disasmFindSymbol(dwAddr);
 		if(s){
 			if(s->type == SYMBOL_FUNC){
 				fprintf(fp, "\n; ======================================================\n");
@@ -26,7 +26,7 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 				/*
 				if(s->exported.size() > 0){
 					for(unsigned i = 0; i < s->exported.size(); i++){
-						if(prx->blXmlDump)
+						if(prx->isXmlDump)
 							fprintf(fp, "<a name=\"%s_%s\"></a>; Exported in %s\n", s->exported[i]->name, s->name, s->exported[i]->name);
 						else
 							fprintf(fp, "; Exported in %s\n", s->exported[i]->name);
@@ -34,21 +34,21 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 				}
 				if(s->imported.size() > 0){
 					for(unsigned i = 0; i < s->imported.size(); i++){
-						if((prx->blXmlDump) && (strlen(s->imported[i]->file) > 0))
+						if((prx->isXmlDump) && (strlen(s->imported[i]->file) > 0))
 							fprintf(fp, "; Imported from <a href=\"%s.html#%s_%s\">%s</a>\n", s->imported[i]->file, s->imported[i]->name, s->name, s->imported[i]->file);
 						else
 							fprintf(fp, "; Imported from %s\n", s->imported[i]->name);
 					}
 				}
 				*/
-				if(prx->blXmlDump)
+				if(prx->isXmlDump)
 					fprintf(fp, "<a name=\"%s\">%s:</a>\n", s->name, s->name);
 				else
 					fprintf(fp, "%s:", s->name);
 			}
 			if(s->type == SYMBOL_LOCAL){
 				fprintf(fp, "\n");
-				if(prx->blXmlDump)
+				if(prx->isXmlDump)
 					fprintf(fp, "<a name=\"%s\">%s:</a>\n", s->name, s->name);
 				else
 					fprintf(fp, "%s:", s->name);
@@ -57,7 +57,7 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 			if(s->refs.size() > 0){
 				fprintf(fp, "\t\t; Refs: ");
 				for(uint32_t i = 0; i < s->refs.size(); i++){
-					if(prx->blXmlDump){
+					if(prx->isXmlDump){
 						fprintf(fp, "<a href=\"#0x%08X\">0x%08X</a> ", s->refs[i], s->refs[i]);
 					}else{
 						fprintf(fp, "0x%08X ", s->refs[i]);
@@ -68,19 +68,19 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 			fprintf(fp, "\n");
 		}
 
-		ImmEntry *imm = imms[dwAddr].imms;
+		Imm *imm = imms[dwAddr].imms;
 		if(imm){
 		/*
-			SymbolEntry *sym = disasmFindSymbol(imm->target);
+			Symbol *sym = disasmFindSymbol(imm->target);
 			if(imm->text){
 				if(sym){
-					if(prx->blXmlDump){
+					if(prx->isXmlDump){
 						fprintf(fp, "; Text ref <a href=\"#%s\">%s</a> (0x%08X)", sym->name, sym->name, imm->target);
 					}else{
 						fprintf(fp, "; Text ref %s (0x%08X)", sym->name, imm->target);
 					}
 				}else{
-					if(prx->blXmlDump){
+					if(prx->isXmlDump){
 						fprintf(fp, "; Text ref <a href=\"#0x%08X\">0x%08X</a>", imm->target, imm->target);
 					}else{
 						fprintf(fp, "; Text ref 0x%08X", imm->target);
@@ -89,15 +89,15 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 			}else{
 				std::string str;
 
-				if(prx->blXmlDump){
+				if(prx->isXmlDump){
 					fprintf(fp, "; Data ref <a href=\"#0x%08X\">0x%08X</a>", imm->target & ~15, imm->target);
 				}else{
 					fprintf(fp, "; Data ref 0x%08X", imm->target);
 				}
-				if(ReadString(imm->target-dwBase, str, 0, NULL) || ReadString(imm->target-dwBase, str, 1, NULL)){
+				if(ReadString(imm->target-base, str, 0, NULL) || ReadString(imm->target-base, str, 1, NULL)){
 					fprintf(fp, " %s", str);
 				}else{
-					uint8_t *ptr = (uint8_t*) VmemGetPtr(imm->target - dwBase);
+					uint8_t *ptr = (uint8_t*) VmemGetPtr(imm->target - base);
 					if(ptr){
 						// If a valid pointer try and print some data 
 						int i;
@@ -125,9 +125,9 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 		// Check if this is a jump 
 		if((inst & 0xFC000000) == 0x0C000000){
 			uint32_t dwJump = (inst & 0x03FFFFFF) << 2;
-			dwJump |= (dwBase & 0xF0000000);
+			dwJump |= (base & 0xF0000000);
 
-			SymbolEntry *s = disasmFindSymbol(dwJump);
+			Symbol *s = disasmFindSymbol(dwJump);
 			if(s){
 				FunctionType *t = db_func_find(prx->pCurrNidMgr->functions,prx->pCurrNidMgr->functions_count,s->name);
 				if(t)
@@ -135,7 +135,7 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 			}
 		}
 
-		if(prx->blXmlDump){
+		if(prx->isXmlDump){
 			fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr);
 		}
 		fprintf(fp, "\t%-40s\n", disasmInstruction(inst, dwAddr, NULL, NULL, 0, prx->macro, prx->macro_count, prx->instr, prx->instr_count));
@@ -149,7 +149,7 @@ void PrxDisasm(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsign
 	}
 }
 //TODO
-void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imms* imms, uint32_t dwBase){
+void PrxDisasmXML(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, ImmsEntry* imms, size_t imms_count, uint32_t base){
 /*
 	uint32_t iILoop;
 	uint32_t *pInst;
@@ -157,9 +157,9 @@ void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 	uint32_t inst;
 	int infunc = 0;
 	for(iILoop = 0; iILoop < (iSize / 4); iILoop++){
-		SymbolEntry *s;
+		Symbol *s;
 		//FunctionType *t;
-		//ImmEntry *imm;
+		//Imm *imm;
 
 		inst = LW(pInst[iILoop]);
 		s = disasmFindSymbol(dwAddr);
@@ -226,7 +226,7 @@ void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 								  if(s->exported.size() > 0){
 									  unsigned int i;
 									  for(i = 0; i < s->exported.size(); i++){
-										if(prx->blXmlDump){
+										if(prx->isXmlDump){
 											fprintf(fp, "<a name=\"%s_%s\"></a>; Exported in %s\n", 
 													s->exported[i]->name, s->name, s->exported[i]->name);
 										}else{
@@ -237,7 +237,7 @@ void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 								  if(s->imported.size() > 0){
 									  unsigned int i;
 									  for(i = 0; i < s->imported.size(); i++){
-										  if((prx->blXmlDump) && (strlen(s->imported[i]->file) > 0)){
+										  if((prx->isXmlDump) && (strlen(s->imported[i]->file) > 0)){
 											  fprintf(fp, "; Imported from <a href=\"%s.html#%s_%s\">%s</a>\n", 
 													  s->imported[i]->file, s->imported[i]->name, 
 													  s->name, s->imported[i]->file);
@@ -272,16 +272,16 @@ void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 #if 0
 		imm = imms[dwAddr];
 		if(imm){
-			SymbolEntry *sym = disasmFindSymbol(imm->target);
+			Symbol *sym = disasmFindSymbol(imm->target);
 			if(imm->text){
 				if(sym){
-					if(prx->blXmlDump){
+					if(prx->isXmlDump){
 						fprintf(fp, "; Text ref <a href=\"#%s\">%s</a> (0x%08X)", sym->name, sym->name, imm->target);
 					}else{
 						fprintf(fp, "; Text ref %s (0x%08X)", sym->name, imm->target);
 					}
 				}else{
-					if(prx->blXmlDump){
+					if(prx->isXmlDump){
 						fprintf(fp, "; Text ref <a href=\"#0x%08X\">0x%08X</a>", imm->target, imm->target);
 					}else{
 						fprintf(fp, "; Text ref 0x%08X", imm->target);
@@ -290,15 +290,15 @@ void PrxDisasmXML(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 			}else{
 				std::string str;
 
-				if(prx->blXmlDump){
+				if(prx->isXmlDump){
 					fprintf(fp, "; Data ref <a href=\"#0x%08X\">0x%08X</a>", imm->target & ~15, imm->target);
 				}else{
 					fprintf(fp, "; Data ref 0x%08X", imm->target);
 				}
-				if(ReadString(imm->target-dwBase, str, 0, NULL) || ReadString(imm->target-dwBase, str, 1, NULL)){
+				if(ReadString(imm->target-base, str, 0, NULL) || ReadString(imm->target-base, str, 1, NULL)){
 					fprintf(fp, " %s", str);
 				}else{
-					uint8_t *ptr = (uint8_t*) VmemGetPtr(imm->target - dwBase);
+					uint8_t *ptr = (uint8_t*) VmemGetPtr(imm->target - base);
 					if(ptr){
 						// If a valid pointer try and print some data 
 						int i;

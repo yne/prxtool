@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h>
 
 typedef struct{
 	char name[128];
@@ -17,12 +18,8 @@ char *db_func_strip_whitesp(char *str){
 	return len?str:NULL;
 }
 
-int db_func_import(FunctionType *func,unsigned*count,const char* filename, char field_sep){
-	FILE *fp = fopen(filename, "r");
-	if(!fp)
-		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
-	
-	char line[512];
+int db_func_import(FunctionType *func,unsigned*count,FILE* fp){
+	char line[512],field_sep='\t';
 	for(int i=0; fgets(line, sizeof(line), fp);){
 		char *name,*args,*ret = NULL;
 
@@ -43,8 +40,7 @@ int db_func_import(FunctionType *func,unsigned*count,const char* filename, char 
 		i++;
 		if(count)*count=i;//count mode
 	}
-	fclose(fp);
-	return 0;
+	return fclose(fp);
 }
 
 FunctionType *db_func_find(FunctionType *func,unsigned count,const char *name){

@@ -145,23 +145,13 @@ typedef struct{
 	uint32_t*refs;//TODO
 	char alias[32][32];//TODO
 	PspEntries*exported,*imported;//TODO
-}SymbolEntry;
+}Symbol;
 
 typedef struct{
 	uint32_t addr;
 	uint32_t target;
 	int text;// Does it point to a text section ?
-}ImmEntry;
-
-typedef struct{
-	size_t length;
-	SymbolEntry*symbols;
-}Symbols;
-
-typedef struct{
-	size_t length;
-	ImmEntry *imms;
-}Imms;
+}Imm;
 
 typedef struct{
 	char *name;
@@ -173,7 +163,8 @@ typedef struct{
 }Instruction;
 
 typedef struct{
-	char opt;int *value;
+	char opt;
+	int *value;
 	const char *name;
 }DisasmOpt;
 
@@ -270,8 +261,6 @@ int g_printswap = 0;
 int g_signedhex = 0;
 int g_xmloutput = 0;
 
-Symbols *g_syms = NULL;
-
 DisasmOpt arg_disasmopts[DISASM_OPT_MAX] = {
 	{ DISASM_OPT_HEXINTS  , &g_hexints  , "Hex Integers" },
 	{ DISASM_OPT_MREGS    , &g_mregs    , "Mnemonic Registers" },
@@ -284,15 +273,15 @@ DisasmOpt arg_disasmopts[DISASM_OPT_MAX] = {
 };
 
 SymbolType disasmResolveSymbol(unsigned int PC, char *name, int namelen){
-	if(g_syms && g_syms[PC].symbols)
-		return snprintf(name, namelen, "%s", g_syms[PC].symbols->name),g_syms[PC].symbols->type;
+//	if(g_syms && g_syms[PC].symbols)
+//		return snprintf(name, namelen, "%s", g_syms[PC].symbols->name),g_syms[PC].symbols->type;
 	return SYMBOL_NOSYM;
 }
 
 SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
-	if(!g_syms)
+//	if(!g_syms)
 		return SYMBOL_NOSYM;
-	SymbolEntry *s = g_syms[PC].symbols;
+	Symbol *s = NULL;//g_syms[PC];
 	if((!s) || (!s->imported))
 		return SYMBOL_NOSYM;
 	unsigned int nid = 0;
@@ -308,8 +297,8 @@ SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
 	return s->type;
 }
 
-SymbolEntry* disasmFindSymbol(unsigned int PC){
-	return g_syms ? g_syms[PC].symbols : NULL;
+Symbol* disasmFindSymbol(unsigned int PC){
+	return NULL;//return g_syms ? g_syms[PC].symbols : NULL;
 }
 
 int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget, Instruction*inst, size_t inst_count){
@@ -330,7 +319,7 @@ int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget,
 	return type;
 }
 
-void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, Symbols*syms, Instruction*inst, size_t inst_count){
+void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, Symbol*symbol, size_t*sym_count, Instruction*inst, size_t inst_count){
 	SymbolType type;
 	unsigned int addr;
 	char buf[128];
@@ -345,15 +334,15 @@ void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, Symbols*syms, 
 			type = SYMBOL_FUNC;
 		}
 
-		SymbolEntry *s = syms[addr].symbols;
+		Symbol *s = &symbol[addr];
 		if(!s){
-			//s = SymbolEntry;
+			//s = Symbol;
 			s->addr = addr;
 			s->type = type;
 			s->size = 0;
 			//s->name = buf;
 			//s->refs.insert(s->refs.end(), PC);
-			//syms[addr] = s;
+			//symbol[addr] = s;
 		}else{
 			if((s->type != SYMBOL_FUNC) && (type == SYMBOL_FUNC)){
 				s->type = SYMBOL_FUNC;
@@ -361,30 +350,6 @@ void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, Symbols*syms, 
 			//s->refs.insert(s->refs.end(), PC);
 		}
 	}
-}
-
-void disasmSetHexInts(int hexints){
-	g_hexints = hexints;
-}
-
-void disasmSetMRegs(int mregs){
-	g_mregs = mregs;
-}
-
-void disasmSetSymAddr(int symaddr){
-	g_symaddr = symaddr;
-}
-
-void disasmSetMacro(int macro){
-	g_macroon = macro;
-}
-
-void disasmSetPrintReal(int printreal){
-	g_printreal = printreal;
-}
-
-void disasmSetSymbols(Symbols *syms){
-	g_syms = syms;
 }
 
 void disasmSetOpts(const char *opts, int set){

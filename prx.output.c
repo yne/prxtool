@@ -1,4 +1,4 @@
-void PrxCalcElfSize(CProcessPrx* prx,size_t *iTotal, size_t *iSectCount, size_t *iStrSize){
+void PrxCalcElfSize(PrxToolCtx* prx,size_t *iTotal, size_t *iSectCount, size_t *iStrSize){
 	// Sect count 2 for NULL and string sections 
 	*iSectCount = 2;
 	*iTotal = 0;
@@ -14,13 +14,13 @@ void PrxCalcElfSize(CProcessPrx* prx,size_t *iTotal, size_t *iSectCount, size_t 
 	*iTotal = sizeof(Elf32_Ehdr) + (sizeof(Elf32_Shdr)* *iSectCount) + *iStrSize;
 }
 
-int PrxOutputheader(CProcessPrx* prx,FILE *fp, size_t iSectCount){
+int PrxOutputheader(PrxToolCtx* prx,FILE *fp, size_t iSectCount){
 	Elf32_Ehdr hdr={.e_class = 1,.e_data = 1,.e_idver = 1};
 	SW(hdr.e_magic, ELF_MAGIC);
 	SH(hdr.e_type, ELF_MIPS_TYPE);
 	SH(hdr.e_machine, 8); 
 	SW(hdr.e_version, 1);
-	SW(hdr.e_entry, prx->dwBase + prx->elf.header.entry); 
+	SW(hdr.e_entry, prx->base + prx->elf.header.entry); 
 	SW(hdr.e_phoff, 0);
 	SW(hdr.e_shoff, sizeof(Elf32_Ehdr));
 	SW(hdr.e_flags, 0x10a23001);
@@ -36,7 +36,7 @@ int PrxOutputheader(CProcessPrx* prx,FILE *fp, size_t iSectCount){
 	return 1;
 }
 
-int PrxOutputSections(CProcessPrx* prx,FILE *fp, size_t iElfHeadSize, size_t iSectCount, size_t iStrSize){
+int PrxOutputSections(PrxToolCtx* prx,FILE *fp, size_t iElfHeadSize, size_t iSectCount, size_t iStrSize){
 	Elf32_Shdr shdr;
 	size_t iStrPointer = 1;
 	char pStrings[iStrSize];
@@ -54,7 +54,7 @@ int PrxOutputSections(CProcessPrx* prx,FILE *fp, size_t iElfHeadSize, size_t iSe
 			SW(shdr.sh_name, iStrPointer);
 			SW(shdr.sh_type, prx->elf.sections[i].type);
 			SW(shdr.sh_flags, prx->elf.sections[i].flags);
-			SW(shdr.sh_addr, prx->elf.sections[i].iAddr + prx->dwBase);
+			SW(shdr.sh_addr, prx->elf.sections[i].iAddr + prx->base);
 			if(prx->elf.sections[i].type == SHT_NOBITS){
 				SW(shdr.sh_offset, iBinBase + prx->elf.iElfSize);
 			}else{
@@ -99,16 +99,16 @@ int PrxOutputSections(CProcessPrx* prx,FILE *fp, size_t iElfHeadSize, size_t iSe
 	return 1;
 }
 
-int PrxToElf(CProcessPrx* prx,FILE *fp){
+int PrxToElf(PrxToolCtx* prx,FILE *fp){
 	// Fixup the elf file and output it to fp 
-	if((!fp) || (!prx->blPrxLoaded))
+	if((!fp) || (!prx->isPrxLoaded))
 		return 0;
 
 	size_t iElfHeadSize = 0;
 	size_t iSectCount = 0;
 	size_t iStrSize = 0;
 	PrxCalcElfSize(prx, &iElfHeadSize, &iSectCount, &iStrSize);
-	fprintf(stdout, "size: %d, sectcount: %d, strsize: %d\n", iElfHeadSize, iSectCount, iStrSize);
+	fprintf(stdout, "size: %uz, sectcount: %uz, strsize: %uz\n", iElfHeadSize, iSectCount, iStrSize);
 	if(!PrxOutputheader(prx, fp, iSectCount)){
 		fprintf(stdout, "Could not write ELF header\n");
 		return 0;

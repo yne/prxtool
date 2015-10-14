@@ -1,4 +1,4 @@
-int PrxLoadImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr){
+int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 	char*pName,*dep,*slash;
 	PspEntries pLib={
 		.addr = addr,
@@ -69,7 +69,7 @@ int PrxLoadImport(CProcessPrx* prx,PspModuleImport *pImport, uint32_t addr){
 	return pLib.stub.counts & 0xFF;
 }
 
-int PrxLoadImports(CProcessPrx* prx){
+int PrxLoadImports(PrxToolCtx* prx){
 	PspModuleInfo*i=&prx->module.info;
 	uint32_t count;void*ptr;
 	for(uint32_t base = i->imports;i->imports && (i->imp_end - base) >= PSP_IMPORT_BASE_SIZE;base += (count * sizeof(uint32_t)))
@@ -78,7 +78,7 @@ int PrxLoadImports(CProcessPrx* prx){
 	return 1;
 }
 
-int PrxLoadExport(CProcessPrx* prx,PspModuleExport *pExport, uint32_t addr){
+int PrxLoadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	assert(pExport);
 
 	PspEntries pLib = (PspEntries){
@@ -145,7 +145,7 @@ int PrxLoadExport(CProcessPrx* prx,PspModuleExport *pExport, uint32_t addr){
 	return count;
 }
 
-int PrxLoadExports(CProcessPrx* prx){
+int PrxLoadExports(PrxToolCtx* prx){
 	assert(prx->module.exports == NULL);
 
 	uint32_t exp_base = prx->module.info.exports;

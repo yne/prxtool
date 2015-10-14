@@ -2,7 +2,11 @@ int compare_symbols(const void *left, const void *right){
 	return ((int) ((ElfSymbol *) left)->value) - ((int) ((ElfSymbol *) right)->value);
 }
 
-int output_symbols2(ElfSymbol *pSymbols,int symbolsCount, FILE*out_fp){
+int output_symbols  (PrxToolCtx* prx,FILE *out_fp){
+	ElfSymbol *pSymbols=NULL;
+	int symbolsCount=0;//PrxGetSymbols(&pSymbols);
+	if(!symbolsCount)
+		return fprintf(stderr, "No symbols available"),1;
 	SymfileHeader fileHead;
 	ElfSymbol pSymCopy[symbolsCount];
 
@@ -13,8 +17,7 @@ int output_symbols2(ElfSymbol *pSymbols,int symbolsCount, FILE*out_fp){
 	for(int i = 0; i < symbolsCount; i++){
 		int type = ELF32_ST_TYPE(pSymbols[i].info);
 		if(((type == STT_FUNC) || (type == STT_OBJECT)) && (strlen(pSymbols[i].symname) > 0)){
-			memcpy(&pSymCopy[iSymCopyCount], &pSymbols[i], sizeof(ElfSymbol));
-			iSymCopyCount++;
+			memcpy(&pSymCopy[iSymCopyCount++], &pSymbols[i], sizeof(ElfSymbol));
 			iStrSize += strlen(pSymbols[i].symname) + 1;
 		}
 	}
@@ -44,104 +47,56 @@ int output_symbols2(ElfSymbol *pSymbols,int symbolsCount, FILE*out_fp){
 	return 0;
 }
 
-int output_symbols(const char *file, FILE *out_fp){
-	CProcessPrx prx;
+int output_disasm   (PrxToolCtx* prx,FILE *out_fp){
+	return PrxDump(&prx,out_fp, arg_disopts, arg_xmlOutput);
+}
 
-	fprintf(stdout, "Loading %s\n", file);
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load elf file structures"),0;
-	ElfSymbol *pSymbols=NULL;
-	int symbolsCount=0;//PrxGetSymbols(&pSymbols);
-	if(symbolsCount)
-		output_symbols2(pSymbols, symbolsCount, out_fp);
-	else
-		fprintf(stderr, "No symbols available");
+int output_xmldb    (PrxToolCtx* prx,FILE *out_fp){
+	fprintf(out_fp, "<?xml version=\"1.0\" ?>\n");
+	fprintf(out_fp, "<firmware title=\"%s\">\n", arg_dbTitle);
+	PrxDumpXML(prx,out_fp, arg_disopts);
+	fprintf(out_fp, "</firmware>\n");
 	return 0;
 }
 
-int output_disasm(const char *file, FILE *out_fp, DataBase *pNids){
-	CProcessPrx prx;
-	int blRet;
-
-	fprintf(stdout, "Loading %s\n", file);
-	PrxSetNidMgr(&prx,pNids);
-	if(arg_loadbin){
-		blRet = PrxLoadFromBinFile(&prx,file, arg_database);
-	}else{
-		blRet = PrxLoadFromFile(&prx,file);
-	}
-
-	if(arg_xmlOutput){
-		//PrxSetXmlDump();
-	}
-
-	if(!blRet)
-		return fprintf(stderr, "Couldn't load elf file structures"),1;
-	PrxDump(&prx,out_fp, arg_disopts);
-	return 0;
-}
-
-int output_xmldb(const char *file, FILE *out_fp, DataBase *pNids){
-	CProcessPrx prx;
-	PrxSetNidMgr(&prx,pNids);
-
-	if(!(arg_loadbin?PrxLoadFromBinFile(&prx,file, arg_database):PrxLoadFromFile(&prx,file)))
-		return fprintf(stderr, "Couldn't load elf file structures"),1;
-	PrxDumpXML(&prx,out_fp, arg_disopts);
-	return 0;
-}
-
-int output_mods(const char *file, DataBase *pNids){
-	CProcessPrx prx;
-	PrxSetNidMgr(&prx,pNids);
-
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
-
-	PspModule pMod;
-	//PrxGetModuleInfo(&pMod);
+int output_mods     (PrxToolCtx* prx,FILE *out_fp){
+	//PrxGetModuleInfo(prx);
 	fprintf(stdout, "Module information\n");
-	fprintf(stdout, "Name:    %s\n", pMod.info.name);
-	fprintf(stdout, "Attrib:  %04X\n", pMod.info.flags & 0xFFFF);
-	fprintf(stdout, "Version: %d.%d\n", (pMod.info.flags >> 24) & 0xFF, (pMod.info.flags >> 16) & 0xFF);
-	fprintf(stdout, "GP:      %08X\n", pMod.info.gp);
+	fprintf(stdout, "Name:    %s\n", prx.module.info.name);
+	fprintf(stdout, "Attrib:  %04X\n", prx.module.info.flags & 0xFFFF);
+	fprintf(stdout, "Version: %d.%d\n", (prx.module.info.flags >> 24) & 0xFF, (prx.module.info.flags >> 16) & 0xFF);
+	fprintf(stdout, "GP:      %08X\n", prx.module.info.gp);
 
 	fprintf(stdout, "\nExports:\n");
-	int count = 0;
-	for(PspEntries *pExport = pMod.exports;pExport;/*pExport = pExport->next*/)
-		fprintf(stdout, "Export %d, Name %s, Functions %d, Variables %d, flags %08X\n", 
-				count++, pExport->name, pExport->f_count, pExport->v_count, pExport->stub.flags);
+	for(int ex = 0; ex < prx.module.exports_count; ex++)
+		fprintf(stdout, "Export %d, Name %s, Functions %d, Variables %d, flags %08X\n", ex, prx.module.exports[ex]->name, prx.module.exports[ex]->f_count, prx.module.exports[ex]->v_count, prx.module.exports[ex]->stub.flags);
 
 	fprintf(stdout, "\nImports:\n");
-	count = 0;
-	for(PspEntries *pImport=pMod.imports;pImport;/*pImport = pImport->next*/)
-		fprintf(stdout, "Import %d, Name %s, Functions %d, Variables %d, flags %08X\n", 
-				count++, pImport->name, pImport->f_count, pImport->v_count, pImport->stub.flags);
+	for(int im = 0; im < prx.module.imports_count; im++)
+		fprintf(stdout, "Import %d, Name %s, Functions %d, Variables %d, flags %08X\n", im, prx.module.imports[im]->name, prx.module.imports[im]->f_count, prx.module.imports[im]->v_count, prx.module.imports[im]->stub.flags);
 	return 0;
 }
 
-int output_elf(const char *file, FILE *out_fp){//TODO
-	CProcessPrx prx;
-
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
-	if(!PrxToElf(&prx,out_fp))
+int output_elf      (PrxToolCtx* prx,FILE *out_fp){//TODO
+	if(!PrxToElf(prx,out_fp))
 		return fprintf(stderr, "Failed to create a fixed up ELF\n"),1;
 	return 0;
 }
 
-int serialize_file(const char *file, DataBase *pNids/* CSerializePrx *pSer */){
-	CProcessPrx prx;
-
-	PrxSetNidMgr(&prx,pNids);
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
-	//PrxSerSerializePrx(prx, arg_iSMask);
+int output_xml      (PrxToolCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_importexport(const char *file, DataBase *pNids){
-	CProcessPrx prx;
+int output_map      (PrxToolCtx* prx,FILE *out_fp){
+	return 0;
+}
+
+int output_idc      (PrxToolCtx* prx,FILE *out_fp){
+	return 0;
+}
+
+int output_impexp   (PrxToolCtx* prx,FILE *out_fp){
+	PrxToolCtx prx;
 
 	PrxSetNidMgr(&prx,pNids);
 	if(!PrxLoadFromFile(&prx,file))
@@ -168,13 +123,13 @@ int output_importexport(const char *file, DataBase *pNids){
 				fprintf(stdout, "0x%08X [0x%08X] - %s", pExport->funcs[i].nid, 
 						pExport->funcs[i].addr, pExport->funcs[i].name);
 				if(arg_aliasOutput){
-					SymbolEntry pSym;
+					Symbol pSym;
 					//PrxGetSymbolEntryFromAddr(pExport->funcs[i].addr,&pSym);
 					if(pSym.alias > 0){
 						if(strcmp(pSym.name, pExport->funcs[i].name)){
 							fprintf(stdout, " => %s", pSym.name);
 						}else{
-							fprintf(stdout, " => %s", pSym.alias);
+							fprintf(stdout, " => %s", *(pSym.alias));
 						}
 					}
 				}
@@ -218,8 +173,8 @@ int output_importexport(const char *file, DataBase *pNids){
 	return 0;
 }
 
-int output_deps(const char *file, DataBase *pNids){
-	CProcessPrx prx;
+int output_deps     (PrxToolCtx* prx,FILE *out_fp){
+	PrxToolCtx prx;
 
 	PrxSetNidMgr(&prx,pNids);
 	if(!PrxLoadFromFile(&prx,file))
@@ -239,13 +194,13 @@ int output_deps(const char *file, DataBase *pNids){
 	return 0;
 }
 
-int write_stub(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
+int output_stub     (PrxToolCtx* prx,FILE *out_fp){
 	fprintf(stdout,"Library %s\n", pExp->name);
 	if(pExp->v_count != 0)
 		fprintf(stderr, "%s: Stub output does not currently support variables\n", pExp->name);
 
 	char szPath[PATH_MAX];
-	strcpy(szPath, szDirectory);
+	strcpy(szPath, file);
 	strcat(szPath, pExp->name);
 	strcat(szPath, ".S");
 
@@ -257,7 +212,7 @@ int write_stub(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
 	fprintf(fp, "\tSTUB_START\t\"%s\",0x%08X,0x%08X\n", pExp->name, pExp->stub.flags, (pExp->f_count << 16) | 5);
 
 	for(int i = 0; i < pExp->f_count; i++){
-		SymbolEntry *pSym = pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):NULL;
+		Symbol *pSym = pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):NULL;
 		if((arg_aliasOutput) && (pSym) && (pSym->alias > 0))
 			fprintf(fp, "\tSTUB_FUNC_WITH_ALIAS\t0x%08X,%s,%s\n", pExp->funcs[i].nid, pExp->funcs[i].name, strcmp(pSym->name, pExp->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
@@ -269,40 +224,38 @@ int write_stub(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
 	return 0;
 }
 
-int write_ent(PspEntries *pExp, FILE *fp){
+int output_ent      (PrxToolCtx* prx,FILE *out_fp){
 	fprintf(stdout,"Library %s\n", pExp->name);
-	if(!fp)
-		return fprintf(stderr, "Unable to Open stream\n"),1;
 	
-	fprintf(fp, "PSP_EXPORT_START(%s, 0x%04X, 0x%04X)\n", pExp->name, pExp->stub.flags & 0xFFFF, pExp->stub.flags >> 16);
+	fprintf(out_fp, "PSP_EXPORT_START(%s, 0x%04X, 0x%04X)\n", pExp->name, pExp->stub.flags & 0xFFFF, pExp->stub.flags >> 16);
 
 	char nidName[sizeof(pExp->name) + 10];
 	int nidName_size=strlen(pExp->name) + 10;
 	for(int i = 0; i < pExp->f_count; i++){
 		snprintf(nidName, nidName_size, "%s_%08X", pExp->name, pExp->funcs[i].nid);
 		if (strcmp(nidName, pExp->funcs[i].name))
-			fprintf(fp, "PSP_EXPORT_FUNC_HASH(%s)\n", pExp->funcs[i].name);
+			fprintf(out_fp, "PSP_EXPORT_FUNC_HASH(%s)\n", pExp->funcs[i].name);
 		else
-			fprintf(fp, "PSP_EXPORT_FUNC_NID(%s, 0x%08X)\n", pExp->funcs[i].name, pExp->funcs[i].nid);
+			fprintf(out_fp, "PSP_EXPORT_FUNC_NID(%s, 0x%08X)\n", pExp->funcs[i].name, pExp->funcs[i].nid);
 	}
 	for(int i = 0; i < pExp->v_count; i++){
 		snprintf(nidName, nidName_size, "%s_%08X", pExp->name, pExp->vars[i].nid);
 		if (strcmp(nidName, pExp->vars[i].name))
-			fprintf(fp, "PSP_EXPORT_VAR_HASH(%s)\n", pExp->vars[i].name);
+			fprintf(out_fp, "PSP_EXPORT_VAR_HASH(%s)\n", pExp->vars[i].name);
 		else
-			fprintf(fp, "PSP_EXPORT_VAR_NID(%s, 0x%08X)\n", pExp->vars[i].name, pExp->vars[i].nid);
+			fprintf(out_fp, "PSP_EXPORT_VAR_NID(%s, 0x%08X)\n", pExp->vars[i].name, pExp->vars[i].nid);
 	}
-	fprintf(fp, "PSP_EXPORT_END\n\n");
+	fprintf(out_fp, "PSP_EXPORT_END\n\n");
 	return 0;
 }
 
-int write_stub_new(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx){
+int output_stub_new (PrxToolCtx* prx,FILE *out_fp){
 	fprintf(stdout,"Library %s\n", pExp->name);
 	if(!pExp->v_count)
 		fprintf(stderr, "%s: Stub output does not currently support variables\n", pExp->name);
 
 	char szPath[PATH_MAX];
-	strcpy(szPath, szDirectory);
+	strcpy(szPath, file);
 	strcat(szPath, pExp->name);
 	strcat(szPath, ".S");
 
@@ -326,7 +279,7 @@ int write_stub_new(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx)
 
 	for(int i = 0; i < pExp->f_count; i++){
 		fprintf(fp, "#ifdef F_%s_%04d\n", pExp->name, i + 1);
-		SymbolEntry *pSym = /*pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):*/NULL;
+		Symbol *pSym = /*pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):*/NULL;
 		if((arg_aliasOutput) && (pSym) && (pSym->alias > 0))
 			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name, strcmp(pSym->name, pExp->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
@@ -337,8 +290,8 @@ int write_stub_new(const char *szDirectory, PspEntries *pExp, CProcessPrx *pPrx)
 	return 0;
 }
 
-int output_stubs_prx(const char *file, DataBase *pNids){
-	CProcessPrx prx;
+int output_stubs_prx(PrxToolCtx* prx,FILE *out_fp){
+	PrxToolCtx prx;
 	PrxSetNidMgr(&prx,pNids);
 	if(!PrxLoadFromFile(&prx,file))
 		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
@@ -356,9 +309,11 @@ int output_stubs_prx(const char *file, DataBase *pNids){
 	return 0;
 }
 
-int output_ents(const char *file, DataBase *pNids, FILE *f){
-	CProcessPrx prx;
+int output_ents     (PrxToolCtx* prx,FILE *out_fp){
+	PrxToolCtx prx;
 
+	fprintf(f, "# Export file automatically generated with prxtool\n");
+	fprintf(f, "PSP_BEGIN_EXPORTS\n\n");
 	PrxSetNidMgr(&prx,pNids);
 	if(!PrxLoadFromFile(&prx,file))
 		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
@@ -367,10 +322,11 @@ int output_ents(const char *file, DataBase *pNids, FILE *f){
 	//PrxGetExports(&prx,&pHead);
 	for(PspEntries*pHead=prx.module.exports;pHead;/*pHead = pHead->next*/)
 		write_ent(pHead, f);
+	fprintf(f, "PSP_END_EXPORTS\n");
 	return 0;
 }
 
-int output_stubs_xml(DataBase *pNids){
+int output_stubs_xml(PrxToolCtx* prx,FILE *out_fp){
 	for(LibraryEntry *pLib = pNids->libraries;pLib;/*pLib = pLib->pNext;*/){
 		// Convery the LibraryEntry into a valid PspEntries
 		PspEntries pExp={};

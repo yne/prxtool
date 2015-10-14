@@ -1,15 +1,15 @@
 //TODO
-void PrxBuildSymbols(CProcessPrx* prx,Symbols *syms, uint32_t dwBase){
+void PrxBuildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t base){
 	// First map in imports and exports 
 	// If we have a symbol table then no point building from imports/exports 
 	if(prx->elf.symbols){
 		for(int i = 0; i < prx->elf.symbolsCount; i++){
 			int type = ELF32_ST_TYPE(prx->elf.symbols[i].info);
 			if((type == STT_FUNC) || (type == STT_OBJECT)){
-				SymbolEntry *s = NULL;//syms[prx->elf.symbols[i].value + dwBase];
+				Symbol *s = NULL;//symbol[prx->elf.symbols[i].value + base];
 				if(!s){
-					syms->symbols[prx->elf.symbols[i].value + dwBase]=(SymbolEntry){
-						.addr = prx->elf.symbols[i].value + dwBase,
+					symbol->symbols[prx->elf.symbols[i].value + base]=(Symbol){
+						.addr = prx->elf.symbols[i].value + base,
 						.type = type == STT_FUNC?SYMBOL_FUNC:SYMBOL_DATA,
 						.type = SYMBOL_DATA,
 						.size = prx->elf.symbols[i].size,
@@ -27,14 +27,14 @@ void PrxBuildSymbols(CProcessPrx* prx,Symbols *syms, uint32_t dwBase){
 		PspEntries *pExport = &prx->module.exports[exp_cnt];
 		if(pExport->f_count > 0){
 			for(int iLoop = 0; iLoop < pExport->f_count; iLoop++){
-				SymbolEntry *s = NULL;//syms.symbols[pExport->funcs[iLoop].addr + dwBase];
+				Symbol *s = NULL;//symbol.symbols[pExport->funcs[iLoop].addr + base];
 				if(s){
 					//if(strcmp(s->name, pExport->funcs[iLoop].name))
 					//		s->alias.insert(s->alias.end(), pExport->funcs[iLoop].name);
 					//s->exported.insert(s->exported.end(), pExport);
 				}else{
-					syms->symbols[pExport->funcs[iLoop].addr + dwBase]=(SymbolEntry){
-						.addr = pExport->funcs[iLoop].addr + dwBase,
+					symbol->symbols[pExport->funcs[iLoop].addr + base]=(Symbol){
+						.addr = pExport->funcs[iLoop].addr + base,
 						.type = SYMBOL_FUNC,
 						.size = 0,
 						//.name = pExport->funcs[iLoop].name,
@@ -45,14 +45,14 @@ void PrxBuildSymbols(CProcessPrx* prx,Symbols *syms, uint32_t dwBase){
 		}
 		if(pExport->v_count > 0){
 			for(int iLoop = 0; iLoop < pExport->v_count; iLoop++){
-				SymbolEntry *s = NULL;//syms[pExport->vars[iLoop].addr + dwBase];
+				Symbol *s = NULL;//symbol[pExport->vars[iLoop].addr + base];
 				if(s){
 					//if(strcmp(s->name, pExport->vars[iLoop].name))
 					//	s->alias.insert(s->alias.end(), pExport->vars[iLoop].name);
 					//s->exported.insert(s->exported.end(), pExport);
 				}else{
-					syms->symbols[pExport->vars[iLoop].addr + dwBase]=(SymbolEntry){
-						.addr = pExport->vars[iLoop].addr + dwBase,
+					symbol->symbols[pExport->vars[iLoop].addr + base]=(Symbol){
+						.addr = pExport->vars[iLoop].addr + base,
 						.type = SYMBOL_DATA,
 						.size = 0,
 						//.name = pExport->vars[iLoop].name,
@@ -66,8 +66,8 @@ void PrxBuildSymbols(CProcessPrx* prx,Symbols *syms, uint32_t dwBase){
 		PspEntries *pImport = &prx->module.imports[i];
 		if(pImport->f_count){
 			for(int iLoop = 0; iLoop < pImport->f_count; iLoop++){
-				syms->symbols[pImport->funcs[iLoop].addr + dwBase] = (SymbolEntry){
-					.addr = pImport->funcs[iLoop].addr + dwBase,
+				symbol->symbols[pImport->funcs[iLoop].addr + base] = (Symbol){
+					.addr = pImport->funcs[iLoop].addr + base,
 					.type = SYMBOL_FUNC,
 					.size = 0,
 					//.name = pImport->funcs[iLoop].name,
@@ -78,8 +78,8 @@ void PrxBuildSymbols(CProcessPrx* prx,Symbols *syms, uint32_t dwBase){
 		if(pImport->v_count){
 			for(int iLoop = 0; iLoop < pImport->v_count; iLoop++){
 				//imported.insert(s,s->imported.end(), pImport);
-				syms->symbols[pImport->vars[iLoop].addr + dwBase] = (SymbolEntry){
-					.addr = pImport->vars[iLoop].addr + dwBase,
+				symbol->symbols[pImport->vars[iLoop].addr + base] = (Symbol){
+					.addr = pImport->vars[iLoop].addr + base,
 					.type = SYMBOL_DATA,
 					.size = 0,
 					//.name = pImport->vars[iLoop].name,
@@ -89,39 +89,39 @@ void PrxBuildSymbols(CProcessPrx* prx,Symbols *syms, uint32_t dwBase){
 	}
 }
 
-int PrxFindFuncExtent(CProcessPrx*prx,uint32_t dwStart, uint8_t *pTouchMap){
+int PrxFindFuncExtent(PrxToolCtx*prx,uint32_t dwStart, uint8_t *pTouchMap){
 	return 0;
 }
 
-void PrxMapFuncExtents(CProcessPrx*prx,Symbols*syms){
+void PrxMapFuncExtents(PrxToolCtx*prx,Symbol*symbol,size_t syms_count){
 	uint8_t pTouchMap[prx->elf.iBinSize];
 	memset(pTouchMap, 0, prx->elf.iBinSize);
 
-	for(int i=0;i<syms->length;i++)
-		if((syms[i].symbols->type == SYMBOL_FUNC) && (syms[i].symbols->size == 0))
-			syms[i].symbols->size = PrxFindFuncExtent(prx, syms[i].symbols->addr, pTouchMap)?:syms[i].symbols->size;
+	for(int i=0;i<syms_count;i++)
+		if((symbol[i].symbols->type == SYMBOL_FUNC) && (symbol[i].symbols->size == 0))
+			symbol[i].symbols->size = PrxFindFuncExtent(prx, symbol[i].symbols->addr, pTouchMap)?:symbol[i].symbols->size;
 }
 
 //TODO
-int PrxBuildMaps(CProcessPrx*prx){
+int PrxBuildMaps(PrxToolCtx*prx){
 /*
-	BuildSymbols(prx->syms, prx->dwBase);
+	BuildSymbols(prx->symbol, prx->base);
 
 	Imms::iterator start = prx->imms.begin();
 	Imms::iterator end = prx->imms.end();
 
 	while(start != end){
-		ImmEntry *imm;
+		Imm *imm;
 		uint32_t inst;
 
 		imm = prx->imms[(*start).first];
-		inst = VmemGetU32(imm->target - prx->dwBase);
+		inst = VmemGetU32(imm->target - prx->base);
 		if(imm->text){
-			SymbolEntry *s;
+			Symbol *s;
 
-			s = prx->syms[imm->target];
+			s = prx->symbol[imm->target];
 			if(s == NULL){
-				s = new SymbolEntry;
+				s = new Symbol;
 				char name[128];
 				// Hopefully most functions will start with a SP assignment 
 				if((inst >> 16) == 0x27BD){
@@ -135,7 +135,7 @@ int PrxBuildMaps(CProcessPrx*prx){
 				s->size = 0;
 				s->refs.insert(s->refs.end(), imm->addr);
 				s->name = name;
-				prx->syms[imm->target] = s;
+				prx->symbol[imm->target] = s;
 			}else{
 				s->refs.insert(s->refs.end(), imm->addr);
 			}
@@ -154,29 +154,29 @@ int PrxBuildMaps(CProcessPrx*prx){
 			pInst  = (uint32_t*) VmemGetPtr(dwAddr);
 
 			for(iILoop = 0; iILoop < (prx->sections[iLoop].iSize / 4); iILoop++){
-				disasmAddBranchSymbols(LW(pInst[iILoop]), dwAddr + prx->dwBase, prx->syms, prx-instr, prx-instr_count);
+				disasmAddBranchSymbols(LW(pInst[iILoop]), dwAddr + prx->base, prx->symbol, prx-instr, prx-instr_count);
 				dwAddr += 4;
 			}
 		}
 	}
 
-	if(prx->syms[prx->header.entry + prx->dwBase] == NULL){
-		SymbolEntry *s;
-		s = new SymbolEntry;
+	if(prx->symbol[prx->header.entry + prx->base] == NULL){
+		Symbol *s;
+		s = new Symbol;
 		// Hopefully most functions will start with a SP assignment 
 		s->type = SYMBOL_FUNC;
-		s->addr = prx->header.entry + prx->dwBase;
+		s->addr = prx->header.entry + prx->base;
 		s->size = 0;
 		s->name = "_start";
-		prx->syms[prx->header.entry + prx->dwBase] = s;
+		prx->symbol[prx->header.entry + prx->base] = s;
 	}
 
-	MapFuncExtents(prx->syms);
+	MapFuncExtents(prx->symbol);
 */
 	return 1;
 }
 
-int PrxFillModule(CProcessPrx* prx,PspModuleInfo *pData, uint32_t iAddr){
+int PrxFillModule(PrxToolCtx* prx,PspModuleInfo *pData, uint32_t iAddr){
 	if(!pData)
 		return 0;
 	prx->module=(PspModule){
@@ -201,7 +201,7 @@ int PrxFillModule(CProcessPrx* prx,PspModuleInfo *pData, uint32_t iAddr){
 	return 1;
 }
 
-int PrxCreateFakeSections(CProcessPrx* prx){
+int PrxCreateFakeSections(PrxToolCtx* prx){
 	// If we have no section headers let's build some fake sections 
 	if(!prx->elf.iSHCount)
 		return 1;
@@ -256,14 +256,14 @@ int PrxCreateFakeSections(CProcessPrx* prx){
 	return 1;
 }
 
-int PrxLoadFromFile(CProcessPrx* prx,const char *filename){
+int PrxLoadFromFile(PrxToolCtx* prx,const char *filename){
 	if(!elf_loadFromFile(&prx->elf, filename))
 		return 1;
 	// Do PRX specific stuff 
 	uint8_t *pData = NULL;
 	uint32_t iAddr = 0;
 
-	prx->blPrxLoaded = 0;
+	prx->isPrxLoaded = 0;
 
 	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 
@@ -282,10 +282,10 @@ int PrxLoadFromFile(CProcessPrx* prx,const char *filename){
 	if(!PrxFillModule(prx, (PspModuleInfo *)pData, iAddr))
 		return fprintf(stderr, "Could not fill module\n"),1;
 	if(!PrxLoadRelocs(prx))
-		return fprintf(stderr, "Could not load relocs\n"),1;
-	prx->blPrxLoaded = 1;
-	if(prx->pElfRelocs){
-		PrxFixupRelocs(prx, prx->dwBase, prx->imms);
+		return fprintf(stderr, "Could not load reloc\n"),1;
+	prx->isPrxLoaded = 1;
+	if(prx->reloc){
+		PrxFixupRelocs(prx, prx->base, prx->imms);
 	}
 	if(!PrxLoadExports(prx))
 		return fprintf(stderr, "Could not load exports\n"),1;
@@ -299,15 +299,15 @@ int PrxLoadFromFile(CProcessPrx* prx,const char *filename){
 	return 0;
 }
 
-int PrxLoadFromBinFile(CProcessPrx* prx,const char *filename, unsigned int dwDataBase){
+int PrxLoadFromBinFile(PrxToolCtx* prx,const char *filename, unsigned int dwDataBase){
 	if(!elf_loadFromBinFile(&prx->elf, filename, dwDataBase))
 		return 0;
-	prx->blPrxLoaded = 0;
+	prx->isPrxLoaded = 0;
 
 	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 
 	fprintf(stdout, "Loaded BIN %s successfully\n", filename);
-	prx->blPrxLoaded = 1;
+	prx->isPrxLoaded = 1;
 	PrxBuildMaps(prx);
 	return 1;
 }

@@ -94,22 +94,22 @@ typedef struct{
 #define ISSPACE(x) ((x) == '\t' || (x) == '\r' || (x) == '\n' || (x) == '\v' || (x) == '\f')
 
 typedef struct{
-	ElfCtx elf;
+	ElfCtx     elf;
 	PspModule  module;
-	DataBase   defNidMgr;
-	DataBase*  pCurrNidMgr;
-	Vmem vMem;
-	int blPrxLoaded;
-	ElfReloc  *pElfRelocs;// Pointer to the allocated relocation entries, if available 
-	int iRelocCount;// Number of relocations 
-	Imms*imms;//TODO
-	//Symbols syms;
-	uint32_t dwBase;
-	uint32_t stubBottom;
-	int blXmlDump;
-	Instruction*macro;size_t macro_count;
-	Instruction*instr;size_t instr_count;
-}CProcessPrx;
+	LibraryNid*   nids;size_t        nids_count;
+	LibraryEntry* libraries;size_t        libraries_count;
+	FunctionType* functions;size_t        functions_count;
+	Vmem       vMem;
+	Symbols    *symbol; size_t symbol_count;
+	Imms       *imms ; size_t imms_count;//TODO
+	ElfReloc   *reloc; size_t reloc_count;
+	Instruction*macro; size_t macro_count;
+	Instruction*instr; size_t instr_count;
+	int        isPrxLoaded;
+	int        isXmlDump;
+	uint32_t   stubBottom;
+	uint32_t   base;
+}PrxToolCtx;
 
 static const char* g_szRelTypes[16] = {
 	"R_NONE",
@@ -138,10 +138,10 @@ static const char* g_szRelTypes[16] = {
 #include "prx.dump.c"
 
 
-void PrxSetNidMgr(CProcessPrx*prx,DataBase* nidMgr){
+void PrxSetNidMgr(PrxToolCtx*prx,DataBase* nidMgr){
 	prx->pCurrNidMgr = nidMgr?nidMgr:&prx->defNidMgr;
 }
 
-SymbolEntry *PrxGetSymbolEntryFromAddr(CProcessPrx *pPrx,uint32_t dwAddr){
-	return NULL;//prx->syms[dwAddr];
+Symbol *PrxGetSymbolEntryFromAddr(PrxToolCtx *pPrx,uint32_t dwAddr){
+	return NULL;//prx->symbol[dwAddr];
 }

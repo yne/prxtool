@@ -58,10 +58,7 @@ char* db_nids_findPrxByLibName(LibraryEntry * libs, size_t libraries_count,char*
 	return NULL;
 }
 
-int db_nids_import_xml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, const char* filename){
-	FILE *fp = fopen(filename, "r");
-	if(!fp)
-		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
+int db_nids_import_xml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, FILE* fp){
 	char buffer[512],*pos;
 	LibraryEntry lib={};
 	LibraryNid nid={};
@@ -99,14 +96,10 @@ int db_nids_import_xml(LibraryEntry *libraries,size_t*libraries_count, LibraryNi
 			}
 		}
 	}
-	fclose(fp);
-	return 0;
+	return fclose(fp);
 }
 
-int db_nids_import_yml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, const char* filename){
-	FILE *fp = fopen(filename, "r");
-	if(!fp)
-		return fprintf(stderr,"Unable to Open \"%s\"\n", filename),1;
+int db_nids_import_yml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, FILE* fp){
 	char buffer[512];
 	for(unsigned line = 0,l = 0, n = 0;fgets(buffer, sizeof(buffer),fp);line++){
 		if(!nids && !libraries && libraries_count && nids_count){//counting mode
@@ -142,13 +135,13 @@ int db_nids_import_yml(LibraryEntry *libraries,size_t*libraries_count, LibraryNi
 			}
 		}
 	}
-	return 0;
+	return fclose(fp);
 }
 
-int db_nids_import(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, const char* filename){
-	if(!strcmp(strrchr(filename,'.')?:filename,".xml"))
-		return db_nids_import_xml(libraries, libraries_count, nids, nids_count, filename);
-	if(!strcmp(strrchr(filename,'.')?:filename,".yml"))
-		return db_nids_import_yml(libraries, libraries_count, nids, nids_count, filename);
-	return fprintf(stderr,"Unsupported NID library format\n"),1;
+int db_nids_import(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, FILE* fp){
+	char header[4];
+	if(fread(&header,sizeof(header),1,fp)==sizeof(header) && !fseek(fp,0,SEEK_SET) && !strncmp(header,"<xml",4))
+		return db_nids_import_xml(libraries, libraries_count, nids, nids_count, fp);
+	else
+		return db_nids_import_yml(libraries, libraries_count, nids, nids_count, fp);
 }

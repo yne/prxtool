@@ -1,5 +1,5 @@
 
-void PrxPrintRow(CProcessPrx* prx,FILE *fp, const uint32_t* row, int32_t row_size, uint32_t addr){
+void PrxPrintRow(PrxToolCtx* prx,FILE *fp, const uint32_t* row, int32_t row_size, uint32_t addr){
 	char buffer[512],*p = buffer;
 	sprintf(p, "0x%08X - ", addr);
 	p += strlen(p);
@@ -25,7 +25,7 @@ void PrxPrintRow(CProcessPrx* prx,FILE *fp, const uint32_t* row, int32_t row_siz
 	for(int i = 0; i < 16; i++){
 		if(i < row_size){
 			if((row[i] >= 32) && (row[i] < 127)){
-				if(prx->blXmlDump && (row[i] == '<')){
+				if(prx->isXmlDump && (row[i] == '<')){
 					strcpy(p, "&lt;");
 					p += strlen(p);
 				}else{
@@ -42,7 +42,7 @@ void PrxPrintRow(CProcessPrx* prx,FILE *fp, const uint32_t* row, int32_t row_siz
 	fprintf(fp, "%s\n", buffer);
 }
 
-void PrxDumpData(CProcessPrx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
+void PrxDumpData(PrxToolCtx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
 	fprintf(fp, "           - 00 01 02 03 | 04 05 06 07 | 08 09 0A 0B | 0C 0D 0E 0F - 0123456789ABCDEF\n");
 	fprintf(fp, "-------------------------------------------------------------------------------------\n");
 	uint32_t row[16];
@@ -52,7 +52,7 @@ void PrxDumpData(CProcessPrx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 		row[row_size] = pData[i];
 		row_size++;
 		if(row_size == 16){
-			if(prx->blXmlDump){
+			if(prx->isXmlDump){
 				fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr & ~15);
 			}
 			PrxPrintRow(prx, fp, row, row_size, dwAddr);
@@ -62,14 +62,14 @@ void PrxDumpData(CProcessPrx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 		}
 	}
 	if(row_size > 0){
-		if(prx->blXmlDump){
+		if(prx->isXmlDump){
 			fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr & ~15);
 		}
 		PrxPrintRow(prx, fp, row, row_size, dwAddr);
 	}
 }
 
-int PrxReadString(CProcessPrx* prx,uint32_t dwAddr, char*str, int unicode, uint32_t *dwRet){
+int PrxReadString(PrxToolCtx* prx,uint32_t dwAddr, char*str, int unicode, uint32_t *dwRet){
 	int iSize = 0;//VmemGetSize(dwAddr);
 	int iRealLen = 0;
 
@@ -94,7 +94,7 @@ int PrxReadString(CProcessPrx* prx,uint32_t dwAddr, char*str, int unicode, uint3
 		}
 		if(ISSPACE(ch) || ((ch >= 32) && (ch < 127))){
 			if((ch >= 32) && (ch < 127)){
-				if((prx->blXmlDump) && (ch == '<'))
+				if((prx->isXmlDump) && (ch == '<'))
 					strcpy(str,"&lt;");
 				else
 					strncpy(str,(const char*)&ch,unicode?2:1);
@@ -111,31 +111,31 @@ int PrxReadString(CProcessPrx* prx,uint32_t dwAddr, char*str, int unicode, uint3
 	return 0;
 }
 
-void PrxDumpStrings(CProcessPrx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
+void PrxDumpStrings(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
 	if(iSize <= MINIMUM_STRING)return;
 	char* curr = "";
 	int head_printed = 0;
 	
 	for(uint32_t dwEnd = dwAddr + iSize - MINIMUM_STRING;dwAddr < dwEnd;){
 		uint32_t dwNext;
-		if(PrxReadString(prx,dwAddr - prx->dwBase, curr, 0, &dwNext) || PrxReadString(prx,dwAddr - prx->dwBase, curr, 1, &dwNext)){
+		if(PrxReadString(prx,dwAddr - prx->base, curr, 0, &dwNext) || PrxReadString(prx,dwAddr - prx->base, curr, 1, &dwNext)){
 			if(!head_printed){
 				fprintf(fp, "\n; Strings\n");
 				head_printed = 1;
 			}
 			fprintf(fp, "0x%08X: %s\n", dwAddr, curr);
-			dwAddr = dwNext + prx->dwBase;
+			dwAddr = dwNext + prx->base;
 		}else{
 			dwAddr++;
 		}
 	}
 }
 
-void PrxDump(CProcessPrx*prx,FILE *fp, const char *disopts){
-//	disasmSetSymbols(&prx->syms);
+void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
+//	disasmSetSymbols(&prx->symbol);
 	disasmSetOpts(disopts, 1);
 
-	if(prx->blXmlDump){
+	if(prx->isXmlDump){
 		disasmSetXmlOutput();
 		fprintf(fp, "<html><body><pre>\n");
 	}
@@ -143,32 +143,32 @@ void PrxDump(CProcessPrx*prx,FILE *fp, const char *disopts){
 		if(prx->elf.sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
 			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
 				fprintf(fp, "\n; ==== Section %s - Address 0x%08X Size 0x%08X Flags 0x%04X\n", 
-						prx->elf.sections[iLoop].szName, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+						prx->elf.sections[iLoop].szName, prx->elf.sections[iLoop].iAddr + prx->base, 
 						prx->elf.sections[iLoop].iSize, prx->elf.sections[iLoop].flags);
 				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
-					PrxDisasm(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+					PrxDisasm(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, 
 							prx->elf.sections[iLoop].iSize, 
 							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),
-							prx->imms, prx->dwBase);
+							prx->imms, prx->base);
 				}else{
-					PrxDumpData(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+					PrxDumpData(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, 
 							prx->elf.sections[iLoop].iSize,
 							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr));
-					PrxDumpStrings(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, 
+					PrxDumpStrings(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, 
 							prx->elf.sections[iLoop].iSize, 
 							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr));
 				}
 			}
 		}
 	}
-	if(prx->blXmlDump){
+	if(prx->isXmlDump){
 		fprintf(fp, "</pre></body></html>\n");
 	}
 	disasmSetSymbols(NULL);
 }
 
-void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
-	//disasmSetSymbols(&prx->syms);
+void PrxDumpXML(PrxToolCtx*prx,FILE *fp, const char *disopts){
+	//disasmSetSymbols(&prx->symbol);
 	disasmSetOpts(disopts, 1);
 
 	char *slash = strrchr(prx->elf.filename, '/');
@@ -194,7 +194,7 @@ void PrxDumpXML(CProcessPrx*prx,FILE *fp, const char *disopts){
 			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
 				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
 					fprintf(fp, "<disasm>\n");
-					PrxDisasmXML(prx, fp, prx->elf.sections[iLoop].iAddr + prx->dwBase, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imms, prx->dwBase);
+					PrxDisasmXML(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imms, prx->base);
 					fprintf(fp, "</disasm>\n");
 				}
 			}
