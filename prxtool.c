@@ -1,24 +1,15 @@
-/***************************************************************
- * PRXTool : Utility for PSP executables.
- * (c) TyRaNiD 2k5
- *
- * main.C - Main function for PRXTool
- ***************************************************************/
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
 
 #define PATH_MAX 4096
-#define countof(x) (sizeof(x) / sizeof(x[0]))
+#define assertf(cond,...) if(!(cond))return fprintf(stderr,__VA_ARGS__),-1;
+#define assert(cond)      if(!(cond))return fprintf(stderr,"%s error: %s\n",__func__, #cond),-1;
+#define countof(X) (sizeof(X)/sizeof(X[0]))
 
-#include "db_func.c"
-#include "db_nids.c"
-#include "db_instr.c"
-#include "elf.c"
-#include "prx.c"
 #include "arg.c"
-#include "out.c"
+#include "prx.c"
+//#include "out.c"
 
 #ifndef PRXTOOL_VERSION
 #define PRXTOOL_VERSION ""
@@ -28,49 +19,56 @@ int main(int argc, char **argv){
 	fprintf(stdout, "PRXTool "PRXTOOL_VERSION" ("__DATE__") \n");
 	fprintf(stdout, "(c) TyRaNiD 2k6\n");
 
-	if(arg_init(argc, argv))
-		return 1;
-	
-	PrxToolCtx prx;
-	if(arg_nidsfile){
-		if(!db_nids_import(NULL,&prx.db.libraries_count,NULL,&prx.db.nids_count,arg_nidsfile)){
-			LibraryEntry l[prx.db.libraries_count];
-			LibraryNid   n[prx.db.nids_count];
-			db_nids_import(prx.db.libraries=l,NULL,prx.db.nids=n,NULL,arg_nidsfile);
-		}
-		fprintf(stderr,"%uz nids loaded in %uz libraries\n",prx.db.nids_count,prx.db.libraries_count);
-	}
-	if(arg_funcfile){
-		if(!db_func_import(NULL,&prx.db.functions_count,arg_funcfile)){
-			FunctionType f[prx.db.functions_count];
-			db_func_import(prx.db.functions=f,NULL,arg_funcfile);
-		}
-		fprintf(stderr,"%i prototypes loaded\n",prx.db.functions_count);
-	}
-	if(arg_prxfile && !PrxLoadFromFile(&prx,arg_prxfile)){
-		return fprintf(stderr, "Couldn't load elf file structures"),1;
-	}
-	if(arg_loadbin && !PrxLoadFromBinFile(&prx,arg_loadbin)){
-		return fprintf(stderr, "Couldn't load elf file structures"),1;
-	}
+	PrxToolArg arg={.print="ixrl"};
+	assert(!parse_arg(argc,argv,&arg))
 
-	PrxSetNidMgr(&prx,pNids);
-	#define OUT(arg) if(arg_out_#arg)output_#arg(&prx,arg_out_#arg);
-	OUT(elf);
-	OUT(stub);
-	OUT(stubnew);
-	OUT(dep);
-	OUT(mod);
-	OUT(pstub);
-	OUT(pstubnew);
-	OUT(impexp);
-	OUT(symbols);
-	OUT(xmldb);
-	OUT(ent);
-	OUT(disasm);
-	OUT(xml);
-	OUT(map);
-	OUT(idc);
+	PrxToolCtx prx={};
+	
+	if(arg.in.nid){
+		if(!db_nids_import(NULL,&prx.library_count,NULL,&prx.nid_count,arg.in.nid)){
+			Library l[prx.library_count];
+			Nid     n[prx.nid_count];
+			db_nids_import(prx.library=l,NULL,prx.nids=n,NULL,arg.in.nid);
+		}
+		fprintf(stderr,"loaded: %zu nids in %zu library\n",prx.nid_count,prx.library_count);
+	}
+	if(arg.in.func){
+		if(!db_func_import(NULL,&prx.proto_count,arg.in.func)){
+			Protoype f[prx.proto_count];
+			db_func_import(prx.proto=f,NULL,arg.in.func);
+		}
+		fprintf(stderr,"loaded: %zu prototypes\n",prx.proto_count);
+	}
+	if(arg.in.instr){
+		if(!db_instr_import(NULL,&prx.instr_count,NULL,&prx.macro_count,arg.in.instr)){
+			Instruction instr[prx.instr_count];
+			Instruction macro[prx.macro_count];
+			db_instr_import(prx.instr=instr,NULL,prx.macro=macro,NULL,arg.in.instr);
+		}
+		fprintf(stderr,"loaded: %zu instructions + %zu macro\n",prx.instr_count,prx.macro_count);
+	}
+	if(arg.in.prx){
+		//assert(!PrxLoadFromElf(&prx,arg.in.prx))
+	}
+	if(arg.in.bin){
+		//assert(!PrxLoadFromBin(&prx,arg.in.bin))
+	}
+	#define OUT(A) if(arg.out.A)output_##A(&prx,arg.out.A);
+	//OUT(elf);
+	//OUT(stub);
+	//OUT(stub2);
+	//OUT(dep);
+	//OUT(mod);
+	//OUT(pstub);
+	//OUT(pstub2);
+	//OUT(impexp);
+	//OUT(symbols);
+	//OUT(xmldb);
+	//OUT(ent);
+	//OUT(disasm);
+	//OUT(xml);
+	//OUT(map);
+	//OUT(idc);
 	#undef OUT
 	return 0;
 }

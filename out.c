@@ -7,6 +7,14 @@ int output_symbols  (PrxToolCtx* prx,FILE *out_fp){
 	int symbolsCount=0;//PrxGetSymbols(&pSymbols);
 	if(!symbolsCount)
 		return fprintf(stderr, "No symbols available"),1;
+	
+	typedef struct{
+		char magic[4];
+		char modname[sizeof(((PspModule){}).info.name)];
+		uint32_t  symcount;
+		uint32_t  strstart;
+		uint32_t  strsize;
+	} __attribute__ ((packed)) SymfileHeader;
 	SymfileHeader fileHead;
 	ElfSymbol pSymCopy[symbolsCount];
 
@@ -26,7 +34,13 @@ int output_symbols  (PrxToolCtx* prx,FILE *out_fp){
 	fprintf(stdout,"String size %d/%d\n", symbolsCount - iSymCopyCount, iSymCopyCount);
 	qsort(pSymCopy, iSymCopyCount, sizeof(ElfSymbol), compare_symbols);
 	memcpy(fileHead.magic, SYMFILE_MAGIC, 4);
-	//memcpy(fileHead.modname, PrxGetModuleInfo()->name, PSP_MODULE_MAX_NAME);
+	// memcpy(fileHead.modname, PrxGetModuleInfo()->name, PSP_MODULE_MAX_NAME);
+	typedef struct{
+		uint32_t name;
+		uint32_t addr;
+		uint32_t size;
+	} __attribute__((packed))SymfileEntry;
+	
 	SW(fileHead.symcount, iSymCopyCount);
 	SW(fileHead.strstart, sizeof(fileHead) + (sizeof(SymfileEntry)*iSymCopyCount));
 	SW(fileHead.strsize, iStrSize);
@@ -60,7 +74,7 @@ int output_xmldb    (PrxToolCtx* prx,FILE *out_fp){
 }
 
 int output_mods     (PrxToolCtx* prx,FILE *out_fp){
-	//PrxGetModuleInfo(prx);
+	// PrxGetModuleInfo(prx);
 	fprintf(stdout, "Module information\n");
 	fprintf(stdout, "Name:    %s\n", prx.module.info.name);
 	fprintf(stdout, "Attrib:  %04X\n", prx.module.info.flags & 0xFFFF);
@@ -96,13 +110,8 @@ int output_idc      (PrxToolCtx* prx,FILE *out_fp){
 }
 
 int output_impexp   (PrxToolCtx* prx,FILE *out_fp){
-	PrxToolCtx prx;
-
-	PrxSetNidMgr(&prx,pNids);
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
 	PspModule pMod;
-	//PrxGetModuleInfo(&pMod);
+	// PrxGetModuleInfo(&pMod);
 	fprintf(stdout, "Module information\n");
 	fprintf(stdout, "Name:    %s\n", pMod.info.name);
 	fprintf(stdout, "Attrib:  %04X\n", pMod.info.flags & 0xFFFF);
@@ -112,7 +121,7 @@ int output_impexp   (PrxToolCtx* prx,FILE *out_fp){
 	fprintf(stdout, "\nExports:\n");
 	
 	int count = 0;
-	for(PspEntries *pExport = pMod.exports;pExport;/*pExport = pExport->next;*/){
+	for(PspEntries *pExport = pMod.exports;pExport;){
 		fprintf(stdout, "Export %d, Name %s, Functions %d, Variables %d, flags %08X\n", 
 				count++, pExport->name, pExport->f_count, pExport->v_count, pExport->stub.flags);
 
@@ -124,7 +133,7 @@ int output_impexp   (PrxToolCtx* prx,FILE *out_fp){
 						pExport->funcs[i].addr, pExport->funcs[i].name);
 				if(arg_aliasOutput){
 					Symbol pSym;
-					//PrxGetSymbolEntryFromAddr(pExport->funcs[i].addr,&pSym);
+					// PrxGetSymbolEntryFromAddr(pExport->funcs[i].addr,&pSym);
 					if(pSym.alias > 0){
 						if(strcmp(pSym.name, pExport->funcs[i].name)){
 							fprintf(stdout, " => %s", pSym.name);
@@ -148,7 +157,7 @@ int output_impexp   (PrxToolCtx* prx,FILE *out_fp){
 
 	fprintf(stdout, "\nImports:\n");
 	count = 0;
-	for(PspEntries *pImport = pMod.imports;pImport;/*pImport = pImport->next*/){
+	for(PspEntries *pImport = pMod.imports;pImport;){
 		fprintf(stdout, "Import %d, Name %s, Functions %d, Variables %d, flags %08X\n", 
 				count++, pImport->name, pImport->f_count, pImport->v_count, pImport->stub.flags);
 
@@ -174,17 +183,11 @@ int output_impexp   (PrxToolCtx* prx,FILE *out_fp){
 }
 
 int output_deps     (PrxToolCtx* prx,FILE *out_fp){
-	PrxToolCtx prx;
-
-	PrxSetNidMgr(&prx,pNids);
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
-	
 	char path[PATH_MAX];
 	int i = 0;
 	fprintf(stdout, "Dependency list for%s\n", file);
-	//PrxGetImports(&pHead);
-	for(PspEntries*pHead=NULL;pHead;/*pHead = pHead.next*/){
+	// PrxGetImports(&pHead);
+	for(PspEntries*pHead=NULL;pHead;){
 		if(strlen(pHead->file) > 0)
 			strcpy(path, pHead->file);
 		else
@@ -279,7 +282,7 @@ int output_stub_new (PrxToolCtx* prx,FILE *out_fp){
 
 	for(int i = 0; i < pExp->f_count; i++){
 		fprintf(fp, "#ifdef F_%s_%04d\n", pExp->name, i + 1);
-		Symbol *pSym = /*pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr):*/NULL;
+		Symbol *pSym =NULL; //pPrx?PrxGetSymbolEntryFromAddr(pPrx,pExp->funcs[i].addr)
 		if((arg_aliasOutput) && (pSym) && (pSym->alias > 0))
 			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", pExp->name, pExp->funcs[i].nid, pExp->funcs[i].name, strcmp(pSym->name, pExp->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
@@ -291,14 +294,9 @@ int output_stub_new (PrxToolCtx* prx,FILE *out_fp){
 }
 
 int output_stubs_prx(PrxToolCtx* prx,FILE *out_fp){
-	PrxToolCtx prx;
-	PrxSetNidMgr(&prx,pNids);
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
 	fprintf(stdout, "Dependency list for%s\n", file);
-	
-	//PrxGetExports(&prx,&pHead);
-	for(PspEntries*pHead=prx.module.exports;pHead;/*pHead = pHead->next*/){
+	// PrxGetExports(&prx,&pHead);
+	for(PspEntries*pHead=prx.module.exports;pHead;){
 		if(strcmp(pHead->name, PSP_SYSTEM_EXPORT)){
 			if(arg_out_pstubnew)
 				write_stub_new("", pHead, NULL);
@@ -312,23 +310,20 @@ int output_stubs_prx(PrxToolCtx* prx,FILE *out_fp){
 int output_ents     (PrxToolCtx* prx,FILE *out_fp){
 	PrxToolCtx prx;
 
-	fprintf(f, "# Export file automatically generated with prxtool\n");
-	fprintf(f, "PSP_BEGIN_EXPORTS\n\n");
-	PrxSetNidMgr(&prx,pNids);
-	if(!PrxLoadFromFile(&prx,file))
-		return fprintf(stderr, "Couldn't load prx file structures\n"),1;
+	fprintf(out_fp, "# Export file automatically generated with prxtool\n");
+	fprintf(out_fp, "PSP_BEGIN_EXPORTS\n\n");
 	fprintf(stdout, "Dependency list for%s\n", file);
 	
-	//PrxGetExports(&prx,&pHead);
-	for(PspEntries*pHead=prx.module.exports;pHead;/*pHead = pHead->next*/)
-		write_ent(pHead, f);
-	fprintf(f, "PSP_END_EXPORTS\n");
+	// PrxGetExports(&prx,&pHead);
+	for(PspEntries*pHead=prx.module.exports;pHead;)
+		write_ent(pHead, out_fp);
+	fprintf(out_fp, "PSP_END_EXPORTS\n");
 	return 0;
 }
 
 int output_stubs_xml(PrxToolCtx* prx,FILE *out_fp){
-	for(LibraryEntry *pLib = pNids->libraries;pLib;/*pLib = pLib->pNext;*/){
-		// Convery the LibraryEntry into a valid PspEntries
+	for(Library *pLib = pNids->library;pLib;){
+		// Convery the Library into a valid PspEntries
 		PspEntries pExp={};
 		strcpy(pExp.name, pLib->lib_name);
 		pExp.f_count = pLib->fcount;
@@ -336,8 +331,8 @@ int output_stubs_xml(PrxToolCtx* prx,FILE *out_fp){
 		pExp.stub.flags = pLib->flags;
 
 		for(int i = 0; i < pExp.f_count; i++){
-			//pExp.funcs[i].nid = pLib->pNids[i].nid;
-			//strcpy(pExp.funcs[i].name, pLib->pNids[i].name);
+			// pExp.funcs[i].nid = pLib->pNids[i].nid;
+			// strcpy(pExp.funcs[i].name, pLib->pNids[i].name);
 		}
 
 		if(arg_out_stubnew)

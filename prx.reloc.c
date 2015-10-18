@@ -271,6 +271,10 @@ int PrxLoadRelocs(PrxToolCtx* prx){
 	
 	fprintf(stdout,"Dumping reloc %d\n", prx->iRelocCount);
 	
+	char* g_szRelTypes[16] = {
+		"R_NONE","R_16","R_32","R_REL32","R_26","R_HI16","R_LO16","R_GPREL16","R_LITERAL",
+		"R_GOT16","R_PC16","R_CALL16","R_GPREL32","X_HI16","X_J26","X_JAL26"
+	};
 	for(int iLoop = 0; iLoop < prx->iRelocCount; iLoop++){
 		if(prx->reloc[iLoop].type < 16){
 			fprintf(stdout,"Reloc %s:%d Type:%s Symbol:%d Offset %08X Info:%08X\n", 
@@ -286,7 +290,7 @@ int PrxLoadRelocs(PrxToolCtx* prx){
 	return 1;
 }
 //TODO
-int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imms, size_t imms_count){
+int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 	//uint32_t regs[32];
 	// Fixup the elf file and output it to fp 
 	if((prx->isPrxLoaded == 0))
@@ -357,7 +361,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imms, size_t imms_count){
 					imm->addr = base + ofsph + prx->reloc[iLoop].offset;
 					imm->target = addr;
 					imm->text = elf_addrIsText(&prx->elf, addr - base);
-					//imms[base + ofsph + prx->reloc[iLoop].offset].imms = *imm;
+					//imm[base + ofsph + prx->reloc[iLoop].offset].imm = *imm;
 
 					if (prx->reloc[++iLoop].type != R_MIPS_LO16) break;
 				}
@@ -375,7 +379,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imms, size_t imms_count){
 				imm->addr = dwRealOfs + base;
 				imm->target = addr;
 				imm->text = elf_addrIsText(&prx->elf, addr - base);
-				//imms[dwRealOfs + base] = imm;
+				//imm[dwRealOfs + base] = imm;
 
 				loinst &= ~0xFFFF;
 				loinst |= addr;
@@ -393,7 +397,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imms, size_t imms_count){
 				imm->addr = dwRealOfs + base;
 				imm->target = addr;
 				imm->text = elf_addrIsText(&prx->elf, addr - base);
-				//imms[dwRealOfs + base] = imm;
+				//imm[dwRealOfs + base] = imm;
 
 				hiinst &= ~0xFFFF;
 				hiinst |= (hiaddr & 0xFFFF);
@@ -428,7 +432,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imms, size_t imms_count){
 					imm->addr = dwRealOfs + base;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
 					imm->text = elf_addrIsText(&prx->elf, imm->target - base);
-					//imms[dwRealOfs + base] = imm;
+					//imm[dwRealOfs + base] = imm;
 				}
 				// already add the JAL26 symbol so we don't have to search for the J26 there
 				if (iLoop < prx->iRelocCount && (dwData >> 26) != 3){// not JAL instruction
@@ -436,7 +440,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imms, size_t imms_count){
 					imm->addr = offs2 + base;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
 					imm->text = elf_addrIsText(&prx->elf, imm->target - base);
-					//imms[offs2 + base] = imm;
+					//imm[offs2 + base] = imm;
 				}
 
 				iLoop = base;
@@ -475,7 +479,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imms, size_t imms_count){
 					imm->addr = dwRealOfs + base;
 					imm->target = (dwData & 0x03FFFFFF) << 2;;
 					imm->text = elf_addrIsText(&prx->elf, dwData - base);
-					//imms[dwRealOfs + base] = imm;
+					//imm[dwRealOfs + base] = imm;
 				}
 			}
 			break;

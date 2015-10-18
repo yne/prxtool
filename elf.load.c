@@ -201,7 +201,7 @@ int elf_loadPrograms(ElfCtx*elf){
 		elf->programs[iLoop].pData   = elf->pElf + elf->programs[iLoop].iOffset;
 		pData += elf->header.PHentSize;
 	}
-	elf_dumpPrograms(elf);
+	//elf_dumpPrograms(elf);
 	return 1;
 }
 
@@ -224,7 +224,7 @@ int elf_loadSymbols(ElfCtx*elf){
 		elf->symbols[iLoop].other   = pSym[iLoop].st_other;
 		elf->symbols[iLoop].shndx   = LH(pSym[iLoop].st_shndx);
 	}
-	elf_dumpSymbols(elf);
+	//elf_dumpSymbols(elf);
 	return 0;
 }
 
@@ -263,7 +263,7 @@ int elf_loadSections(ElfCtx*elf){
 				elf->sections[iLoop].szName[ELF_SECT_MAX_NAME-1] = 0;
 			}
 		}
-		elf_dumpSections(elf);
+		//elf_dumpSections(elf);
 	}
 	return 0;
 }

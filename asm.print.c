@@ -219,35 +219,19 @@ char* print_vfpuquad(int reg, char *output){
 }
 
 char* print_vfpupair(int reg, char *output){
-	if((reg >> 6) & 1){
-		return print_vfpu_reg(reg, 2, 'C', 'R', output);
-	}else{
-		return print_vfpu_reg(reg, 0, 'C', 'R', output);
-	}
+	return print_vfpu_reg(reg, (reg >> 6)&1?2:0, 'C', 'R', output);
 }
 
 char* print_vfputriple(int reg, char *output){
-	if((reg >> 6) & 1){
-		return print_vfpu_reg(reg, 1, 'C', 'R', output);
-	}else{
-		return print_vfpu_reg(reg, 0, 'C', 'R', output);
-	}
+	return print_vfpu_reg(reg, (reg >> 6)&1?1:0, 'C', 'R', output);
 }
 
 char* print_vfpumpair(int reg, char *output){
-	if((reg >> 6) & 1){
-		return print_vfpu_reg(reg, 2, 'M', 'E', output);
-	}else{
-		return print_vfpu_reg(reg, 0, 'M', 'E', output);
-	}
+	return print_vfpu_reg(reg, (reg >> 6)&1?2:0, 'M', 'E', output);
 }
 
 char* print_vfpumtriple(int reg, char *output){
-	if((reg >> 6) & 1){
-		return print_vfpu_reg(reg, 1, 'M', 'E', output);
-	}else{
-		return print_vfpu_reg(reg, 0, 'M', 'E', output);
-	}
+	return print_vfpu_reg(reg, (reg >> 6)&1?1:0, 'M', 'E', output);
 }
 
 char* print_vfpumatrix(int reg, char *output){
@@ -256,20 +240,13 @@ char* print_vfpumatrix(int reg, char *output){
 
 char* print_vfpureg(int reg, char type, char *output){
 	switch(type){
-		case 's': return print_vfpusingle(reg, output);
-				  break;
-		case 'q': return print_vfpuquad(reg, output);
-				  break;
-		case 'p': return print_vfpupair(reg, output);
-				  break;
-		case 't': return print_vfputriple(reg, output);
-				  break;
-		case 'm': return print_vfpumpair(reg, output);
-				  break;
-		case 'n': return print_vfpumtriple(reg, output);
-				  break;
-		case 'o': return print_vfpumatrix(reg, output);
-				  break;
+		case 's': return print_vfpusingle (reg, output);break;
+		case 'q': return print_vfpuquad   (reg, output);break;
+		case 'p': return print_vfpupair   (reg, output);break;
+		case 't': return print_vfputriple (reg, output);break;
+		case 'm': return print_vfpumpair  (reg, output);break;
+		case 'n': return print_vfpumtriple(reg, output);break;
+		case 'o': return print_vfpumatrix (reg, output);break;
 		default: break;
 	};
 
@@ -277,8 +254,12 @@ char* print_vfpureg(int reg, char type, char *output){
 }
 
 char* print_cop2(int reg, char *output){
+	char* vfpu_extra_regs[] ={
+		"PFXS","PFXT","PFXD","CC  ","INF4","REG5","REG6","REV",
+		"RCX0","RCX1","RCX2","RCX3","RCX4","RCX5","RCX6","RCX7"
+	};
 	if ((reg >= 128) && (reg < 128+16) && (vfpu_extra_regs[reg - 128]))
-		return output + sprintf(output, "%s", vfpu_extra_regs[reg - 128]);
+		return output + sprintf(output, "VFPU_%s", vfpu_extra_regs[reg - 128]);
 	else
 		return output + sprintf(output, "$%d", reg);
 }
@@ -442,7 +423,7 @@ char* disasmInstruction(unsigned int opcode, unsigned int PC, unsigned int *real
 	Instruction *ix = NULL;
 
 	sprintf(addr, "0x%08X", PC);
-	if((g_syms) && (g_symaddr)){
+	if(/*(g_syms) && (g_symaddr)*/0){
 		char addrtemp[128];
 		/* Symbol resolver shouldn't touch addr unless it finds symbol */
 		if(disasmResolveSymbol(PC, addrtemp, sizeof(addrtemp)))

@@ -1,4 +1,4 @@
-#Macro
+#MACRO
 0x00000000	0xFFFFFFFF	_	_	nop	
 0x24000000	0xFFE00000	_	_	li	%t, %i
 0x34000000	0xFFE00000	_	_	li	%t, %I

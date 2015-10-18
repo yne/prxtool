@@ -10,12 +10,12 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 		.stub.vars = LW(pImport->vars),
 	};
 	if(!pLib.stub.name)// Shouldn't be zero, although technically it could be 
-		return fprintf(stderr, "Import libraries must have a name"),0;
+		return fprintf(stderr, "Import library must have a name"),0;
 	if(!(pName = (char*) VmemGetPtr(&prx->vMem,pLib.stub.name)))
 		return fprintf(stderr, "Invalid memory address for import name (0x%08X)\n", pLib.stub.name),0;
 
 	strncpy(pLib.name, pName,sizeof(pLib.name));
-	if((dep = db_nids_findPrxByLibName(prx->pCurrNidMgr->libraries,prx->pCurrNidMgr->libraries_count,pName))){
+	if((dep = db_nids_findPrxByLibName(prx->pCurrNidMgr->library,prx->pCurrNidMgr->library_count,pName))){
 		if((slash = strrchr(dep, '/')))// Remove any path element
 			dep = slash + 1;
 		strcpy(pLib.file, dep);
@@ -30,11 +30,11 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 		return fprintf(stderr, "Not enough space for library import nids"),0;
 
 	if(VmemGetSize(&prx->vMem,pLib.stub.funcs) < (uint32_t) (8 * pLib.f_count))
-		return fprintf(stderr, "Not enough space for library functions"),0;
+		return fprintf(stderr, "Not enough space for library proto"),0;
 
 	for(uint32_t nidAddr = pLib.stub.nids, iLoop = 0, funcAddr = pLib.stub.funcs; iLoop < pLib.f_count; iLoop++,nidAddr += 4,funcAddr += 8){
 		pLib.funcs[iLoop].nid = VmemGetU32(&prx->vMem,nidAddr);
-		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->nids_count, pLib.name, pLib.funcs[iLoop].nid));
+		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->nid_count, pLib.name, pLib.funcs[iLoop].nid));
 		pLib.funcs[iLoop].type = PSP_ENTRY_FUNC;
 		pLib.funcs[iLoop].addr = funcAddr;
 		pLib.funcs[iLoop].nid_addr = nidAddr;
@@ -46,7 +46,7 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 		pLib.vars[iLoop].nid = VmemGetU32(&prx->vMem,varAddr+4);
 		pLib.vars[iLoop].type = PSP_ENTRY_VAR;
 		pLib.vars[iLoop].nid_addr = varAddr+4;
-		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->nids_count, pLib.name, pLib.vars[iLoop].nid));
+		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->nid_count, pLib.name, pLib.vars[iLoop].nid));
 		fprintf(stdout,"Found variable nid:0x%08X addr:0x%08X name:%s\n", pLib.vars[iLoop].nid, pLib.vars[iLoop].addr, pLib.vars[iLoop].name);
 		uint32_t varFixup = pLib.vars[iLoop].addr;
 		for(uint32_t varData;(varData = VmemGetU32(&prx->vMem,varFixup));varFixup += 4)
@@ -115,7 +115,7 @@ int PrxLoadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	for(int iLoop = 0; iLoop < pLib.f_count; iLoop++){
 		// We will fix up the names later 
 		pLib.funcs[iLoop].nid = VmemGetU32(&prx->vMem,expAddr);
-		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->libraries_count, pLib.name, pLib.funcs[iLoop].nid));
+		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->library_count, pLib.name, pLib.funcs[iLoop].nid));
 		pLib.funcs[iLoop].type = PSP_ENTRY_FUNC;
 		pLib.funcs[iLoop].addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
 		pLib.funcs[iLoop].nid_addr = expAddr; 
@@ -126,7 +126,7 @@ int PrxLoadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	for(int iLoop = 0; iLoop < pLib.v_count; iLoop++){
 		// We will fix up the names later 
 		pLib.vars[iLoop].nid = VmemGetU32(&prx->vMem,expAddr);
-		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->libraries_count, pLib.name, pLib.vars[iLoop].nid));
+		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->library_count, pLib.name, pLib.vars[iLoop].nid));
 		pLib.vars[iLoop].type = PSP_ENTRY_FUNC;
 		pLib.vars[iLoop].addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
 		pLib.vars[iLoop].nid_addr = expAddr; 

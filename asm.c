@@ -154,12 +154,9 @@ typedef struct{
 }Imm;
 
 typedef struct{
-	char *name;
-	uint32_t opcode;
-	uint32_t mask;
-	char *fmt;
-	int addrtype;
-	int type;
+	uint32_t opcode,mask;
+	char name[16],fmt[32];
+	int addrtype,type;
 }Instruction;
 
 typedef struct{
@@ -169,10 +166,10 @@ typedef struct{
 }DisasmOpt;
 
 char* regName[32] ={
-    "zr", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-    "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", 
-    "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-    "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"
+	"zr", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", 
+	"s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+	"t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"
 };
 
 char* cop0_regs[32] = {
@@ -185,25 +182,6 @@ char* cop0_regs[32] = {
 char* dr_regs[16] = {
 	"DRCNTL", "DEPC", "DDATA0", "DDATA1", "IBC", "DBC", NULL, NULL, 
 	"IBA", "IBAM", NULL, NULL, "DBA", "DBAM", "DBD", "DBDM"
-};
-
-char* vfpu_extra_regs[] ={
-	"VFPU_PFXS",
-	"VFPU_PFXT",
-	"VFPU_PFXD",
-	"VFPU_CC ",
-	"VFPU_INF4",
-	NULL,
-	NULL,
-	"VFPU_REV",
-	"VFPU_RCX0",
-	"VFPU_RCX1",
-	"VFPU_RCX2",
-	"VFPU_RCX3",
-	"VFPU_RCX4",
-	"VFPU_RCX5",
-	"VFPU_RCX6",
-	"VFPU_RCX7"
 };
 
 char* vfpu_cond_names[16] ={

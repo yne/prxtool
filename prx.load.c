@@ -107,14 +107,14 @@ int PrxBuildMaps(PrxToolCtx*prx){
 /*
 	BuildSymbols(prx->symbol, prx->base);
 
-	Imms::iterator start = prx->imms.begin();
-	Imms::iterator end = prx->imms.end();
+	Imms::iterator start = prx->imm.begin();
+	Imms::iterator end = prx->imm.end();
 
 	while(start != end){
 		Imm *imm;
 		uint32_t inst;
 
-		imm = prx->imms[(*start).first];
+		imm = prx->imm[(*start).first];
 		inst = VmemGetU32(imm->target - prx->base);
 		if(imm->text){
 			Symbol *s;
@@ -123,7 +123,7 @@ int PrxBuildMaps(PrxToolCtx*prx){
 			if(s == NULL){
 				s = new Symbol;
 				char name[128];
-				// Hopefully most functions will start with a SP assignment 
+				// Hopefully most proto will start with a SP assignment 
 				if((inst >> 16) == 0x27BD){
 					snprintf(name, sizeof(name), "sub_%08X", imm->target);
 					s->type = SYMBOL_FUNC;
@@ -163,7 +163,7 @@ int PrxBuildMaps(PrxToolCtx*prx){
 	if(prx->symbol[prx->header.entry + prx->base] == NULL){
 		Symbol *s;
 		s = new Symbol;
-		// Hopefully most functions will start with a SP assignment 
+		// Hopefully most proto will start with a SP assignment 
 		s->type = SYMBOL_FUNC;
 		s->addr = prx->header.entry + prx->base;
 		s->size = 0;
@@ -256,7 +256,7 @@ int PrxCreateFakeSections(PrxToolCtx* prx){
 	return 1;
 }
 
-int PrxLoadFromFile(PrxToolCtx* prx,const char *filename){
+int PrxLoadFromElf(PrxToolCtx* prx,const char *filename){
 	if(!elf_loadFromFile(&prx->elf, filename))
 		return 1;
 	// Do PRX specific stuff 
@@ -285,7 +285,7 @@ int PrxLoadFromFile(PrxToolCtx* prx,const char *filename){
 		return fprintf(stderr, "Could not load reloc\n"),1;
 	prx->isPrxLoaded = 1;
 	if(prx->reloc){
-		PrxFixupRelocs(prx, prx->base, prx->imms);
+		PrxFixupRelocs(prx, prx->base, prx->imm);
 	}
 	if(!PrxLoadExports(prx))
 		return fprintf(stderr, "Could not load exports\n"),1;
@@ -299,7 +299,7 @@ int PrxLoadFromFile(PrxToolCtx* prx,const char *filename){
 	return 0;
 }
 
-int PrxLoadFromBinFile(PrxToolCtx* prx,const char *filename, unsigned int dwDataBase){
+int PrxLoadFromBin(PrxToolCtx* prx,const char *filename, unsigned int dwDataBase){
 	if(!elf_loadFromBinFile(&prx->elf, filename, dwDataBase))
 		return 0;
 	prx->isPrxLoaded = 0;

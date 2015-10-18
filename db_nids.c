@@ -7,13 +7,13 @@ typedef struct{
 	char lib_name[64];
 	int  flags;
 	int  vcount,fcount;
-}LibraryEntry;
+}Library;
 
 typedef struct{
 	uint32_t nid;
 	char name[128];
-	LibraryEntry*owner;
-}LibraryNid;
+	Library*owner;
+}Nid;
 
 
 typedef struct{unsigned nid;char *name;}SyslibEntry;
@@ -37,37 +37,38 @@ char*db_nids_trim_xml(char*str){
 	return beg?beg+1:str;
 }
 
-void db_nids_print(LibraryEntry *library, LibraryNid *nids,int nids_count){
+void db_nids_print(Library *library, Nid *nids,int nid_count){
 	printf("[%s:%s] %s %08X (%i var & %i func)\n",library->prx,library->prx_name,library->lib_name,library->flags,library->vcount,library->fcount);
-	for(int i=0;i<nids_count;i++)
+	for(int i=0;i<nid_count;i++)
 		if(nids[i].owner == library)
 			printf("	%08X %s\n",nids[i].nid,nids[i].name);
 }
 
 // find a function name by owner name + nid
-char* db_nids_getFunctionName (LibraryNid   * nids, size_t nids_length    ,char*lib_name, uint32_t nid){
+char* db_nids_getFunctionName (Nid   * nids, size_t nids_length    ,char*lib_name, uint32_t nid){
 	for(int i=0;i<nids_length;i++)
 		if((nids[i].nid == nid) && !strcmp(nids[i].owner->lib_name,lib_name))
 			return nids[i].name;
 	return NULL;
 }
-char* db_nids_findPrxByLibName(LibraryEntry * libs, size_t libraries_count,char*lib_name){
-	for(int i=0;i<libraries_count;i++)
+char* db_nids_findPrxByLibName(Library * libs, size_t library_count,char*lib_name){
+	for(int i=0;i<library_count;i++)
 		if(!strcmp(libs[i].lib_name,lib_name))
 			return libs[i].prx;
 	return NULL;
 }
 
-int db_nids_import_xml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, FILE* fp){
+int db_nids_import_xml(Library *library,size_t*library_count, Nid *nids,size_t*nid_count, FILE* fp){
 	char buffer[512],*pos;
-	LibraryEntry lib={};
-	LibraryNid nid={};
-	for(unsigned line = 0,l = 0, n = 0;fgets(buffer, sizeof(buffer),fp);line++){
-		if(!nids && !libraries && libraries_count && nids_count){//counting mode
+	Library lib={};
+	Nid nid={};
+	unsigned lib_pos = 0, nid_pos = 0;
+	for(fseek(fp,0,SEEK_SET);fgets(buffer, sizeof(buffer),fp);){
+		if(!nids && !library && library_count && nid_count){//counting mode
 			if(strstr(buffer,"<LIBRARY>"))
-				(*libraries_count)++;
+				(*library_count)++;
 			if(strstr(buffer,"<NID>"))
-				(*nids_count)++;
+				(*nid_count)++;
 		}else{//filling mode
 			if((pos=strstr(buffer,"<PRX>")))
 				strcpy(lib.prx,db_nids_trim_xml(pos));
@@ -77,71 +78,73 @@ int db_nids_import_xml(LibraryEntry *libraries,size_t*libraries_count, LibraryNi
 				strcpy(lib.lib_name[0]?nid.name:lib.lib_name,db_nids_trim_xml(pos));
 			if((pos=strstr(buffer,"<NID>"))){
 				nid.nid=strtoul(pos+5,NULL,0);
-				nid.owner=&libraries[l];
+				nid.owner=&library[lib_pos];
 			}
 			if((pos=strstr(buffer,"<FLAGS>")))
 				lib.flags=strtoul(pos+7,NULL,0);
 			if((pos=strstr(buffer,"</LIBRARY>"))){
-				libraries[l++]=lib;
+				library[lib_pos++]=lib;
 				//clear LIBRARY related attribute (but not PRX one !)
 				lib.vcount=lib.fcount=lib.flags=lib.lib_name[0]=0;
 			}
 			if((pos=strstr(buffer,"</FUNCTION>"))){
 				lib.fcount++;
-				nids[n++]=nid;
+				nids[nid_pos++]=nid;
 			}
 			if((pos=strstr(buffer,"</VARIABLE>"))){
 				lib.vcount++;
-				nids[n++]=nid;
+				nids[nid_pos++]=nid;
 			}
 		}
 	}
-	return fclose(fp);
+	return 0;
 }
 
-int db_nids_import_yml(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, FILE* fp){
+int db_nids_import_yml(Library *library,size_t*library_count, Nid *nids,size_t*nid_count, FILE* fp){
 	char buffer[512];
-	for(unsigned line = 0,l = 0, n = 0;fgets(buffer, sizeof(buffer),fp);line++){
-		if(!nids && !libraries && libraries_count && nids_count){//counting mode
+	unsigned lib_pos = 0, nid_pos = 0;
+	for(fseek(fp,0,SEEK_SET);fgets(buffer, sizeof(buffer),fp);){
+		if(!nids && !library && library_count && nid_count){//counting mode
 			if(!strncmp(buffer,"  - ",4))
-				(*libraries_count)++;
+				(*library_count)++;
 			if(!strncmp(buffer,"    - ",6))
-				(*nids_count)++;
+				(*nid_count)++;
 		}else{
 			if(strstr(buffer,".prx ")){//new prx = retreive the prx,prx_name
 				char* prx_name = strchr(buffer,' ')?:buffer;
 				prx_name[0] = 0;
 				prx_name[strlen(prx_name+1)-1]=0;
-				strcpy(libraries[l].prx,buffer);
-				strcpy(libraries[l].prx_name,prx_name+1);
+				strcpy(library[lib_pos].prx,buffer);
+				strcpy(library[lib_pos].prx_name,prx_name+1);
 			}
 			if(!strncmp(buffer,"  - ",4)){//new lib = 
 				char* lib_name = strchr(buffer,' ')?:buffer;
 				lib_name[0] = '\0';
-				strcpy(libraries[l+1].prx_name,libraries[l].prx_name);
-				strcpy(libraries[l+1].prx,libraries[l].prx);
-				strcpy(libraries[l].lib_name,lib_name+1);
-				libraries[l].flags=strtoul(lib_name+1,NULL,0);
+				strcpy(library[lib_pos+1].prx_name,library[lib_pos].prx_name);
+				strcpy(library[lib_pos+1].prx,library[lib_pos].prx);
+				strcpy(library[lib_pos].lib_name,lib_name+1);
+				library[lib_pos].flags=strtoul(lib_name+1,NULL,0);
 			}
-			if(!strncmp(buffer,"    - ",6) && l){//new nid
+			if(!strncmp(buffer,"    - ",6) && lib_pos){//new nid
 				char* nid_name = (strchr(buffer+6,' ')?:buffer)+1;
-				nids[n].nid=strtoul(buffer+6,NULL,0);
+				nids[nid_pos].nid=strtoul(buffer+6,NULL,0);
 				int is_var = nid_name[0]=='*';//variable nid name start with a *
 				if(is_var)nid_name++;
 				nid_name[(strlen(nid_name)?:1)-1]=0;
-				strcpy(nids[n].name,nid_name);
-				nids[n++].owner = &libraries[l-1];
-				is_var?libraries[l-1].vcount++:libraries[l-1].fcount++;
+				strcpy(nids[nid_pos].name,nid_name);
+				nids[nid_pos++].owner = &library[lib_pos-1];
+				is_var?library[lib_pos-1].vcount++:library[lib_pos-1].fcount++;
 			}
 		}
 	}
-	return fclose(fp);
+	return 0;
 }
 
-int db_nids_import(LibraryEntry *libraries,size_t*libraries_count, LibraryNid *nids,size_t*nids_count, FILE* fp){
-	char header[4];
-	if(fread(&header,sizeof(header),1,fp)==sizeof(header) && !fseek(fp,0,SEEK_SET) && !strncmp(header,"<xml",4))
-		return db_nids_import_xml(libraries, libraries_count, nids, nids_count, fp);
+int db_nids_import(Library *library,size_t*library_count, Nid *nids,size_t*nid_count, FILE* fp){
+	char header[5];
+	assert(!fseek(fp,0,SEEK_SET) && fread(header,sizeof(char),sizeof(header),fp)==sizeof(header))
+	if(!memcmp(header,"<?xml",sizeof(header)))
+		return db_nids_import_xml(library, library_count, nids, nid_count, fp);
 	else
-		return db_nids_import_yml(libraries, libraries_count, nids, nids_count, fp);
+		return db_nids_import_yml(library, library_count, nids, nid_count, fp);
 }

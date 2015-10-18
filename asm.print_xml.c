@@ -21,7 +21,7 @@ char *print_imm_xml(int ofs, char *output){
 
 char *print_jump_xml(unsigned int addr, char *output){
 	char symbol[128];
-	if(g_syms && disasmResolveRef(addr, symbol, sizeof(symbol)))
+	if(/*g_syms && */disasmResolveRef(addr, symbol, sizeof(symbol)))
 		return output + sprintf(output, "<ref>%s</ref>", symbol);
 	return output + sprintf(output, "<ref>0x%08X</ref>", addr);
 }

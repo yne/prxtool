@@ -5,20 +5,17 @@ typedef struct{
 	char name[128];
 	char args[128];
 	char ret[32];
-}FunctionType;
+}Protoype;
 
 char *db_func_strip_whitesp(char *str){
-	while(isspace((int)*str))
-		str++;
-
+	while(isspace((int)*str))str++;
 	int len = strlen(str);
 	while((len > 0) && (isspace((int)str[len-1])))
 		str[--len] = 0;
-
 	return len?str:NULL;
 }
 
-int db_func_import(FunctionType *func,unsigned*count,FILE* fp){
+int db_func_import(Protoype *func,size_t*count,FILE* fp){
 	char line[512],field_sep='\t';
 	for(int i=0; fgets(line, sizeof(line), fp);){
 		char *name,*args,*ret = NULL;
@@ -43,8 +40,8 @@ int db_func_import(FunctionType *func,unsigned*count,FILE* fp){
 	return fclose(fp);
 }
 
-FunctionType *db_func_find(FunctionType *func,unsigned count,const char *name){
-	for(unsigned i = 0; i < count; i++)
+Protoype *db_func_find(Protoype *func,size_t func_count,const char *name){
+	for(unsigned i = 0; i < func_count; i++)
 		if(!strcmp(name, func[i].name))
 			return &func[i];
 	return NULL;

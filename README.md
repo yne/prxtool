@@ -29,5 +29,5 @@ Thanks to
 * all the other people who contribute to legit PSP dev work.
 
 This is a good companion to libdoc as that provides the XML file used to get
-names and such for functions.
+names and such for proto.
 
