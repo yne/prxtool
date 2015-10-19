@@ -43,6 +43,12 @@ char *print_syscall_xml(unsigned int syscall, char *output){
 }
 
 char *print_cop0_xml(int reg, char *output){
+	char* cop0_regs[32] = {
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+		"BadVaddr", "Count", NULL, "Compare", "Status", "Cause", "EPC", "PrID",
+		"Config", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, "EBase", NULL, NULL, "TagLo", "TagHi", "ErrorPC", NULL
+	};
 	if(cop0_regs[reg])
 		return output +  sprintf(output, "<cop0>%s</cop0>", cop0_regs[reg]);
 	else
@@ -58,6 +64,12 @@ char *print_cop2_xml(int reg, char *output){
 }
 
 char *print_vfpu_cond_xml(int cond, char *output){
+	char* vfpu_cond_names[16] ={
+		"FL",  "EQ",  "LT",  "LE",
+		"TR",  "NE",  "GE",  "GT",
+		"EZ",  "EN",  "EI",  "ES",
+		"NZ",  "NN",  "NI",  "NS"
+	};
 	if ((cond >= 0) && (cond < 16))
 		return output + sprintf(output, "<cond>%s</cond>", vfpu_cond_names[cond]);
 	else
@@ -65,8 +77,30 @@ char *print_vfpu_cond_xml(int cond, char *output){
 }
 
 char *print_vfpu_const_xml(int k, char *output){
+	char* vfpu_const_names[20] ={
+		"",
+		"HUGE",
+		"SQRT2",
+		"SQRT1_2",
+		"2_SQRTPI",
+		"2_PI",
+		"1_PI",
+		"PI_4",
+		"PI_2",
+		"PI",
+		"E",
+		"LOG2E",
+		"LOG10E",
+		"LN2",
+		"LN10",
+		"2PI",
+		"PI_6",
+		"LOG10TWO",
+		"LOG2TEN",
+		"SQRT3_2"
+	};
 	if ((k > 0) && (k < 20))
-		return output + sprintf(output, "<const>%s</const>", vfpu_const_names[k]);
+		return output + sprintf(output, "<const>VFPU_%s</const>", vfpu_const_names[k]);
 	else
 		return output + sprintf(output, "<imm>%d</imm>", k);
 }
@@ -101,7 +135,15 @@ char *print_vfpu_halffloat_xml(int l, char *output){
 
 char *print_vfpu_prefix_xml(int l, unsigned int pos, char *output){
 	int len = 0;
-
+	char* pfx_cst_names[8] ={
+		"0",  "1",  "2",  "1/2",  "3",  "1/3",  "1/4",  "1/6"
+	};
+	char* pfx_swz_names[4] ={
+		"x",  "y",  "z",  "w"
+	};
+	char* pfx_sat_names[4] ={
+		"",  "[0:1]",  "",  "[-1:1]"
+	};
 	switch (pos){
 	case '0':
 	case '1':
@@ -155,6 +197,9 @@ char *print_vfpu_rotator_xml(int l, char *output){
 	unsigned int opcode = l & VFPU_MASK_OP_SIZE;
 	unsigned int rotators = (l >> 16) & 0x1f;
 	unsigned int opsize, rothi, rotlo, negation, i;
+	char* pfx_swz_names[4] ={
+		"x",  "y",  "z",  "w"
+	};
 
 	/* Determine the operand size so we'll know how many elements to output. */
 	if (opcode == VFPU_OP_SIZE_PAIR)
@@ -215,6 +260,10 @@ char *print_fpureg_xml(int reg, char *output){
 
 char *print_debugreg_xml(int reg, char *output){
 	int len;
+	char* dr_regs[16] = {
+		"DRCNTL", "DEPC", "DDATA0", "DDATA1", "IBC", "DBC", NULL, NULL, 
+		"IBA", "IBAM", NULL, NULL, "DBA", "DBAM", "DBD", "DBDM"
+	};
 
 	if((reg < 16) && (dr_regs[reg])){
 		len = sprintf(output, "<dreg>%s</dreg>", dr_regs[reg]);

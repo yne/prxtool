@@ -8,7 +8,7 @@ void PrxBuildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t
 			if((type == STT_FUNC) || (type == STT_OBJECT)){
 				Symbol *s = NULL;//symbol[prx->elf.symbols[i].value + base];
 				if(!s){
-					symbol->symbols[prx->elf.symbols[i].value + base]=(Symbol){
+					symbol[prx->elf.symbols[i].value + base]=(Symbol){
 						.addr = prx->elf.symbols[i].value + base,
 						.type = type == STT_FUNC?SYMBOL_FUNC:SYMBOL_DATA,
 						.type = SYMBOL_DATA,
@@ -33,7 +33,7 @@ void PrxBuildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t
 					//		s->alias.insert(s->alias.end(), pExport->funcs[iLoop].name);
 					//s->exported.insert(s->exported.end(), pExport);
 				}else{
-					symbol->symbols[pExport->funcs[iLoop].addr + base]=(Symbol){
+					symbol[pExport->funcs[iLoop].addr + base]=(Symbol){
 						.addr = pExport->funcs[iLoop].addr + base,
 						.type = SYMBOL_FUNC,
 						.size = 0,
@@ -51,7 +51,7 @@ void PrxBuildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t
 					//	s->alias.insert(s->alias.end(), pExport->vars[iLoop].name);
 					//s->exported.insert(s->exported.end(), pExport);
 				}else{
-					symbol->symbols[pExport->vars[iLoop].addr + base]=(Symbol){
+					symbol[pExport->vars[iLoop].addr + base]=(Symbol){
 						.addr = pExport->vars[iLoop].addr + base,
 						.type = SYMBOL_DATA,
 						.size = 0,
@@ -66,7 +66,7 @@ void PrxBuildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t
 		PspEntries *pImport = &prx->module.imports[i];
 		if(pImport->f_count){
 			for(int iLoop = 0; iLoop < pImport->f_count; iLoop++){
-				symbol->symbols[pImport->funcs[iLoop].addr + base] = (Symbol){
+				symbol[pImport->funcs[iLoop].addr + base] = (Symbol){
 					.addr = pImport->funcs[iLoop].addr + base,
 					.type = SYMBOL_FUNC,
 					.size = 0,
@@ -78,7 +78,7 @@ void PrxBuildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t
 		if(pImport->v_count){
 			for(int iLoop = 0; iLoop < pImport->v_count; iLoop++){
 				//imported.insert(s,s->imported.end(), pImport);
-				symbol->symbols[pImport->vars[iLoop].addr + base] = (Symbol){
+				symbol[pImport->vars[iLoop].addr + base] = (Symbol){
 					.addr = pImport->vars[iLoop].addr + base,
 					.type = SYMBOL_DATA,
 					.size = 0,
@@ -98,8 +98,8 @@ void PrxMapFuncExtents(PrxToolCtx*prx,Symbol*symbol,size_t syms_count){
 	memset(pTouchMap, 0, prx->elf.iBinSize);
 
 	for(int i=0;i<syms_count;i++)
-		if((symbol[i].symbols->type == SYMBOL_FUNC) && (symbol[i].symbols->size == 0))
-			symbol[i].symbols->size = PrxFindFuncExtent(prx, symbol[i].symbols->addr, pTouchMap)?:symbol[i].symbols->size;
+		if((symbol[i].type == SYMBOL_FUNC) && (symbol[i].size == 0))
+			symbol[i].size = PrxFindFuncExtent(prx, symbol[i].addr, pTouchMap)?:symbol[i].size;
 }
 
 //TODO
@@ -256,8 +256,8 @@ int PrxCreateFakeSections(PrxToolCtx* prx){
 	return 1;
 }
 
-int PrxLoadFromElf(PrxToolCtx* prx,const char *filename){
-	if(!elf_loadFromFile(&prx->elf, filename))
+int PrxLoadFromElf(PrxToolCtx* prx,FILE *fp){
+	if(!elf_loadFromElfFile(&prx->elf, fp))
 		return 1;
 	// Do PRX specific stuff 
 	uint8_t *pData = NULL;
@@ -285,7 +285,7 @@ int PrxLoadFromElf(PrxToolCtx* prx,const char *filename){
 		return fprintf(stderr, "Could not load reloc\n"),1;
 	prx->isPrxLoaded = 1;
 	if(prx->reloc){
-		PrxFixupRelocs(prx, prx->base, prx->imm);
+		PrxFixupRelocs(prx, prx->base, prx->imm,prx->imm_count);
 	}
 	if(!PrxLoadExports(prx))
 		return fprintf(stderr, "Could not load exports\n"),1;
@@ -294,19 +294,19 @@ int PrxLoadFromElf(PrxToolCtx* prx,const char *filename){
 	if(!PrxCreateFakeSections(prx))
 		return fprintf(stderr, "Could not create fake sections\n"),1;
 		
-	fprintf(stdout, "Loaded PRX %s successfully\n", filename);
+	fprintf(stdout, "Loaded PRX %s successfully\n");
 	PrxBuildMaps(prx);
 	return 0;
 }
 
-int PrxLoadFromBin(PrxToolCtx* prx,const char *filename, unsigned int dwDataBase){
-	if(!elf_loadFromBinFile(&prx->elf, filename, dwDataBase))
+int PrxLoadFromBin(PrxToolCtx* prx,FILE *fp){
+	if(!elf_loadFromBinFile(&prx->elf, fp, prx->base))
 		return 0;
 	prx->isPrxLoaded = 0;
 
 	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 
-	fprintf(stdout, "Loaded BIN %s successfully\n", filename);
+	fprintf(stdout, "Loaded BIN successfully\n");
 	prx->isPrxLoaded = 1;
 	PrxBuildMaps(prx);
 	return 1;

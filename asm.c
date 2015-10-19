@@ -165,67 +165,6 @@ typedef struct{
 	const char *name;
 }DisasmOpt;
 
-char* regName[32] ={
-	"zr", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-	"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", 
-	"s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-	"t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"
-};
-
-char* cop0_regs[32] = {
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
-	"BadVaddr", "Count", NULL, "Compare", "Status", "Cause", "EPC", "PrID",
-	"Config", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-	NULL, "EBase", NULL, NULL, "TagLo", "TagHi", "ErrorPC", NULL
-};
-
-char* dr_regs[16] = {
-	"DRCNTL", "DEPC", "DDATA0", "DDATA1", "IBC", "DBC", NULL, NULL, 
-	"IBA", "IBAM", NULL, NULL, "DBA", "DBAM", "DBD", "DBDM"
-};
-
-char* vfpu_cond_names[16] ={
-  "FL",  "EQ",  "LT",  "LE",
-  "TR",  "NE",  "GE",  "GT",
-  "EZ",  "EN",  "EI",  "ES",
-  "NZ",  "NN",  "NI",  "NS"
-};
-
-char* vfpu_const_names[20] ={
-  "",
-  "VFPU_HUGE",
-  "VFPU_SQRT2",
-  "VFPU_SQRT1_2",
-  "VFPU_2_SQRTPI",
-  "VFPU_2_PI",
-  "VFPU_1_PI",
-  "VFPU_PI_4",
-  "VFPU_PI_2",
-  "VFPU_PI",
-  "VFPU_E",
-  "VFPU_LOG2E",
-  "VFPU_LOG10E",
-  "VFPU_LN2",
-  "VFPU_LN10",
-  "VFPU_2PI",
-  "VFPU_PI_6",
-  "VFPU_LOG10TWO",
-  "VFPU_LOG2TEN",
-  "VFPU_SQRT3_2"
-};
-
-char* pfx_cst_names[8] ={
-  "0",  "1",  "2",  "1/2",  "3",  "1/3",  "1/4",  "1/6"
-};
-
-char* pfx_swz_names[4] ={
-  "x",  "y",  "z",  "w"
-};
-
-char* pfx_sat_names[4] ={
-  "",  "[0:1]",  "",  "[-1:1]"
-};
-
 /* TODO: Add a register state block so we can convert lui/addiu to li */
 
 int g_hexints   = 0;

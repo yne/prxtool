@@ -18,10 +18,41 @@
 
 #define MINIMUM_STRING 4
 
+typedef enum {
+	PSP_ENTRY_FUNC = 0,
+	PSP_ENTRY_VAR = 1
+}PspEntryType;
+
+typedef struct{
+	uint32_t name;
+	uint32_t flags;
+	uint32_t counts;
+	uint32_t exports;
+}PspModuleExport;
+
+typedef struct{
+	uint32_t name;
+	uint32_t flags;
+	uint32_t counts;
+	uint32_t nids;
+	uint32_t funcs;
+	uint32_t vars;
+}PspModuleImport;
+
+typedef struct{
+	uint32_t flags;
+	char name[PSP_MODULE_MAX_NAME];
+	uint32_t gp;
+	uint32_t exports;
+	uint32_t exp_end;
+	uint32_t imports;
+	uint32_t imp_end;
+}PspModuleInfo;
+
 typedef struct{
 	char name[128];
 	uint32_t nid;
-	enum {PSP_ENTRY_FUNC,PSP_ENTRY_VAR}isvar;
+	PspEntryType type;
 	uint32_t addr;
 	uint32_t nid_addr;
 }PspEntry;
@@ -30,38 +61,33 @@ typedef struct{
 	char name[128],file[PATH_MAX];
 	uint32_t addr;
 	uint16_t f_count;
-	uint8_t  v_count;
-	struct{//import
-		uint32_t name;
-		uint32_t flags;
-		uint32_t counts;
-		uint32_t nids;
-		uint32_t funcs;
-		uint32_t vars;
-	}stub;
-	struct{//export
-		uint32_t name;
-		uint32_t flags;
-		uint32_t counts;
-		uint32_t exports;
-	}export;
+	uint8_t v_count;
+	PspModuleImport stub;
+	PspModuleExport export;
 	PspEntry funcs[2000],vars[255];
 }PspEntries;
 
 typedef struct{
-	struct{
-		uint32_t flags;
-		char     name[PSP_MODULE_MAX_NAME];
-		uint32_t gp;
-		uint32_t exports;
-		uint32_t exp_end;
-		uint32_t imports;
-		uint32_t imp_end;
-	}info;
+	PspModuleInfo info;
 	uint32_t addr;
-	PspEntries*exports;size_t exports_count;
-	PspEntries*imports;size_t imports_count;
+	PspEntries *exports,*imports;
+	size_t exports_count,imports_count;
 }PspModule;
+
+typedef struct{
+	char magic[4];
+	char modname[sizeof(((PspModuleInfo){}).name)];
+	uint32_t  symcount;
+	uint32_t  strstart;
+	uint32_t  strsize;
+} __attribute__ ((packed)) SymfileHeader;
+
+typedef struct{
+	uint32_t name;
+	uint32_t addr;
+	uint32_t size;
+} __attribute__((packed))SymfileEntry;
+
 
 #include "vmem.c"
 #include "asm.c"
@@ -88,12 +114,12 @@ typedef struct{
 	uint32_t   base;
 }PrxToolCtx;
 
-//#include "prx.impexp.c"
-//#include "prx.reloc.c"
-//#include "prx.load.c"
-//#include "prx.output.c"
-//#include "prx.disasm.c"
+#include "prx.impexp.c"
+#include "prx.reloc.c"
+#include "prx.load.c"
+#include "prx.output.c"
+#include "prx.disasm.c"
 
-//Symbol *PrxGetSymbolEntryFromAddr(PrxToolCtx *pPrx,uint32_t dwAddr){
-//	return NULL;//prx->symbol[dwAddr];
-//}
+Symbol *PrxGetSymbolEntryFromAddr(PrxToolCtx *pPrx,uint32_t dwAddr){
+	return NULL;//prx->symbol[dwAddr];
+}

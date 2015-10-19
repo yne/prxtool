@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 typedef struct{
-	int        xmldis,binary,aliased,verbose,help;
+	int        xmldis,aliased,verbose,help;
 	uint32_t   base,dataOff;
 	char       *print,*disopts,*dbTitle;
 	struct{FILE*prx,*bin,*func,*nid,*instr;}in;
@@ -14,7 +14,7 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 	
 	//bind each arg struct to an ArgEntry, so we can handle they value and print help about them
 	typedef struct{void*argvoid;char*label,*type,*help;}ArgEntry;
-	ArgEntry cmds[] = {//String,Integer,Read,Write(upper=binary)
+	ArgEntry cmds[] = {
 		#define ARG(name,type,desc) {(void*)&arg-> name,#name,type,desc}
 		ARG(in.prx      ,"rb","Input PRX file"),//first = default argument
 		ARG(in.bin      ,"rb","Input bin file"),

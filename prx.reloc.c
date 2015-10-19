@@ -267,15 +267,15 @@ int PrxLoadRelocs(PrxToolCtx* prx){
 
 	fprintf(stdout,"Loading Type B reloc\n");
 	iCurrRel += PrxLoadRelocsTypeB (prx, &prx->reloc[iCurrRel]);
-	prx->iRelocCount = iCurrRel;
+	prx->reloc_count = iCurrRel;
 	
-	fprintf(stdout,"Dumping reloc %d\n", prx->iRelocCount);
+	fprintf(stdout,"Dumping reloc %d\n", prx->reloc_count);
 	
 	char* g_szRelTypes[16] = {
 		"R_NONE","R_16","R_32","R_REL32","R_26","R_HI16","R_LO16","R_GPREL16","R_LITERAL",
 		"R_GOT16","R_PC16","R_CALL16","R_GPREL32","X_HI16","X_J26","X_JAL26"
 	};
-	for(int iLoop = 0; iLoop < prx->iRelocCount; iLoop++){
+	for(int iLoop = 0; iLoop < prx->reloc_count; iLoop++){
 		if(prx->reloc[iLoop].type < 16){
 			fprintf(stdout,"Reloc %s:%d Type:%s Symbol:%d Offset %08X Info:%08X\n", 
 					prx->reloc[iLoop].secname, iLoop, g_szRelTypes[prx->reloc[iLoop].type],
@@ -300,7 +300,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 	// We dont support ELF reloc as they are not very special 
 	if(prx->elf.header.type != ELF_PRX_TYPE)
 		return 1;
-	for(int iLoop = 0; iLoop < prx->iRelocCount; iLoop++){
+	for(int iLoop = 0; iLoop < prx->reloc_count; iLoop++){
 		ElfReloc *rel = &prx->reloc[iLoop];
 		uint32_t dwRealOfs;
 		uint32_t dwCurrBase;
@@ -332,11 +332,11 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 				inst = LW(*pData);
 				addr = ((inst & 0xFFFF) << 16) + dwCurrBase;
 				fprintf(stdout,"Hi at (%08X) %d\n", dwRealOfs, iLoop);
-				while (++iLoop < prx->iRelocCount) {
+				while (++iLoop < prx->reloc_count) {
 					if (prx->reloc[iLoop].type != R_MIPS_HI16) break;
 				}
 				fprintf(stdout,"Matching low at %d\n", iLoop);
-				if (iLoop < prx->iRelocCount) {
+				if (iLoop < prx->reloc_count) {
 					loinst = LW(*((uint32_t*) VmemGetPtr(&prx->vMem, prx->reloc[iLoop].offset+ofsph)));
 				} else {
 					loinst = 0;
@@ -351,7 +351,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 					SW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->reloc[base].offset+ofsph)), inst);
 					base++;
 				}
-				while (iLoop < prx->iRelocCount) {
+				while (iLoop < prx->reloc_count) {
 					inst = LW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->reloc[iLoop].offset+ofsph)));
 					if ((inst & 0xFFFF) != (loinst & 0xFFFF)) break;
 					inst = (inst & ~0xFFFF) | lowaddr;
@@ -409,13 +409,13 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 				int base = iLoop;
 				ElfReloc *rel2 = NULL;
 				uint32_t offs2 = 0;
-				while (++iLoop < prx->iRelocCount){
+				while (++iLoop < prx->reloc_count){
 					rel2 = &prx->reloc[iLoop];
 					if (rel2->type == R_MIPS_X_JAL26 && (base + prx->elf.programs[(rel2->symbol >> 8) & 0xFF].iVaddr) == dwCurrBase)
 						break;
 				}
 
-				if (iLoop < prx->iRelocCount) {
+				if (iLoop < prx->reloc_count) {
 					offs2 = rel2->offset + prx->elf.programs[rel2->symbol & 0xFF].iVaddr;
 					off = LW(*(uint32_t*) VmemGetPtr(&prx->vMem, offs2));
 				}
@@ -435,7 +435,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 					//imm[dwRealOfs + base] = imm;
 				}
 				// already add the JAL26 symbol so we don't have to search for the J26 there
-				if (iLoop < prx->iRelocCount && (dwData >> 26) != 3){// not JAL instruction
+				if (iLoop < prx->reloc_count && (dwData >> 26) != 3){// not JAL instruction
 					Imm*imm=NULL;
 					imm->addr = offs2 + base;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));

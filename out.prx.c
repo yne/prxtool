@@ -146,10 +146,7 @@ void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
 						prx->elf.sections[iLoop].szName, prx->elf.sections[iLoop].iAddr + prx->base, 
 						prx->elf.sections[iLoop].iSize, prx->elf.sections[iLoop].flags);
 				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
-					PrxDisasm(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, 
-							prx->elf.sections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),
-							prx->imm, prx->base);
+					PrxDisasm(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imm, prx->imm_count, prx->base);
 				}else{
 					PrxDumpData(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, 
 							prx->elf.sections[iLoop].iSize,
@@ -164,7 +161,7 @@ void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
 	if(prx->isXmlDump){
 		fprintf(fp, "</pre></body></html>\n");
 	}
-	disasmSetSymbols(NULL);
+	//disasmSetSymbols(NULL);
 }
 
 void PrxDumpXML(PrxToolCtx*prx,FILE *fp, const char *disopts){
@@ -194,12 +191,12 @@ void PrxDumpXML(PrxToolCtx*prx,FILE *fp, const char *disopts){
 			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
 				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
 					fprintf(fp, "<disasm>\n");
-					PrxDisasmXML(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imm, prx->base);
+					PrxDisasmXML(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imm,prx->imm_count, prx->base);
 					fprintf(fp, "</disasm>\n");
 				}
 			}
 		}
 	}
 	fprintf(fp, "</prx>\n");
-	disasmSetSymbols(NULL);
+	//disasmSetSymbols(NULL);
 }

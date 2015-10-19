@@ -1,5 +1,5 @@
 //TODO
-void PrxDisasm(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imm, size_t imm_count, uint32_t base){
+void PrxDisasm   (PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imm, size_t imm_count, uint32_t base){
 	uint32_t *pInst = (uint32_t*) pData;
 	Symbol *lastFunc = NULL;
 	unsigned int lastFuncAddr = 0;
@@ -16,7 +16,7 @@ void PrxDisasm(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigne
 						fprintf(fp, "%s ", s->alias[i]);
 				}
 				fprintf(fp, "\n");
-				Protoype *t = db_func_find(prx->pCurrNidMgr->proto,prx->pCurrNidMgr->proto_count,s->name);
+				Protoype *t = db_func_find(prx->proto,prx->proto_count,s->name);
 				if(t)
 					fprintf(fp, "; Prototype: %s (*)(%s)\n", t->ret, t->args);
 				if(s->size > 0){
@@ -68,7 +68,7 @@ void PrxDisasm(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigne
 			fprintf(fp, "\n");
 		}
 
-		Imm *imm = imm[dwAddr].imm;
+		Imm *imm = &imm[dwAddr];
 		if(imm){
 		/*
 			Symbol *sym = disasmFindSymbol(imm->target);
@@ -129,7 +129,7 @@ void PrxDisasm(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigne
 
 			Symbol *s = disasmFindSymbol(dwJump);
 			if(s){
-				Protoype *t = db_func_find(prx->pCurrNidMgr->proto,prx->pCurrNidMgr->proto_count,s->name);
+				Protoype *t = db_func_find(prx->proto,prx->proto_count,s->name);
 				if(t)
 					fprintf(fp, "; Call - %s %s(%s)\n", t->ret, t->name, t->args);
 			}
@@ -149,7 +149,7 @@ void PrxDisasm(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigne
 	}
 }
 //TODO
-void PrxDisasmXML(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, ImmsEntry* imm, size_t imm_count, uint32_t base){
+void PrxDisasmXML(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imm, size_t imm_count, uint32_t base){
 /*
 	uint32_t iILoop;
 	uint32_t *pInst;
@@ -215,7 +215,7 @@ void PrxDisasmXML(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsi
 									 fprintf(fp, "%s", s->alias[i]);
 								  }
 								  fprintf(fp, "\n");
-								  t = db_func_find(db_func_find(prx->pCurrNidMgr->proto,prx->pCurrNidMgr->proto_count,s->name);
+								  t = db_func_find(db_func_find(prx->proto,prx->proto_count,s->name);
 								  if(t){
 									  fprintf(fp, "; Prototype: %s (*)(%s)\n", t->ret, t->args);
 								  }

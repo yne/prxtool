@@ -161,10 +161,7 @@ int elf_buildFakeSections(ElfCtx*elf, unsigned int dwDataBase){
 	return 1;
 }
 
-uint8_t* elf_loadFileToMem(ElfCtx*elf, const char *filename, size_t *lSize){
-	FILE *fp = fopen(filename, "rb");
-	if(!fp)
-		return fprintf(stderr, "Could not open file %s\n", filename),NULL;
+uint8_t* elf_loadFileToMem(ElfCtx*elf, FILE *fp, size_t *lSize){
 	fseek(fp, 0, SEEK_END);
 	*lSize = ftell(fp);
 	rewind(fp);
@@ -268,22 +265,24 @@ int elf_loadSections(ElfCtx*elf){
 	return 0;
 }
 
-int elf_loadFromFile(ElfCtx*elf, const char *filename){
-	elf->pElf = elf_loadFileToMem(elf, filename, &elf->iElfSize);
-	if(!elf->pElf || !elf_validateHeader(elf) || !elf_loadPrograms(elf) || !elf_loadSections(elf) || !elf_loadSymbols(elf) || !elf_buildBinaryImage(elf))
+int elf_loadFromElfFile(ElfCtx*elf, FILE *fp){
+	
+	if(!(elf->pElf = elf_loadFileToMem(elf, fp, &elf->iElfSize))
+	|| !elf_validateHeader(elf)
+	|| !elf_loadPrograms(elf)
+	|| !elf_loadSections(elf)
+	|| !elf_loadSymbols(elf)
+	|| !elf_buildBinaryImage(elf))
 		return 0;
-	strncpy(elf->filename, filename, PATH_MAX-1);
-	elf->filename[PATH_MAX-1] = 0;
 	elf->blElfLoaded = 1;
 
 	return 1;
 }
 
-int elf_loadFromBinFile(ElfCtx*elf, const char *filename, unsigned int dwDataBase){
-	if(!(elf->pElfBin = elf_loadFileToMem(elf, filename, &elf->iBinSize)) || (!elf_buildFakeSections(elf, dwDataBase)))
+int elf_loadFromBinFile(ElfCtx*elf, FILE *fp, unsigned int dwDataBase){
+	if(!(elf->pElfBin = elf_loadFileToMem(elf, fp, &elf->iBinSize))
+	||(!elf_buildFakeSections(elf, dwDataBase)))
 		return 0;
-	strncpy(elf->filename, filename, PATH_MAX-1);
-	elf->filename[PATH_MAX-1] = 0;
 	elf->blElfLoaded = 1;
 	return 1;
 }

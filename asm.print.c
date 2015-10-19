@@ -1,6 +1,13 @@
 char* print_cpureg(int reg, char *output){
 	int len;
 
+	char* regName[32] ={
+		"zr", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+		"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", 
+		"s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+		"t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"
+	};
+
 	if(!g_mregs){
 		len = sprintf(output, "$%s", regName[reg]);
 	}else{
@@ -71,6 +78,12 @@ char* print_syscall(unsigned int syscall, char *output){
 }
 
 char* print_cop0(int reg, char *output){
+	char* cop0_regs[32] = {
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 
+		"BadVaddr", "Count", NULL, "Compare", "Status", "Cause", "EPC", "PrID",
+		"Config", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		NULL, "EBase", NULL, NULL, "TagLo", "TagHi", "ErrorPC", NULL
+	};
 	if(cop0_regs[reg])
 		return output + sprintf(output, "%s", cop0_regs[reg]);
 	else
@@ -83,7 +96,15 @@ char* print_cop1(int reg, char *output){
 
 char* print_vfpu_prefix(int l, unsigned int pos, char *output){
 	int len = 0;
-
+	char* pfx_cst_names[8] ={
+		"0",  "1",  "2",  "1/2",  "3",  "1/3",  "1/4",  "1/6"
+	};
+	char* pfx_swz_names[4] ={
+		"x",  "y",  "z",  "w"
+	};
+	char* pfx_sat_names[4] ={
+		"",  "[0:1]",  "",  "[-1:1]"
+	};
 	switch (pos){
 	case '0':
 	case '1':
@@ -184,7 +205,10 @@ char* print_fpureg(int reg, char *output){
 
 char* print_debugreg(int reg, char *output){
 	int len;
-
+	char* dr_regs[16] = {
+		"DRCNTL", "DEPC", "DDATA0", "DDATA1", "IBC", "DBC", NULL, NULL, 
+		"IBA", "IBAM", NULL, NULL, "DBA", "DBAM", "DBD", "DBDM"
+	};
 	if((reg < 16) && (dr_regs[reg])){
 		len = sprintf(output, "%s", dr_regs[reg]);
 	}else{
@@ -265,6 +289,12 @@ char* print_cop2(int reg, char *output){
 }
 
 char* print_vfpu_cond(int cond, char *output){
+	char* vfpu_cond_names[16] ={
+		"FL",  "EQ",  "LT",  "LE",
+		"TR",  "NE",  "GE",  "GT",
+		"EZ",  "EN",  "EI",  "ES",
+		"NZ",  "NN",  "NI",  "NS"
+	};
 	if ((cond >= 0) && (cond < 16))
 		return output + sprintf(output, "%s", vfpu_cond_names[cond]);
 	else
@@ -272,8 +302,30 @@ char* print_vfpu_cond(int cond, char *output){
 }
 
 char* print_vfpu_const(int k, char *output){
+	char* vfpu_const_names[20] ={
+		"",
+		"HUGE",
+		"SQRT2",
+		"SQRT1_2",
+		"2_SQRTPI",
+		"2_PI",
+		"1_PI",
+		"PI_4",
+		"PI_2",
+		"PI",
+		"E",
+		"LOG2E",
+		"LOG10E",
+		"LN2",
+		"LN10",
+		"2PI",
+		"PI_6",
+		"LOG10TWO",
+		"LOG2TEN",
+		"SQRT3_2"
+	};
 	if ((k > 0) && (k < 20))
-		return output + sprintf(output, "%s", vfpu_const_names[k]);
+		return output + sprintf(output, "VFPU_%s", vfpu_const_names[k]);
 	else
 		return output + sprintf(output, "%d", k);
 }

@@ -15,7 +15,7 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 		return fprintf(stderr, "Invalid memory address for import name (0x%08X)\n", pLib.stub.name),0;
 
 	strncpy(pLib.name, pName,sizeof(pLib.name));
-	if((dep = db_nids_findPrxByLibName(prx->pCurrNidMgr->library,prx->pCurrNidMgr->library_count,pName))){
+	if((dep = db_nids_findPrxByLibName(prx->library,prx->library_count,pName))){
 		if((slash = strrchr(dep, '/')))// Remove any path element
 			dep = slash + 1;
 		strcpy(pLib.file, dep);
@@ -34,7 +34,7 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 
 	for(uint32_t nidAddr = pLib.stub.nids, iLoop = 0, funcAddr = pLib.stub.funcs; iLoop < pLib.f_count; iLoop++,nidAddr += 4,funcAddr += 8){
 		pLib.funcs[iLoop].nid = VmemGetU32(&prx->vMem,nidAddr);
-		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->nid_count, pLib.name, pLib.funcs[iLoop].nid));
+		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->nids,prx->nid_count, pLib.name, pLib.funcs[iLoop].nid));
 		pLib.funcs[iLoop].type = PSP_ENTRY_FUNC;
 		pLib.funcs[iLoop].addr = funcAddr;
 		pLib.funcs[iLoop].nid_addr = nidAddr;
@@ -46,7 +46,7 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 		pLib.vars[iLoop].nid = VmemGetU32(&prx->vMem,varAddr+4);
 		pLib.vars[iLoop].type = PSP_ENTRY_VAR;
 		pLib.vars[iLoop].nid_addr = varAddr+4;
-		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->nid_count, pLib.name, pLib.vars[iLoop].nid));
+		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->nids,prx->nid_count, pLib.name, pLib.vars[iLoop].nid));
 		fprintf(stdout,"Found variable nid:0x%08X addr:0x%08X name:%s\n", pLib.vars[iLoop].nid, pLib.vars[iLoop].addr, pLib.vars[iLoop].name);
 		uint32_t varFixup = pLib.vars[iLoop].addr;
 		for(uint32_t varData;(varData = VmemGetU32(&prx->vMem,varFixup));varFixup += 4)
@@ -71,9 +71,8 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 
 int PrxLoadImports(PrxToolCtx* prx){
 	PspModuleInfo*i=&prx->module.info;
-	uint32_t count;void*ptr;
-	for(uint32_t base = i->imports;i->imports && (i->imp_end - base) >= PSP_IMPORT_BASE_SIZE;base += (count * sizeof(uint32_t)))
-		if(!(ptr=VmemGetPtr(&prx->vMem,base)) || !(count = PrxLoadImport(prx, ptr, base)))
+	for(uint32_t count,base = i->imports;i->imports && (i->imp_end - base) >= PSP_IMPORT_BASE_SIZE;base += (count * sizeof(uint32_t)))
+		if(!(count = PrxLoadImport(prx, VmemGetPtr(&prx->vMem,base), base)))
 			return 0;
 	return 1;
 }
@@ -115,7 +114,7 @@ int PrxLoadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	for(int iLoop = 0; iLoop < pLib.f_count; iLoop++){
 		// We will fix up the names later 
 		pLib.funcs[iLoop].nid = VmemGetU32(&prx->vMem,expAddr);
-		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->library_count, pLib.name, pLib.funcs[iLoop].nid));
+		strcpy(pLib.funcs[iLoop].name, db_nids_getFunctionName(prx->nids,prx->library_count, pLib.name, pLib.funcs[iLoop].nid));
 		pLib.funcs[iLoop].type = PSP_ENTRY_FUNC;
 		pLib.funcs[iLoop].addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
 		pLib.funcs[iLoop].nid_addr = expAddr; 
@@ -126,7 +125,7 @@ int PrxLoadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	for(int iLoop = 0; iLoop < pLib.v_count; iLoop++){
 		// We will fix up the names later 
 		pLib.vars[iLoop].nid = VmemGetU32(&prx->vMem,expAddr);
-		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->pCurrNidMgr->nids,prx->pCurrNidMgr->library_count, pLib.name, pLib.vars[iLoop].nid));
+		strcpy(pLib.vars[iLoop].name, db_nids_getFunctionName(prx->nids,prx->library_count, pLib.name, pLib.vars[iLoop].nid));
 		pLib.vars[iLoop].type = PSP_ENTRY_FUNC;
 		pLib.vars[iLoop].addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
 		pLib.vars[iLoop].nid_addr = expAddr; 

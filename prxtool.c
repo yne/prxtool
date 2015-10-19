@@ -9,7 +9,7 @@
 
 #include "arg.c"
 #include "prx.c"
-//#include "out.c"
+#include "out.c"
 
 #ifndef PRXTOOL_VERSION
 #define PRXTOOL_VERSION ""
@@ -48,27 +48,27 @@ int main(int argc, char **argv){
 		fprintf(stderr,"loaded: %zu instructions + %zu macro\n",prx.instr_count,prx.macro_count);
 	}
 	if(arg.in.prx){
-		//assert(!PrxLoadFromElf(&prx,arg.in.prx))
+		assert(!PrxLoadFromElf(&prx,arg.in.prx))
 	}
 	if(arg.in.bin){
-		//assert(!PrxLoadFromBin(&prx,arg.in.bin))
+		assert(!PrxLoadFromBin(&prx,arg.in.bin))
 	}
-	#define OUT(A) if(arg.out.A)output_##A(&prx,arg.out.A);
-	//OUT(elf);
-	//OUT(stub);
-	//OUT(stub2);
-	//OUT(dep);
-	//OUT(mod);
-	//OUT(pstub);
-	//OUT(pstub2);
-	//OUT(impexp);
-	//OUT(symbols);
-	//OUT(xmldb);
-	//OUT(ent);
-	//OUT(disasm);
-	//OUT(xml);
-	//OUT(map);
-	//OUT(idc);
+	#define OUT(A) if(arg.out.A)output_##A(&prx,arg.out.A,&arg);
+	OUT(elf);
+	OUT(stub);
+	OUT(stub2);
+	OUT(dep);
+	OUT(mod);
+	OUT(pstub);
+	OUT(pstub2);
+	OUT(impexp);
+	OUT(symbols);
+	OUT(xmldb);
+	OUT(ent);
+	OUT(disasm);
+	OUT(xml);
+	OUT(map);
+	OUT(idc);
 	#undef OUT
 	return 0;
 }
