@@ -101,7 +101,7 @@ int PrxOutputSections(PrxToolCtx* prx,FILE *fp, size_t iElfHeadSize, size_t iSec
 
 int PrxToElf(PrxToolCtx* prx,FILE *fp){
 	// Fixup the elf file and output it to fp 
-	if((!fp) || (!prx->isPrxLoaded))
+	if((!fp) || (!prx->elf.pElf))
 		return 0;
 
 	size_t iElfHeadSize = 0;

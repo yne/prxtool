@@ -18,7 +18,7 @@ void elf_dumpHeader(ElfCtx*elf,FILE*stream){
 }
 
 void elf_dumpSymbols(ElfCtx*elf,FILE*stream){
-	for(int i = 0; i < elf->symbolsCount; i++){
+	for(size_t i = 0; i < elf->symbolsCount; i++){
 		fprintf(stream,"Symbol %d\n",   i);
 		fprintf(stream,"Name %d, '%s'\n", elf->symbols[i].name, elf->symbols[i].symname);
 		fprintf(stream,"Value %08X\n",    elf->symbols[i].value);
@@ -30,7 +30,7 @@ void elf_dumpSymbols(ElfCtx*elf,FILE*stream){
 }
 
 void elf_dumpPrograms(ElfCtx*elf,FILE*stream){
-	for(uint32_t i = 0; i < elf->iPHCount; i++){
+	for(size_t i = 0; i < elf->iPHCount; i++){
 		fprintf(stream,"Program Header %d:\n", i);
 		fprintf(stream,"Type: %08X\n",    elf->programs[i].type);
 		fprintf(stream,"Offset: %08X\n",  elf->programs[i].iOffset);
@@ -44,9 +44,7 @@ void elf_dumpPrograms(ElfCtx*elf,FILE*stream){
 }
 
 void elf_dumpSections(ElfCtx*elf,FILE*stream){
-	if(!elf->sections)return;
-
-	for(int i = 0; i < elf->iSHCount; i++){
+	for(size_t i = 0; i < elf->iSHCount; i++){
 		fprintf(stream,"Section %d\n"     , i);
 		fprintf(stream,"Name: %d %s\n"    , elf->sections[i].iName, elf->sections[i].szName);
 		fprintf(stream,"Type: %08X\n"     , elf->sections[i].type);

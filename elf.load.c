@@ -62,10 +62,7 @@ int elf_buildBinaryImageFromProgram(ElfCtx*elf){
 }
 
 int elf_buildBinaryImage(ElfCtx*elf){
-	assert(elf->pElf);
-	assert(elf->iElfSize);
-	assert(!elf->pElfBin);
-	assert(!elf->iBinSize);
+	assert(elf->pElf && elf->iElfSize && !elf->pElfBin && !elf->iBinSize);
 
 	if (elf->header.type == ELF_MIPS_TYPE)
 		return elf_buildBinaryImageFromSection(elf);
@@ -103,12 +100,12 @@ int elf_validateHeader(ElfCtx*elf){
 	Elf32_Ehdr* eh = (Elf32_Ehdr*) elf->pElf;
 	elf->header=(ElfHeader){
 		.magic     = LW(eh->e_magic),
-		.iClass     =    eh->e_class,
-		.iData      =    eh->e_data,
-		.iIdver     =    eh->e_idver,
+		.iClass    =    eh->e_class,
+		.iData     =    eh->e_data,
+		.iIdver    =    eh->e_idver,
 		.type      = LH(eh->e_type),
-		.iMachine   = LH(eh->e_machine),
-		.iVersion   = LW(eh->e_version),
+		.iMachine  = LH(eh->e_machine),
+		.iVersion  = LW(eh->e_version),
 		.entry     = LW(eh->e_entry),
 		.PHoff     = LW(eh->e_phoff),
 		.SHoff     = LW(eh->e_shoff),
@@ -118,18 +115,15 @@ int elf_validateHeader(ElfCtx*elf){
 		.PHnum     = LH(eh->e_phnum),
 		.SHentSize = LH(eh->e_shentsize),
 		.SHnum     = LH(eh->e_shnum),
-		.SHstrIndex  = LH(eh->e_shstrndx),
+		.SHstrIndex= LH(eh->e_shstrndx),
 	};
-	if(elf->header.magic != ELF_MAGIC)
-		return fprintf(stderr, "Magic value incorrect (not an ELF?)"),0;
+	assert(elf->header.magic == ELF_MAGIC);
 
 	uint32_t iPhend = (elf->header.PHnum > 0)?elf->header.PHoff + (elf->header.PHentSize * elf->header.PHnum):0;
 	uint32_t iShend = (elf->header.SHnum > 0)?elf->header.SHoff + (elf->header.SHentSize * elf->header.SHnum):0;
 
-	if(iPhend > elf->iElfSize)
-		return fprintf(stderr, "Program header information invalid"),0;
-	if(iShend > elf->iElfSize)
-		return fprintf(stderr, "Sections header information invalid"),0;
+	assert(iPhend <= elf->iElfSize);
+	assert(iShend <= elf->iElfSize);
 	//elf_dumpHeader(elf);
 	return 0;
 }
@@ -158,34 +152,29 @@ int elf_buildFakeSections(ElfCtx*elf, unsigned int dwDataBase){
 		.iSize = dwDataBase>0?elf->iBinSize - dwDataBase:elf->iBinSize,
 		.szName= ".data",
 	};
-	return 1;
+	return 0;
 }
 
-uint8_t* elf_loadFileToMem(ElfCtx*elf, FILE *fp, size_t *lSize){
+int elf_loadFileToMem(ElfCtx*elf, FILE *fp, size_t *file_size, uint8_t*file_buffer){
 	fseek(fp, 0, SEEK_END);
-	*lSize = ftell(fp);
-	rewind(fp);
+	*file_size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
 	
-	if(*lSize >= sizeof(Elf32_Ehdr)){
-		uint8_t pData[*lSize];
-		if(fread(pData, 1, *lSize, fp) == *lSize){
-			fprintf(stdout, "ELF Loaded (%zu bytes)",*lSize);
-		}else fprintf(stderr, "Could not read in file data");
-	}else fprintf(stderr, "File not large enough to contain an ELF");
+	assert(*file_size < sizeof(Elf32_Ehdr));
+	assert(file_buffer = malloc(*file_size));
+	assert(fread(file_buffer, 1, *file_size, fp) == *file_size);
+	fprintf(stdout, "ELF Loaded (%zu bytes)",*file_size);
 	fclose(fp);
-	return NULL;//pData;
+	return 0;
 }
 
 int elf_loadPrograms(ElfCtx*elf){
-	if((!elf->header.PHoff) || (!elf->header.PHnum) || (!elf->header.PHentSize))
-		return 0;
+	assert(elf->header.PHoff && elf->header.PHnum && elf->header.PHentSize);
 	uint8_t *pData = elf->pElf + elf->header.PHoff;
-	elf->programs[elf->header.PHnum];
-	if(!elf->programs)
-		return 0;
+	elf->programs=malloc(elf->header.PHnum*sizeof(*elf->programs));
+	assert(elf->programs);
 	elf->iPHCount = elf->header.PHnum;
-	fprintf(stdout, "Program Headers:");
-	for(uint32_t iLoop = 0; iLoop < (uint32_t) elf->iPHCount; iLoop++){
+	for(size_t iLoop = 0; iLoop < elf->iPHCount; iLoop++){
 		Elf32_Phdr *pHeader = (Elf32_Phdr *) pData;
 		elf->programs[iLoop].type   = LW(pHeader->p_type);
 		elf->programs[iLoop].iOffset = LW(pHeader->p_offset);
@@ -199,27 +188,26 @@ int elf_loadPrograms(ElfCtx*elf){
 		pData += elf->header.PHentSize;
 	}
 	//elf_dumpPrograms(elf);
-	return 1;
+	return 0;
 }
-
 int elf_loadSymbols(ElfCtx*elf){
 	fprintf(stdout,"Size %zu\n", sizeof(Elf32_Sym));
 	ElfSection *pSymtab = elf_findSection(elf, ".symtab");
-	if((!pSymtab) || (pSymtab->type != SHT_SYMTAB) || (!pSymtab->pData))
-		return 0;
+	assert(pSymtab && (pSymtab->type == SHT_SYMTAB) && pSymtab->pData);
 	uint32_t symidx = pSymtab->iLink;
 	elf->symbolsCount = pSymtab->iSize / sizeof(Elf32_Sym);
-	elf->symbols[elf->symbolsCount];
-	
+	elf->symbols=malloc(elf->symbolsCount*sizeof(elf->symbols));
+	assert(elf->symbols);
 	Elf32_Sym *pSym = (Elf32_Sym*) pSymtab->pData;
-	for(int iLoop = 0; iLoop < elf->symbolsCount; iLoop++){
+	for(size_t iLoop = 0; iLoop < elf->symbolsCount; iLoop++){
 		elf->symbols[iLoop].name    = LW(pSym[iLoop].st_name);
-		elf->symbols[iLoop].symname = elf_getSymbolName(elf, elf->symbols[iLoop].name, symidx);
 		elf->symbols[iLoop].value   = LW(pSym[iLoop].st_value);
 		elf->symbols[iLoop].size    = LW(pSym[iLoop].st_size);
 		elf->symbols[iLoop].info    = pSym[iLoop].st_info;
 		elf->symbols[iLoop].other   = pSym[iLoop].st_other;
 		elf->symbols[iLoop].shndx   = LH(pSym[iLoop].st_shndx);
+		elf->symbols[iLoop].symname = (symidx && (symidx < elf->iSHCount) && (elf->sections[symidx].type == SHT_STRTAB) && (elf->symbols[iLoop].name < elf->sections[symidx].iSize))?
+			(const char*)(elf->sections[symidx].pData + elf->symbols[iLoop].name):"";
 	}
 	//elf_dumpSymbols(elf);
 	return 0;
@@ -266,23 +254,17 @@ int elf_loadSections(ElfCtx*elf){
 }
 
 int elf_loadFromElfFile(ElfCtx*elf, FILE *fp){
-	
-	if(!(elf->pElf = elf_loadFileToMem(elf, fp, &elf->iElfSize))
-	|| !elf_validateHeader(elf)
-	|| !elf_loadPrograms(elf)
-	|| !elf_loadSections(elf)
-	|| !elf_loadSymbols(elf)
-	|| !elf_buildBinaryImage(elf))
-		return 0;
-	elf->blElfLoaded = 1;
-
-	return 1;
+	assert(!elf_loadFileToMem(elf, fp, &elf->iElfSize, elf->pElf));
+	assert(!elf_validateHeader(elf));
+	assert(!elf_loadPrograms(elf));
+	assert(!elf_loadSections(elf));
+	assert(!elf_loadSymbols(elf));
+	assert(!elf_buildBinaryImage(elf));
+	return 0;
 }
 
 int elf_loadFromBinFile(ElfCtx*elf, FILE *fp, unsigned int dwDataBase){
-	if(!(elf->pElfBin = elf_loadFileToMem(elf, fp, &elf->iBinSize))
-	||(!elf_buildFakeSections(elf, dwDataBase)))
-		return 0;
-	elf->blElfLoaded = 1;
-	return 1;
+	assert(!elf_loadFileToMem(elf, fp, &elf->iBinSize, elf->pElfBin))
+	assert(!elf_buildFakeSections(elf, dwDataBase))
+	return 0;
 }

@@ -93,10 +93,7 @@ int PrxLoadRelocsTypeB(PrxToolCtx* prx,ElfReloc *pRelocs){
 			end = &prx->elf.programs[iLoop].pData[prx->elf.programs[iLoop].iFilesz];
 			
 			for (nbits = 1; (1 << nbits) < iLoop; nbits++) {
-				if (nbits >= 33) {
-					fprintf(stdout,"Invalid nbits\n");
-					return 0;
-				}
+				assert(nbits <= 32);
 			}
 
 	
@@ -106,42 +103,28 @@ int PrxLoadRelocsTypeB(PrxToolCtx* prx,ElfReloc *pRelocs){
 				pos += 2;
 				temp1 = (cmd << (16 - part1s)) & 0xFFFF;
 				temp1 = (temp1 >> (16 - part1s)) & 0xFFFF;
-				if (temp1 >= block1s) {
-					fprintf(stdout,"Invalid part1 index\n");
-					return 0;
-				}
+				assert(temp1 < block1s);
 				part1 = block1[temp1];
 				if ((part1 & 0x01) == 0) {
 					ofsbase = (cmd << (16 - part1s - nbits)) & 0xFFFF;
 					ofsbase = (ofsbase >> (16 - nbits)) & 0xFFFF;
-					if (!(ofsbase < iLoop)) {
-						fprintf(stdout,"Invalid offset base\n");
-						return 0;
-					}
-
+					assert(ofsbase < iLoop);
 					if ((part1 & 0x06) == 0) {
 						offset = cmd >> (part1s + nbits);
 					} else if ((part1 & 0x06) == 4) {
 						offset = pos[0] | (pos[1] << 8) | (pos[2] << 16) | (pos[3] << 24);
 						pos += 4;
 					} else {
-						fprintf(stdout,"Invalid size\n");
-						return 0;
+						assert(!"Invalid size\n");
 					}
 				} else {
 					temp2 = (cmd << (16 - (part1s + nbits + part2s))) & 0xFFFF;
 					temp2 = (temp2 >> (16 - part2s)) & 0xFFFF;
-					if (temp2 >= block2s) {
-						fprintf(stdout,"Invalid part2 index\n");
-						return 0;
-					}
+					assert(temp2 < block2s);
 
 					addrbase = (cmd << (16 - part1s - nbits)) & 0xFFFF;
 					addrbase = (addrbase >> (16 - nbits)) & 0xFFFF;
-					if (!(addrbase < iLoop)) {
-						fprintf(stdout,"Invalid address base\n");
-						return 0;
-					}
+					assert(addrbase < iLoop);
 					part2 = block2[temp2];
 					
 					switch (part1 & 0x06) {
@@ -169,23 +152,18 @@ int PrxLoadRelocsTypeB(PrxToolCtx* prx,ElfReloc *pRelocs){
 						pos += 4;
 						break;
 					default:
-						fprintf(stdout,"invalid part1 size\n");
-						return 0;
+						assert(!"invalid part1 size\n");
 					}
 					
-					if (!(offset < prx->elf.programs[ofsbase].iFilesz)) {
-						fprintf(stdout,"invalid relocation offset\n");
-						return 0;
-					}
+					assert(offset < prx->elf.programs[ofsbase].iFilesz);
 					
 					switch (part1 & 0x38) {
 					case 0x00:
 						addend = 0;
 						break;
 					case 0x08:
-						if ((lastpart2 ^ 0x04) != 0) {
+						if ((lastpart2 ^ 0x04))
 							addend = 0;
-						}
 						break;
 					case 0x10:
 						addend = pos[0] | (pos[1] << 8);
@@ -194,11 +172,9 @@ int PrxLoadRelocsTypeB(PrxToolCtx* prx,ElfReloc *pRelocs){
 					case 0x18:
 						addend = pos[0] | (pos[1] << 8) | (pos[2] << 16) | (pos[3] << 24);
 						pos += 4;
-						fprintf(stdout,"invalid addendum size\n");
-						return 0;
+						assert(!"invalid addendum size\n");
 					default:
-						fprintf(stdout,"invalid addendum size\n");
-						return 0;
+						assert(!"invalid addendum size\n");
 					}
 
 					lastpart2 = part2;
@@ -232,13 +208,12 @@ int PrxLoadRelocsTypeB(PrxToolCtx* prx,ElfReloc *pRelocs){
 						pRelocs[iCurrRel].type = R_MIPS_LO16;
 						break;
 					default:
-						fprintf(stdout,"invalid relocation type\n");
-						return 0;
+						assert(!"invalid relocation type\n");
 					}
 					temp1 = (cmd << (16 - part1s)) & 0xFFFF;
 					temp1 = (temp1 >> (16 - part1s)) & 0xFFFF;
 					temp2 = (cmd << (16 - (part1s + nbits + part2s))) & 0xFFFF;
-					temp2 = (temp2 >> (16 - part2s)) & 0xFFFF;					
+					temp2 = (temp2 >> (16 - part2s)) & 0xFFFF;
 					fprintf(stdout,"CMD=0x%04X I1=0x%02X I2=0x%02X PART1=0x%02X PART2=0x%02X\n", cmd, temp1, temp2, part1, part2);
 					pRelocs[iCurrRel].info |= pRelocs[iCurrRel].type;
 					iCurrRel++;
@@ -253,12 +228,10 @@ int PrxLoadRelocs(PrxToolCtx* prx){
 	int  iRelocCount = PrxCountRelocs(prx);
 	int  iCurrRel = 0;
 
-	if(iRelocCount <= 0)
-		return 1;
+	assert(iRelocCount);
 
-	prx->reloc[iRelocCount];
-	if(!prx->reloc)
-		return 1;
+	prx->reloc=malloc(iRelocCount*sizeof(prx->reloc));
+	assert(prx->reloc);
 
 	memset(prx->reloc, 0, sizeof(ElfReloc) * iRelocCount);
 	
@@ -287,13 +260,31 @@ int PrxLoadRelocs(PrxToolCtx* prx){
 		}
 	}
 
-	return 1;
+	return 0;
 }
+
+
+ElfSection *elf_findSectionByAddr(ElfCtx*elf, unsigned int dwAddr){
+	if((!elf->sections) || (!elf->iSHCount) || (!elf->strtab))
+		return NULL;
+	for(size_t i = 0; i < elf->iSHCount; i++)
+		if((elf->sections[i].flags & SHF_ALLOC) && (dwAddr >= elf->sections[i].iAddr)
+			 && (dwAddr < (elf->sections[i].iAddr + elf->sections[i].iSize)))
+			return &elf->sections[i];
+	return NULL;
+}
+int elf_addrIsText(ElfCtx*elf, unsigned int dwAddr){
+	ElfSection *sect = elf_findSectionByAddr(elf, dwAddr);
+	return sect && (sect->flags & SHF_EXECINSTR);
+}
+
 //TODO
 int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 	//uint32_t regs[32];
+	if(!prx->reloc)
+		return 0;
 	// Fixup the elf file and output it to fp 
-	if((prx->isPrxLoaded == 0))
+	if(!prx->elf.pElf)
 		return 1;
 	if((prx->elf.header.PHnum < 1) || (prx->elf.header.PHentSize == 0) || (prx->elf.header.PHoff == 0))
 		return 1;

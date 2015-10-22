@@ -176,7 +176,17 @@ int PrxBuildMaps(PrxToolCtx*prx){
 	return 1;
 }
 
-int PrxFillModule(PrxToolCtx* prx,PspModuleInfo *pData, uint32_t iAddr){
+int PrxFillModule(PrxToolCtx* prx){
+	PspModuleInfo*pData = NULL;
+	uint32_t iAddr = 0;
+	ElfSection *pInfoSect = elf_findSection(&prx->elf, PSP_MODULE_INFO_NAME);
+	if(!pInfoSect && prx->elf.iPHCount > 0){// Get from program headers 
+		iAddr = (prx->elf.programs[0].iPaddr & 0x7FFFFFFF) - prx->elf.programs[0].iOffset;
+		pData = (PspModuleInfo*)prx->elf.pElfBin + iAddr;
+	}else{
+		iAddr = pInfoSect->iAddr;
+		pData = (PspModuleInfo*)pInfoSect->pData;
+	}
 	if(!pData)
 		return 0;
 	prx->module=(PspModule){
@@ -196,119 +206,77 @@ int PrxFillModule(PrxToolCtx* prx,PspModuleInfo *pData, uint32_t iAddr){
 	fprintf(stdout,"Module Info:\n"
 		"Name: %s\nAddr: 0x%08X\nFlags: 0x%08X\nGP: 0x%08X\n"
 		"Exports: 0x%08X...0x%08X\nImports: 0x%08X...0x%08X\n",
-		prx->module.info.name, prx->module.addr, prx->module.info.flags, prx->module.info.gp,
+		prx->module.info.name   , prx->module.addr        , prx->module.info.flags  , prx->module.info.gp,
 		prx->module.info.exports, prx->module.info.exp_end, prx->module.info.imports, prx->module.info.imp_end);
 	return 1;
 }
 
-int PrxCreateFakeSections(PrxToolCtx* prx){
+int PrxCreateFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
 	// If we have no section headers let's build some fake sections 
-	if(!prx->elf.iSHCount)
+	if(!elf->iSHCount)
 		return 1;
-	if(prx->elf.iPHCount < 3)
-		return fprintf(stderr, "Not enough program headers (%zu<3)\n", prx->elf.iPHCount),0;
+	assert(elf->iPHCount >= 3)
 
-	prx->elf.iSHCount = prx->elf.programs[2].type == PT_PRXRELOC?6:5;
-	prx->elf.sections[0]=(ElfSection){};
-	prx->elf.sections[1]=(ElfSection){
-		.type = SHT_PROGBITS,
+	elf->iSHCount = (p[2].type == PT_PRXRELOC)?6:5;
+	
+	ElfSection fake_sections[]={{},{
+		.type  = SHT_PROGBITS,
 		.flags = SHF_ALLOC | SHF_EXECINSTR,
-		.iAddr = prx->elf.programs[0].iVaddr,
-		.pData = prx->elf.pElf + prx->elf.programs[0].iOffset,
-		.iSize = prx->stubBottom,
+		.iAddr = p[0].iVaddr,
+		.pData = elf->pElf + p[0].iOffset,
+		.iSize = stubBtm,
 		.szName= ".text",
-	};
-	prx->elf.sections[2]=(ElfSection){
-	.type = SHT_PROGBITS,
-	.flags = SHF_ALLOC,
-	.iAddr = prx->stubBottom,
-	.pData = prx->elf.pElf + prx->elf.programs[0].iOffset + prx->stubBottom,
-	.iSize = prx->elf.programs[0].iMemsz - prx->stubBottom,
-	.szName=".rodata",
-	};
-	prx->elf.sections[3]=(ElfSection){
-		.type = SHT_PROGBITS,
+	},{
+		.type  = SHT_PROGBITS,
+		.flags = SHF_ALLOC,
+		.iAddr = stubBtm,
+		.pData = elf->pElf + p[0].iOffset + stubBtm,
+		.iSize = p[0].iMemsz - stubBtm,
+		.szName=".rodata",
+	},{
+		.type  = SHT_PROGBITS,
 		.flags = SHF_ALLOC | SHF_WRITE,
-		.iAddr = prx->elf.programs[1].iVaddr,
-		.pData = prx->elf.pElf + prx->elf.programs[1].iOffset,
-		.iSize = prx->elf.programs[1].iFilesz,
+		.iAddr = p[1].iVaddr,
+		.pData = elf->pElf + p[1].iOffset,
+		.iSize = p[1].iFilesz,
 		.szName= ".data",
-	};
-	prx->elf.sections[4]=(ElfSection){
-		.type = SHT_NOBITS,
+	},{
+		.type  = SHT_NOBITS,
 		.flags = SHF_ALLOC | SHF_WRITE,
-		.iAddr = prx->elf.programs[1].iVaddr + prx->elf.programs[1].iFilesz,
-		.pData = prx->elf.pElf + prx->elf.programs[1].iOffset + prx->elf.programs[1].iFilesz,
-		.iSize = prx->elf.programs[1].iMemsz - prx->elf.programs[1].iFilesz,
+		.iAddr = p[1].iVaddr + p[1].iFilesz,
+		.pData = elf->pElf + p[1].iOffset + p[1].iFilesz,
+		.iSize = p[1].iMemsz - p[1].iFilesz,
 		.szName= ".bss",
-	};
-	prx->elf.sections[5]=prx->elf.programs[2].type == PT_PRXRELOC?(ElfSection){
-		.type = SHT_PRXRELOC,
+	},{
+		.type  = SHT_PRXRELOC,
 		.flags = 0,
 		.iAddr = 0,
-		.pData = prx->elf.pElf + prx->elf.programs[2].iOffset,
-		.iSize = prx->elf.programs[2].iFilesz,
+		.pData = elf->pElf + p[2].iOffset,
+		.iSize = p[2].iFilesz,
 		.iInfo = 1,// Bind to section 1, not that is matters 
 		.szName= ".reloc",
-	}:(ElfSection){};
-
-	//elf_dumpSections();
+	}};
+	memcpy(elf->sections,fake_sections,elf->iSHCount*sizeof(*elf->sections));
 	return 1;
 }
 
 int PrxLoadFromElf(PrxToolCtx* prx,FILE *fp){
-	if(!elf_loadFromElfFile(&prx->elf, fp))
-		return 1;
-	// Do PRX specific stuff 
-	uint8_t *pData = NULL;
-	uint32_t iAddr = 0;
-
-	prx->isPrxLoaded = 0;
-
+	assert(!elf_loadFromElfFile(&prx->elf, fp));
 	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
-
-	ElfSection *pInfoSect = elf_findSection(&prx->elf, PSP_MODULE_INFO_NAME);
-	if(!pInfoSect && prx->elf.iPHCount > 0){
-		// Get from program headers 
-		iAddr = (prx->elf.programs[0].iPaddr & 0x7FFFFFFF) - prx->elf.programs[0].iOffset;
-		pData = prx->elf.pElfBin + iAddr;
-	}else{
-		iAddr = pInfoSect->iAddr;
-		pData = pInfoSect->pData;
-	}
-
-	if(!pData)
-		return fprintf(stderr, "Could not find module section\n"),1;
-	if(!PrxFillModule(prx, (PspModuleInfo *)pData, iAddr))
-		return fprintf(stderr, "Could not fill module\n"),1;
-	if(!PrxLoadRelocs(prx))
-		return fprintf(stderr, "Could not load reloc\n"),1;
-	prx->isPrxLoaded = 1;
-	if(prx->reloc){
-		PrxFixupRelocs(prx, prx->base, prx->imm,prx->imm_count);
-	}
-	if(!PrxLoadExports(prx))
-		return fprintf(stderr, "Could not load exports\n"),1;
-	if(!PrxLoadImports(prx))
-		return fprintf(stderr, "Could not load imports\n"),1;
-	if(!PrxCreateFakeSections(prx))
-		return fprintf(stderr, "Could not create fake sections\n"),1;
-		
-	fprintf(stdout, "Loaded PRX %s successfully\n");
-	PrxBuildMaps(prx);
+	assert(PrxFillModule(prx));
+	assert(PrxLoadRelocs(prx));
+	assert(PrxFixupRelocs(prx, prx->base, prx->imm,prx->imm_count));
+	assert(PrxLoadExports(prx));
+	assert(PrxLoadImports(prx));
+	assert(PrxCreateFakeSections(&prx->elf,prx->elf.programs,prx->stubBottom));
+	assert(PrxBuildMaps(prx));
 	return 0;
 }
 
 int PrxLoadFromBin(PrxToolCtx* prx,FILE *fp){
-	if(!elf_loadFromBinFile(&prx->elf, fp, prx->base))
-		return 0;
-	prx->isPrxLoaded = 0;
-
+	assert(!elf_loadFromBinFile(&prx->elf, fp, prx->base));
 	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
-
-	fprintf(stdout, "Loaded BIN successfully\n");
-	prx->isPrxLoaded = 1;
-	PrxBuildMaps(prx);
-	return 1;
+	assert(PrxBuildMaps(prx));
+	return 0;
 }
 

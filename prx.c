@@ -108,7 +108,6 @@ typedef struct{
 	Symbol     *symbol ;size_t symbol_count;
 	Imm        *imm    ;size_t imm_count;
 	ElfReloc   *reloc  ;size_t reloc_count;
-	int        isPrxLoaded;
 	int        isXmlDump;
 	uint32_t   stubBottom;
 	uint32_t   base;

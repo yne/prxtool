@@ -26,24 +26,24 @@ int main(int argc, char **argv){
 	
 	if(arg.in.nid){
 		if(!db_nids_import(NULL,&prx.library_count,NULL,&prx.nid_count,arg.in.nid)){
-			Library l[prx.library_count];
-			Nid     n[prx.nid_count];
-			db_nids_import(prx.library=l,NULL,prx.nids=n,NULL,arg.in.nid);
+			prx.library=malloc(prx.library_count*sizeof(*prx.library));
+			prx.nids=malloc(prx.nid_count*sizeof(*prx.nids));
+			db_nids_import(prx.library,NULL,prx.nids,NULL,arg.in.nid);
 		}
 		fprintf(stderr,"loaded: %zu nids in %zu library\n",prx.nid_count,prx.library_count);
 	}
 	if(arg.in.func){
 		if(!db_func_import(NULL,&prx.proto_count,arg.in.func)){
-			Protoype f[prx.proto_count];
-			db_func_import(prx.proto=f,NULL,arg.in.func);
+			prx.proto=malloc(prx.proto_count*sizeof(prx.proto));
+			db_func_import(prx.proto,NULL,arg.in.func);
 		}
 		fprintf(stderr,"loaded: %zu prototypes\n",prx.proto_count);
 	}
 	if(arg.in.instr){
 		if(!db_instr_import(NULL,&prx.instr_count,NULL,&prx.macro_count,arg.in.instr)){
-			Instruction instr[prx.instr_count];
-			Instruction macro[prx.macro_count];
-			db_instr_import(prx.instr=instr,NULL,prx.macro=macro,NULL,arg.in.instr);
+			prx.instr=malloc(prx.instr_count*sizeof(*prx.instr));
+			prx.macro=malloc(prx.macro_count*sizeof(*prx.macro));
+			db_instr_import(prx.instr,NULL,prx.macro,NULL,arg.in.instr);
 		}
 		fprintf(stderr,"loaded: %zu instructions + %zu macro\n",prx.instr_count,prx.macro_count);
 	}
