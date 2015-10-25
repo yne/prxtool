@@ -253,17 +253,19 @@ int PrxCreateFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
 
 int PrxLoadFromElf(PrxToolCtx* prx,FILE *fp){
 	assert(!elf_loadFromElfFile(&prx->elf, fp));
-	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
+	prx->vMem = (Vmem){prx->elf.pElf, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
+	//fprintf(stderr,"pData %p, iSize %x, iBaseAddr 0x%08X, endian %d\n", prx->vMem.data, prx->vMem.size, prx->vMem.baseAddr, prx->vMem.endian);
 	assert(!elf_loadModInfo(&prx->elf,&prx->module,prx->arg.modInfoName));
 	assert(!elf_loadRelocs(&prx->elf));
 	assert(!elf_fixupRelocs(&prx->elf, prx->base, prx->imm,prx->imm_count,&prx->vMem));
-	//assert(!PrxLoadExports(prx));
-	//fprintf(stderr,"%i\n",__LINE__);
-	//assert(!PrxLoadImports(prx));
-	//fprintf(stderr,"%i\n",__LINE__);
-	//assert(!PrxCreateFakeSections(&prx->elf,prx->elf.programs,prx->mod->info.exports - 4));
-	//fprintf(stderr,"%i\n",__LINE__);
-	//assert(!PrxBuildMaps(prx));
+	fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!PrxLoadExports(prx));
+	fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!PrxLoadImports(prx));
+	fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!PrxCreateFakeSections(&prx->elf,prx->elf.programs,prx->module.info.exports - 4));
+	fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!PrxBuildMaps(prx));
 	return 0;
 }
 

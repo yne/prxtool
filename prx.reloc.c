@@ -39,25 +39,18 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 
 		switch(elf->reloc[iLoop].type){
 			case R_MIPS_HI16: {
-				uint32_t inst;
 				int base = iLoop;
 				int lowaddr, hiaddr, addr;
-				int loinst;
 				int ofsph = elf->programs[iOfsPH].iVaddr;
 				
-				inst = LW(*pData);
+				uint32_t inst = LW(*pData);
 				addr = ((inst & 0xFFFF) << 16) + dwCurrBase;
 				fprintf(stdout,"Hi at (%08X) %d\n", dwRealOfs, iLoop);
 				while (++iLoop < elf->reloc_count) {
 					if (elf->reloc[iLoop].type != R_MIPS_HI16) break;
 				}
 				fprintf(stdout,"Matching low at %d\n", iLoop);
-				if (iLoop < elf->reloc_count) {
-					loinst = LW(*((uint32_t*) VmemGetPtr(vMem, elf->reloc[iLoop].offset+ofsph)));
-				} else {
-					loinst = 0;
-				}
-
+				int loinst = (iLoop < elf->reloc_count)?LW(*((uint32_t*) VmemGetPtr(vMem, elf->reloc[iLoop].offset+ofsph))):0;
 				addr = (int32_t) addr + (int16_t) (loinst & 0xFFFF);
 				lowaddr = addr & 0xFFFF;
 				hiaddr = (((addr >> 15) + 1) >> 1) & 0xFFFF;
@@ -67,41 +60,37 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 					SW(*((uint32_t*)VmemGetPtr(vMem, elf->reloc[base].offset+ofsph)), inst);
 					base++;
 				}
-				while (iLoop < elf->reloc_count) {
+				for (;iLoop < elf->reloc_count;) {
 					inst = LW(*((uint32_t*)VmemGetPtr(vMem, elf->reloc[iLoop].offset+ofsph)));
 					if ((inst & 0xFFFF) != (loinst & 0xFFFF)) break;
 					inst = (inst & ~0xFFFF) | lowaddr;
 					SW(*((uint32_t*)VmemGetPtr(vMem, elf->reloc[iLoop].offset+ofsph)), inst);
-									
-					Imm*imm=NULL;
-					imm->addr = base + ofsph + elf->reloc[iLoop].offset;
-					imm->target = addr;
-					imm->text = elf_addrIsText(elf, addr - base);
-					//imm[base + ofsph + elf->reloc[iLoop].offset].imm = *imm;
-
-					if (elf->reloc[++iLoop].type != R_MIPS_LO16) break;
+					if(imm)imm[base + ofsph + elf->reloc[iLoop].offset] = (Imm){
+						.addr = base + ofsph + elf->reloc[iLoop].offset,
+						.target = addr,
+						.text = elf_addrIsText(elf, addr - base),
+					};
+					if(elf->reloc[++iLoop].type != R_MIPS_LO16) break;
 				}
 				iLoop--;
 				fprintf(stdout,"Finished at %d\n", iLoop);
-			}
-			break;
+			}break;
 			case R_MIPS_16:
 			case R_MIPS_LO16: {
 				uint32_t loinst = LW(*pData);
 				uint32_t addr = ((int16_t) (loinst & 0xFFFF) & 0xFFFF) + dwCurrBase;
 				fprintf(stdout,"Low at (%08X)\n", dwRealOfs);
 
-				Imm*imm=NULL;
-				imm->addr = dwRealOfs + base;
-				imm->target = addr;
-				imm->text = elf_addrIsText(elf, addr - base);
-				//imm[dwRealOfs + base] = imm;
+				if(imm)imm[dwRealOfs + base]=(Imm){
+					.addr = dwRealOfs + base,
+					.target = addr,
+					.text = elf_addrIsText(elf, addr - base),
+				};
 
 				loinst &= ~0xFFFF;
 				loinst |= addr;
 				SW(*pData, loinst);
-			}
-			break;
+			}break;
 			case R_MIPS_X_HI16: {
 				uint32_t hiinst = LW(*pData);
 				uint32_t addr = (hiinst & 0xFFFF) << 16;
@@ -109,15 +98,15 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 				uint32_t hiaddr = (((addr >> 15) + 1) >> 1) & 0xFFFF;
 				fprintf(stdout,"Extended hi at (%08X)\n", dwRealOfs);
 
-				Imm*imm=NULL;
-				imm->addr = dwRealOfs + base;
-				imm->target = addr;
-				imm->text = elf_addrIsText(elf, addr - base);
-				//imm[dwRealOfs + base] = imm;
+				if(imm)imm[dwRealOfs + base]=(Imm){
+					.addr = dwRealOfs + base,
+					.target = addr,
+					.text = elf_addrIsText(elf, addr - base),
+				};
 
 				hiinst &= ~0xFFFF;
 				hiinst |= (hiaddr & 0xFFFF);
-				SW(*pData, hiinst);			
+				SW(*pData, hiinst);
 			}
 			break;
 			case R_MIPS_X_J26: {
@@ -144,19 +133,19 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 				    dwInst--;
 
 				if ((dwData >> 26) != 2){// not J instruction
-					Imm*imm=NULL;
-					imm->addr = dwRealOfs + base;
-					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = elf_addrIsText(elf, imm->target - base);
-					//imm[dwRealOfs + base] = imm;
+					if(imm)imm[dwRealOfs + base]=(Imm){
+						.addr = dwRealOfs + base,
+						.target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF)),
+						.text = elf_addrIsText(elf, imm->target - base),
+					};
 				}
 				// already add the JAL26 symbol so we don't have to search for the J26 there
 				if (iLoop < elf->reloc_count && (dwData >> 26) != 3){// not JAL instruction
-					Imm*imm=NULL;
-					imm->addr = offs2 + base;
-					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = elf_addrIsText(elf, imm->target - base);
-					//imm[offs2 + base] = imm;
+					if(imm)imm[offs2 + base]=(Imm){
+						.addr = offs2 + base,
+						.target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF)),
+						.text = elf_addrIsText(elf, imm->target - base),
+					};
 				}
 
 				iLoop = base;
@@ -185,11 +174,11 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 				SW(*pData, dwData);
 
 				if ((dwData >> 26) != 2){// not J instruction
-					Imm*imm=NULL;
-					imm->addr = dwRealOfs + base;
-					imm->target = (dwData & 0x03FFFFFF) << 2;;
-					imm->text = elf_addrIsText(elf, dwData - base);
-					//imm[dwRealOfs + base] = imm;
+					if(imm)imm[dwRealOfs + base]=(Imm){
+						.addr = dwRealOfs + base,
+						.target = (dwData & 0x03FFFFFF) << 2,
+						.text = elf_addrIsText(elf, dwData - base),
+					};
 				}
 			}
 			break;
