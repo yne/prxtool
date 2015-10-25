@@ -175,7 +175,7 @@ int PrxBuildMaps(PrxToolCtx*prx){
 	return 1;
 }
 
-int PrxFillModule(ElfCtx* elf,PspModule*mod,char*secname){
+int elf_loadModInfo(ElfCtx* elf,PspModule*mod,char*secname){
 	PspModuleInfo*modinfo = NULL;
 	uint32_t iAddr = 0;
 	ElfSection *pInfoSect = elf_findSection(elf, secname);
