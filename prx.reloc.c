@@ -1,276 +1,9 @@
-
-int PrxCountRelocs(PrxToolCtx* prx){
-	int  iRelocCount = 0;
-
-	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
-		if((prx->elf.sections[iLoop].type == SHT_PRXRELOC) || (prx->elf.sections[iLoop].type == SHT_REL)){
-			if(prx->elf.sections[iLoop].iSize % sizeof(Elf32_Rel))
-				fprintf(stdout,"Invalid Relocation section #%i\n",iLoop);
-			iRelocCount += prx->elf.sections[iLoop].iSize / sizeof(Elf32_Rel);
-		}
-	}
-
-	for(int iLoop = 0; iLoop < prx->elf.iPHCount; iLoop++){
-		if(prx->elf.programs[iLoop].type != PT_PRXRELOC2)
-			continue;
-		if (prx->elf.programs[iLoop].pData[0] || prx->elf.programs[iLoop].pData[1])
-			return fprintf(stdout,"Should start with 0x00 0x00\n"),0;
-		
-		uint8_t
-			part1s = prx->elf.programs[iLoop].pData[2],
-			//part2s = prx->elf.programs[iLoop].pData[3],
-			block1s = prx->elf.programs[iLoop].pData[4],
-			*block1 = &prx->elf.programs[iLoop].pData[4],
-			*block2 = block1 + block1s,
-			block2s = block2[0],
-			*end = &prx->elf.programs[iLoop].pData[prx->elf.programs[iLoop].iFilesz];
-		for (uint8_t*pos = block2 + block2s;pos < end;iRelocCount++) {
-			uint32_t cmd = pos[0] | (pos[1] << 16);
-			pos += 2;
-			uint32_t temp = (cmd << (16 - part1s)) & 0xFFFF;
-			temp = (temp >> (16 - part1s)) & 0xFFFF;
-			if (temp >= block1s)
-				return fprintf(stdout,"Invalid cmd1 index\n"),0;
-			uint32_t part1 = block1[temp];
-			if (!(part1 & 0x01) && ( part1 & 0x06 ) == 4 )
-				pos += 4;
-			else {
-				switch (part1 & 0x06) {
-				case 2:pos += 2;break;
-				case 4:pos += 4;break;
-				}
-				switch (part1 & 0x38) {
-				case 0x10:pos += 2;break;
-				case 0x18:pos += 4;break;
-				}
-			}
-		}
-	}
-	fprintf(stdout,"Relocation entries %d\n", iRelocCount);
-	return iRelocCount;
-}
-
-int PrxLoadRelocsTypeA(PrxToolCtx* prx,ElfReloc *pRelocs){
-	int iCurrRel = 0;
-	
-	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
-		if((prx->elf.sections[iLoop].type == SHT_PRXRELOC) || (prx->elf.sections[iLoop].type == SHT_REL)){
-			const Elf32_Rel *reloc = (const Elf32_Rel *) prx->elf.sections[iLoop].pData;
-			for(int i = 0; i < prx->elf.sections[iLoop].iSize / sizeof(Elf32_Rel); i++) {    
-				pRelocs[iCurrRel].secname = prx->elf.sections[iLoop].szName;
-				pRelocs[iCurrRel].base = 0;
-				pRelocs[iCurrRel].type = ELF32_R_TYPE(LW(reloc->r_info));
-				pRelocs[iCurrRel].symbol = ELF32_R_SYM(LW(reloc->r_info));
-				pRelocs[iCurrRel].info = LW(reloc->r_info);
-				pRelocs[iCurrRel].offset = reloc->r_offset;
-				reloc++;
-				iCurrRel++;
-			}
-		}
-	}
-	return iCurrRel;
-}
-
-int PrxLoadRelocsTypeB(PrxToolCtx* prx,ElfReloc *pRelocs){
-	uint8_t *block1, *block2, *pos, *end;
-	uint32_t block1s, block2s, part1s, part2s;
-	uint32_t cmd, part1, part2, lastpart2;
-	uint32_t addend = 0, offset = 0;
-	uint32_t ofsbase = 0xFFFFFFFF, addrbase;
-	uint32_t temp1, temp2;
-	uint32_t nbits;
-	int iLoop, iCurrRel = 0;
-	
-	for(iLoop = 0; iLoop < prx->elf.iPHCount; iLoop++){
-		if(prx->elf.programs[iLoop].type == PT_PRXRELOC2){
-			part1s = prx->elf.programs[iLoop].pData[2];
-			part2s = prx->elf.programs[iLoop].pData[3];
-			block1s =prx->elf.programs[iLoop].pData[4];
-			block1 = &prx->elf.programs[iLoop].pData[4];
-			block2 = block1 + block1s;
-			block2s = block2[0];
-			pos = block2 + block2s;
-			end = &prx->elf.programs[iLoop].pData[prx->elf.programs[iLoop].iFilesz];
-			
-			for (nbits = 1; (1 << nbits) < iLoop; nbits++) {
-				assert(nbits <= 32);
-			}
-
-	
-			lastpart2 = block2s;
-			while (pos < end) {
-				cmd = pos[0] | (pos[1] << 8);
-				pos += 2;
-				temp1 = (cmd << (16 - part1s)) & 0xFFFF;
-				temp1 = (temp1 >> (16 - part1s)) & 0xFFFF;
-				assert(temp1 < block1s);
-				part1 = block1[temp1];
-				if ((part1 & 0x01) == 0) {
-					ofsbase = (cmd << (16 - part1s - nbits)) & 0xFFFF;
-					ofsbase = (ofsbase >> (16 - nbits)) & 0xFFFF;
-					assert(ofsbase < iLoop);
-					if ((part1 & 0x06) == 0) {
-						offset = cmd >> (part1s + nbits);
-					} else if ((part1 & 0x06) == 4) {
-						offset = pos[0] | (pos[1] << 8) | (pos[2] << 16) | (pos[3] << 24);
-						pos += 4;
-					} else {
-						assert(!"Invalid size\n");
-					}
-				} else {
-					temp2 = (cmd << (16 - (part1s + nbits + part2s))) & 0xFFFF;
-					temp2 = (temp2 >> (16 - part2s)) & 0xFFFF;
-					assert(temp2 < block2s);
-
-					addrbase = (cmd << (16 - part1s - nbits)) & 0xFFFF;
-					addrbase = (addrbase >> (16 - nbits)) & 0xFFFF;
-					assert(addrbase < iLoop);
-					part2 = block2[temp2];
-					
-					switch (part1 & 0x06) {
-					case 0:
-						temp1 = cmd;
-						if (temp1 & 0x8000) {
-							temp1 |= ~0xFFFF;
-							temp1 >>= part1s + part2s + nbits;
-							temp1 |= ~0xFFFF;
-						} else {
-							temp1 >>= part1s + part2s + nbits;
-						}
-						offset += temp1;
-						break;
-					case 2:
-						temp1 = cmd;
-						if (temp1 & 0x8000) temp1 |= ~0xFFFF;
-						temp1 = (temp1 >> (part1s + part2s + nbits)) << 16;
-						temp1 |= pos[0] | (pos[1] << 8);
-						offset += temp1;
-						pos += 2;
-						break;
-					case 4:
-						offset = pos[0] | (pos[1] << 8) | (pos[2] << 16) | (pos[3] << 24);
-						pos += 4;
-						break;
-					default:
-						assert(!"invalid part1 size\n");
-					}
-					
-					assert(offset < prx->elf.programs[ofsbase].iFilesz);
-					
-					switch (part1 & 0x38) {
-					case 0x00:
-						addend = 0;
-						break;
-					case 0x08:
-						if ((lastpart2 ^ 0x04))
-							addend = 0;
-						break;
-					case 0x10:
-						addend = pos[0] | (pos[1] << 8);
-						pos += 2;
-						break;
-					case 0x18:
-						addend = pos[0] | (pos[1] << 8) | (pos[2] << 16) | (pos[3] << 24);
-						pos += 4;
-						assert(!"invalid addendum size\n");
-					default:
-						assert(!"invalid addendum size\n");
-					}
-
-					lastpart2 = part2;
-					pRelocs[iCurrRel].secname = NULL;
-					pRelocs[iCurrRel].base = 0;
-					pRelocs[iCurrRel].symbol = ofsbase | (addrbase << 8);
-					pRelocs[iCurrRel].info = (ofsbase << 8) | (addrbase << 8);
-					pRelocs[iCurrRel].offset = offset;
-
-					switch (part2) {
-					case 2:
-						pRelocs[iCurrRel].type = R_MIPS_32;
-						break;
-					case 0:
-						continue;
-					case 3:
-						pRelocs[iCurrRel].type = R_MIPS_26;
-						break;
-					case 6:
-						pRelocs[iCurrRel].type = R_MIPS_X_J26;
-						break;
-					case 7:
-						pRelocs[iCurrRel].type = R_MIPS_X_JAL26;
-						break;
-					case 4:
-						pRelocs[iCurrRel].type = R_MIPS_X_HI16;
-						pRelocs[iCurrRel].base = (int16_t) addend;
-						break;
-					case 1:
-					case 5:
-						pRelocs[iCurrRel].type = R_MIPS_LO16;
-						break;
-					default:
-						assert(!"invalid relocation type\n");
-					}
-					temp1 = (cmd << (16 - part1s)) & 0xFFFF;
-					temp1 = (temp1 >> (16 - part1s)) & 0xFFFF;
-					temp2 = (cmd << (16 - (part1s + nbits + part2s))) & 0xFFFF;
-					temp2 = (temp2 >> (16 - part2s)) & 0xFFFF;
-					fprintf(stdout,"CMD=0x%04X I1=0x%02X I2=0x%02X PART1=0x%02X PART2=0x%02X\n", cmd, temp1, temp2, part1, part2);
-					pRelocs[iCurrRel].info |= pRelocs[iCurrRel].type;
-					iCurrRel++;
-				}
-			}
-		}
-	}
-	return iCurrRel;
-}
-
-int PrxLoadRelocs(PrxToolCtx* prx){
-	int  iRelocCount = PrxCountRelocs(prx);
-	int  iCurrRel = 0;
-
-	assert(iRelocCount);
-
-	prx->reloc=malloc(iRelocCount*sizeof(prx->reloc));
-	assert(prx->reloc);
-
-	memset(prx->reloc, 0, sizeof(ElfReloc) * iRelocCount);
-	
-	fprintf(stdout,"Loading Type A reloc\n");
-	iCurrRel += PrxLoadRelocsTypeA (prx, &prx->reloc[iCurrRel]);
-
-	fprintf(stdout,"Loading Type B reloc\n");
-	iCurrRel += PrxLoadRelocsTypeB (prx, &prx->reloc[iCurrRel]);
-	prx->reloc_count = iCurrRel;
-	
-	fprintf(stdout,"Dumping reloc %d\n", prx->reloc_count);
-	
-	char* g_szRelTypes[16] = {
-		"R_NONE","R_16","R_32","R_REL32","R_26","R_HI16","R_LO16","R_GPREL16","R_LITERAL",
-		"R_GOT16","R_PC16","R_CALL16","R_GPREL32","X_HI16","X_J26","X_JAL26"
-	};
-	for(int iLoop = 0; iLoop < prx->reloc_count; iLoop++){
-		if(prx->reloc[iLoop].type < 16){
-			fprintf(stdout,"Reloc %s:%d Type:%s Symbol:%d Offset %08X Info:%08X\n", 
-					prx->reloc[iLoop].secname, iLoop, g_szRelTypes[prx->reloc[iLoop].type],
-					prx->reloc[iLoop].symbol, prx->reloc[iLoop].offset, prx->reloc[iLoop].info);
-		}else{
-			fprintf(stdout,"Reloc %s:%d Type:%d Symbol:%d Offset %08X\n", 
-					prx->reloc[iLoop].secname, iLoop, prx->reloc[iLoop].type,
-					prx->reloc[iLoop].symbol, prx->reloc[iLoop].offset);
-		}
-	}
-
-	return 0;
-}
-
-
 ElfSection *elf_findSectionByAddr(ElfCtx*elf, unsigned int dwAddr){
 	if((!elf->sections) || (!elf->iSHCount) || (!elf->strtab))
 		return NULL;
-	for(size_t i = 0; i < elf->iSHCount; i++)
-		if((elf->sections[i].flags & SHF_ALLOC) && (dwAddr >= elf->sections[i].iAddr)
-			 && (dwAddr < (elf->sections[i].iAddr + elf->sections[i].iSize)))
-			return &elf->sections[i];
+	for(ElfSection*s = elf->sections; s < elf->sections+elf->iSHCount; s++)
+		if((s->flags & SHF_ALLOC) && (dwAddr >= s->iAddr) && (dwAddr < (s->iAddr + s->iSize)))
+			return s;
 	return NULL;
 }
 int elf_addrIsText(ElfCtx*elf, unsigned int dwAddr){
@@ -279,56 +12,48 @@ int elf_addrIsText(ElfCtx*elf, unsigned int dwAddr){
 }
 
 //TODO
-int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
+int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*vMem){
 	//uint32_t regs[32];
-	if(!prx->reloc)
+	if(!elf->reloc)
 		return 0;
 	// Fixup the elf file and output it to fp 
-	if(!prx->elf.pElf)
-		return 1;
-	if((prx->elf.header.PHnum < 1) || (prx->elf.header.PHentSize == 0) || (prx->elf.header.PHoff == 0))
-		return 1;
+	assert(elf->pElf);
+	assert(elf->header.PHnum && elf->header.PHentSize && elf->header.PHoff);
 	// We dont support ELF reloc as they are not very special 
-	if(prx->elf.header.type != ELF_PRX_TYPE)
-		return 1;
-	for(int iLoop = 0; iLoop < prx->reloc_count; iLoop++){
-		ElfReloc *rel = &prx->reloc[iLoop];
-		uint32_t dwRealOfs;
-		uint32_t dwCurrBase;
-		int iOfsPH;
-		int iValPH;
-
-		iOfsPH = rel->symbol & 0xFF;
-		iValPH = (rel->symbol >> 8) & 0xFF;
-		if((iOfsPH >= prx->elf.iPHCount) || (iValPH >= prx->elf.iPHCount)){
+	assert(elf->header.type == ELF_PRX_TYPE);
+	for(int iLoop = 0; iLoop < elf->reloc_count; iLoop++){
+		ElfReloc *rel = &elf->reloc[iLoop];
+		int iOfsPH = rel->symbol & 0xFF;
+		int iValPH = (rel->symbol >> 8) & 0xFF;
+		if((iOfsPH >= elf->iPHCount) || (iValPH >= elf->iPHCount)){
 			fprintf(stdout,"Invalid relocation PH sets (%d, %d)\n", iOfsPH, iValPH);
 			continue;
 		}
-		dwRealOfs = rel->offset + prx->elf.programs[iOfsPH].iVaddr;
-		dwCurrBase = base + prx->elf.programs[iValPH].iVaddr;
-		uint32_t *pData = (uint32_t*) VmemGetPtr(&prx->vMem, dwRealOfs);
-		if(pData == NULL){
+		uint32_t dwRealOfs = rel->offset + elf->programs[iOfsPH].iVaddr;
+		uint32_t dwCurrBase = base + elf->programs[iValPH].iVaddr;
+		uint32_t *pData = (uint32_t*) VmemGetPtr(vMem, dwRealOfs);
+		if(!pData){
 			fprintf(stdout,"Invalid offset for relocation (%08X)\n", dwRealOfs);
 			continue;
 		}
 
-		switch(prx->reloc[iLoop].type){
+		switch(elf->reloc[iLoop].type){
 			case R_MIPS_HI16: {
 				uint32_t inst;
 				int base = iLoop;
 				int lowaddr, hiaddr, addr;
 				int loinst;
-				int ofsph = prx->elf.programs[iOfsPH].iVaddr;
+				int ofsph = elf->programs[iOfsPH].iVaddr;
 				
 				inst = LW(*pData);
 				addr = ((inst & 0xFFFF) << 16) + dwCurrBase;
 				fprintf(stdout,"Hi at (%08X) %d\n", dwRealOfs, iLoop);
-				while (++iLoop < prx->reloc_count) {
-					if (prx->reloc[iLoop].type != R_MIPS_HI16) break;
+				while (++iLoop < elf->reloc_count) {
+					if (elf->reloc[iLoop].type != R_MIPS_HI16) break;
 				}
 				fprintf(stdout,"Matching low at %d\n", iLoop);
-				if (iLoop < prx->reloc_count) {
-					loinst = LW(*((uint32_t*) VmemGetPtr(&prx->vMem, prx->reloc[iLoop].offset+ofsph)));
+				if (iLoop < elf->reloc_count) {
+					loinst = LW(*((uint32_t*) VmemGetPtr(vMem, elf->reloc[iLoop].offset+ofsph)));
 				} else {
 					loinst = 0;
 				}
@@ -337,24 +62,24 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 				lowaddr = addr & 0xFFFF;
 				hiaddr = (((addr >> 15) + 1) >> 1) & 0xFFFF;
 				while (base < iLoop) {
-					inst = LW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->reloc[base].offset+ofsph)));
+					inst = LW(*((uint32_t*)VmemGetPtr(vMem, elf->reloc[base].offset+ofsph)));
 					inst = (inst & ~0xFFFF) | hiaddr;
-					SW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->reloc[base].offset+ofsph)), inst);
+					SW(*((uint32_t*)VmemGetPtr(vMem, elf->reloc[base].offset+ofsph)), inst);
 					base++;
 				}
-				while (iLoop < prx->reloc_count) {
-					inst = LW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->reloc[iLoop].offset+ofsph)));
+				while (iLoop < elf->reloc_count) {
+					inst = LW(*((uint32_t*)VmemGetPtr(vMem, elf->reloc[iLoop].offset+ofsph)));
 					if ((inst & 0xFFFF) != (loinst & 0xFFFF)) break;
 					inst = (inst & ~0xFFFF) | lowaddr;
-					SW(*((uint32_t*)VmemGetPtr(&prx->vMem, prx->reloc[iLoop].offset+ofsph)), inst);
+					SW(*((uint32_t*)VmemGetPtr(vMem, elf->reloc[iLoop].offset+ofsph)), inst);
 									
 					Imm*imm=NULL;
-					imm->addr = base + ofsph + prx->reloc[iLoop].offset;
+					imm->addr = base + ofsph + elf->reloc[iLoop].offset;
 					imm->target = addr;
-					imm->text = elf_addrIsText(&prx->elf, addr - base);
-					//imm[base + ofsph + prx->reloc[iLoop].offset].imm = *imm;
+					imm->text = elf_addrIsText(elf, addr - base);
+					//imm[base + ofsph + elf->reloc[iLoop].offset].imm = *imm;
 
-					if (prx->reloc[++iLoop].type != R_MIPS_LO16) break;
+					if (elf->reloc[++iLoop].type != R_MIPS_LO16) break;
 				}
 				iLoop--;
 				fprintf(stdout,"Finished at %d\n", iLoop);
@@ -369,7 +94,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 				Imm*imm=NULL;
 				imm->addr = dwRealOfs + base;
 				imm->target = addr;
-				imm->text = elf_addrIsText(&prx->elf, addr - base);
+				imm->text = elf_addrIsText(elf, addr - base);
 				//imm[dwRealOfs + base] = imm;
 
 				loinst &= ~0xFFFF;
@@ -387,7 +112,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 				Imm*imm=NULL;
 				imm->addr = dwRealOfs + base;
 				imm->target = addr;
-				imm->text = elf_addrIsText(&prx->elf, addr - base);
+				imm->text = elf_addrIsText(elf, addr - base);
 				//imm[dwRealOfs + base] = imm;
 
 				hiinst &= ~0xFFFF;
@@ -400,15 +125,15 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 				int base = iLoop;
 				ElfReloc *rel2 = NULL;
 				uint32_t offs2 = 0;
-				while (++iLoop < prx->reloc_count){
-					rel2 = &prx->reloc[iLoop];
-					if (rel2->type == R_MIPS_X_JAL26 && (base + prx->elf.programs[(rel2->symbol >> 8) & 0xFF].iVaddr) == dwCurrBase)
+				while (++iLoop < elf->reloc_count){
+					rel2 = &elf->reloc[iLoop];
+					if (rel2->type == R_MIPS_X_JAL26 && (base + elf->programs[(rel2->symbol >> 8) & 0xFF].iVaddr) == dwCurrBase)
 						break;
 				}
 
-				if (iLoop < prx->reloc_count) {
-					offs2 = rel2->offset + prx->elf.programs[rel2->symbol & 0xFF].iVaddr;
-					off = LW(*(uint32_t*) VmemGetPtr(&prx->vMem, offs2));
+				if (iLoop < elf->reloc_count) {
+					offs2 = rel2->offset + elf->programs[rel2->symbol & 0xFF].iVaddr;
+					off = LW(*(uint32_t*) VmemGetPtr(vMem, offs2));
 				}
 
 				uint32_t dwInst = LW(*pData);
@@ -422,15 +147,15 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 					Imm*imm=NULL;
 					imm->addr = dwRealOfs + base;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = elf_addrIsText(&prx->elf, imm->target - base);
+					imm->text = elf_addrIsText(elf, imm->target - base);
 					//imm[dwRealOfs + base] = imm;
 				}
 				// already add the JAL26 symbol so we don't have to search for the J26 there
-				if (iLoop < prx->reloc_count && (dwData >> 26) != 3){// not JAL instruction
+				if (iLoop < elf->reloc_count && (dwData >> 26) != 3){// not JAL instruction
 					Imm*imm=NULL;
 					imm->addr = offs2 + base;
 					imm->target = dwCurrBase + (((dwInst & 0xFFFF) << 16) | (off & 0xFFFF));
-					imm->text = elf_addrIsText(&prx->elf, imm->target - base);
+					imm->text = elf_addrIsText(elf, imm->target - base);
 					//imm[offs2 + base] = imm;
 				}
 
@@ -438,18 +163,14 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 			}
 			break;
 			case R_MIPS_X_JAL26: {
-				uint32_t dwData, dwInst;
-				dwInst = LW(*pData);
-				dwData = dwInst + (dwCurrBase & 0xFFFF);
+				uint32_t dwInst = LW(*pData);
+				uint32_t dwData = dwInst + (dwCurrBase & 0xFFFF);
 				SW(*pData, dwData);
 			}
 			break;
 			case R_MIPS_26: {
-				uint32_t dwAddr;
-				uint32_t dwInst;
-
-				dwInst = LW(*pData);
-				dwAddr = (dwInst & 0x03FFFFFF) << 2;
+				uint32_t dwInst = LW(*pData);
+				uint32_t dwAddr = (dwInst & 0x03FFFFFF) << 2;
 				dwAddr += dwCurrBase;
 				dwInst &= ~0x03FFFFFF;
 				dwAddr = (dwAddr >> 2) & 0x03FFFFFF;
@@ -458,9 +179,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 			}
 			break;
 			case R_MIPS_32: {
-				uint32_t dwData;
-
-				dwData = LW(*pData);
+				uint32_t dwData = LW(*pData);
 				dwData += (dwCurrBase & 0x03FFFFFF);
 				dwData += (base >> 2) & 0x03FFFFFF;
 				SW(*pData, dwData);
@@ -469,7 +188,7 @@ int PrxFixupRelocs(PrxToolCtx* prx,uint32_t base, Imm* imm, size_t imm_count){
 					Imm*imm=NULL;
 					imm->addr = dwRealOfs + base;
 					imm->target = (dwData & 0x03FFFFFF) << 2;;
-					imm->text = elf_addrIsText(&prx->elf, dwData - base);
+					imm->text = elf_addrIsText(elf, dwData - base);
 					//imm[dwRealOfs + base] = imm;
 				}
 			}

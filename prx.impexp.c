@@ -71,6 +71,7 @@ int PrxLoadImport(PrxToolCtx* prx,PspModuleImport *pImport, uint32_t addr){
 
 int PrxLoadImports(PrxToolCtx* prx){
 	PspModuleInfo*i=&prx->module.info;
+	#define PSP_IMPORT_BASE_SIZE (5*4)
 	for(uint32_t count,base = i->imports;i->imports && (i->imp_end - base) >= PSP_IMPORT_BASE_SIZE;base += (count * sizeof(uint32_t)))
 		if(!(count = PrxLoadImport(prx, VmemGetPtr(&prx->vMem,base), base)))
 			return 0;

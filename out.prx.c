@@ -45,8 +45,7 @@ void PrxPrintRow(PrxToolCtx* prx,FILE *fp, const uint32_t* row, int32_t row_size
 void PrxDumpData(PrxToolCtx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
 	fprintf(fp, "           - 00 01 02 03 | 04 05 06 07 | 08 09 0A 0B | 0C 0D 0E 0F - 0123456789ABCDEF\n");
 	fprintf(fp, "-------------------------------------------------------------------------------------\n");
-	uint32_t row[16];
-	memset(row, 0, sizeof(row));
+	uint32_t row[16]={};
 	int row_size = 0;
 	for(int i = 0; i < iSize; i++){
 		row[row_size] = pData[i];
@@ -135,10 +134,6 @@ void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
 //	disasmSetSymbols(&prx->symbol);
 	disasmSetOpts(disopts, 1);
 
-	if(prx->isXmlDump){
-		disasmSetXmlOutput();
-		fprintf(fp, "<html><body><pre>\n");
-	}
 	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
 		if(prx->elf.sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
 			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
@@ -158,45 +153,5 @@ void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
 			}
 		}
 	}
-	if(prx->isXmlDump){
-		fprintf(fp, "</pre></body></html>\n");
-	}
-	//disasmSetSymbols(NULL);
-}
-
-void PrxDumpXML(PrxToolCtx*prx,FILE *fp, const char *disopts){
-	//disasmSetSymbols(&prx->symbol);
-	disasmSetOpts(disopts, 1);
-
-	char *slash = strrchr(prx->elf.filename, '/');
-	if(!slash){
-		slash = prx->elf.filename;
-	}else{
-		slash++;
-	}
-
-	fprintf(fp, "<prx file=\"%s\" name=\"%s\">\n", slash, prx->module.info.name);
-	fprintf(fp, "<exports>\n");
-	for(int i;i<prx->module.exports_count;i++){
-		PspEntries *pExport = &prx->module.exports[i];
-		fprintf(fp, "<lib name=\"%s\">\n", pExport->name);
-		for(int i = 0; i < pExport->f_count; i++)
-			fprintf(fp, "<func nid=\"0x%08X\" name=\"%s\" ref=\"0x%08X\" />\n", pExport->funcs[i].nid, pExport->funcs[i].name,pExport->funcs[i].addr);
-		fprintf(fp, "</lib>\n");
-	}
-	fprintf(fp, "</exports>\n");
-
-	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
-		if(prx->elf.sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
-			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
-				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
-					fprintf(fp, "<disasm>\n");
-					PrxDisasmXML(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imm,prx->imm_count, prx->base);
-					fprintf(fp, "</disasm>\n");
-				}
-			}
-		}
-	}
-	fprintf(fp, "</prx>\n");
 	//disasmSetSymbols(NULL);
 }

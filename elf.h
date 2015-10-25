@@ -1,5 +1,3 @@
-#define ELF_SECT_MAX_NAME 128
-
 /* Structure defining a single elf section */
 typedef struct{
 	uint32_t iName;
@@ -14,7 +12,7 @@ typedef struct{
 	uint32_t iEntsize;
 
 	uint8_t *pData;
-	char szName[ELF_SECT_MAX_NAME];
+	char szName[128];
 	struct ElfReloc *pRelocs;
 	uint32_t iRelocCount;
 }ElfSection;

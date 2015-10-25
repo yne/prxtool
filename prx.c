@@ -6,11 +6,7 @@
  **************************************************************
 */
 #include <string.h>
-#define PSP_MODULE_MAX_NAME 28
-#define PSP_MODULE_INFO_NAME ".rodata.sceModuleInfo"
 #define PSP_SYSTEM_EXPORT "syslib"
-#define PSP_IMPORT_BASE_SIZE (5*4)
-#define SYMFILE_MAGIC "SYMS"
 
 #define RELOC_OFS_TEXT 0   // .text section relative reloc offset 
 #define RELOC_OFS_DATA 1   // .data section relative reloc offset
@@ -41,7 +37,7 @@ typedef struct{
 
 typedef struct{
 	uint32_t flags;
-	char name[PSP_MODULE_MAX_NAME];
+	char name[28];
 	uint32_t gp;
 	uint32_t exports;
 	uint32_t exp_end;
@@ -97,6 +93,7 @@ typedef struct{
 #include "db_instr.c"
 
 typedef struct{
+	PrxToolArg arg;
 	ElfCtx     elf;
 	PspModule  module;
 	Vmem       vMem;
@@ -107,9 +104,7 @@ typedef struct{
 	Instruction*instr  ;size_t instr_count;
 	Symbol     *symbol ;size_t symbol_count;
 	Imm        *imm    ;size_t imm_count;
-	ElfReloc   *reloc  ;size_t reloc_count;
 	int        isXmlDump;
-	uint32_t   stubBottom;
 	uint32_t   base;
 }PrxToolCtx;
 

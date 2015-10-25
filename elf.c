@@ -14,7 +14,6 @@
 typedef struct{
 	ElfHeader header;
 	char      filename[PATH_MAX];
-	int       blElfLoaded;
 	uint32_t  baseAddr;
 	uint8_t   *pElf    ;size_t iElfSize;
 	uint8_t   *pElfBin ;size_t iBinSize;
@@ -22,6 +21,7 @@ typedef struct{
 	ElfProgram*programs;size_t iPHCount;
 	ElfSection*strtab  ;size_t strCount;
 	ElfSymbol *symbols ;size_t symbolsCount;
+	ElfReloc  *reloc   ;size_t reloc_count;
 }ElfCtx;
 
 
@@ -30,9 +30,9 @@ ElfSection* elf_findSection(ElfCtx*elf, const char *szName){
 		return NULL;
 	if(!szName)// Return the default entry, kinda pointless :P
 		return &elf->sections[0];
-	for(int iLoop = 0; iLoop < elf->iSHCount; iLoop++)
-		if(!strcmp(elf->sections[iLoop].szName, szName))
-			return &elf->sections[iLoop];
+	for(size_t i = 0; i < elf->iSHCount; i++)
+		if(!strcmp(elf->sections[i].szName, szName))
+			return &elf->sections[i];
 	return NULL;
 }
 

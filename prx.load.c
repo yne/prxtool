@@ -94,8 +94,7 @@ int PrxFindFuncExtent(PrxToolCtx*prx,uint32_t dwStart, uint8_t *pTouchMap){
 }
 
 void PrxMapFuncExtents(PrxToolCtx*prx,Symbol*symbol,size_t syms_count){
-	uint8_t pTouchMap[prx->elf.iBinSize];
-	memset(pTouchMap, 0, prx->elf.iBinSize);
+	uint8_t*pTouchMap=calloc(prx->elf.iBinSize,sizeof(*pTouchMap));
 
 	for(int i=0;i<syms_count;i++)
 		if((symbol[i].type == SYMBOL_FUNC) && (symbol[i].size == 0))
@@ -176,39 +175,31 @@ int PrxBuildMaps(PrxToolCtx*prx){
 	return 1;
 }
 
-int PrxFillModule(PrxToolCtx* prx){
-	PspModuleInfo*pData = NULL;
+int PrxFillModule(ElfCtx* elf,PspModule*mod,char*secname){
+	PspModuleInfo*modinfo = NULL;
 	uint32_t iAddr = 0;
-	ElfSection *pInfoSect = elf_findSection(&prx->elf, PSP_MODULE_INFO_NAME);
-	if(!pInfoSect && prx->elf.iPHCount > 0){// Get from program headers 
-		iAddr = (prx->elf.programs[0].iPaddr & 0x7FFFFFFF) - prx->elf.programs[0].iOffset;
-		pData = (PspModuleInfo*)prx->elf.pElfBin + iAddr;
+	ElfSection *pInfoSect = elf_findSection(elf, secname);
+	if(!pInfoSect && elf->iPHCount > 0){// Get from program headers 
+		iAddr = (elf->programs[0].iPaddr & 0x7FFFFFFF) - elf->programs[0].iOffset;
+		modinfo = (PspModuleInfo*)elf->pElfBin + iAddr;
 	}else{
 		iAddr = pInfoSect->iAddr;
-		pData = (PspModuleInfo*)pInfoSect->pData;
+		modinfo = (PspModuleInfo*)pInfoSect->pData;
 	}
-	if(!pData)
-		return 0;
-	prx->module=(PspModule){
+	assert(modinfo);
+	*mod=(PspModule){
 		.addr=iAddr,
 		.info={
-			.flags   = LW((*pData).flags),
-			.gp      = LW((*pData).gp),
-			.exports = LW((*pData).exports),
-			.exp_end = LW((*pData).exp_end),
-			.imports = LW((*pData).imports),
-			.imp_end = LW((*pData).imp_end),
+			.flags   = LW(modinfo->flags),
+			.gp      = LW(modinfo->gp),
+			.exports = LW(modinfo->exports),
+			.exp_end = LW(modinfo->exp_end),
+			.imports = LW(modinfo->imports),
+			.imp_end = LW(modinfo->imp_end),
 		}
 	};
-	prx->stubBottom   = prx->module.info.exports - 4; // ".lib.ent.top"
-	fprintf(stdout,"Stub bottom 0x%08X\n", prx->stubBottom);
-
-	fprintf(stdout,"Module Info:\n"
-		"Name: %s\nAddr: 0x%08X\nFlags: 0x%08X\nGP: 0x%08X\n"
-		"Exports: 0x%08X...0x%08X\nImports: 0x%08X...0x%08X\n",
-		prx->module.info.name   , prx->module.addr        , prx->module.info.flags  , prx->module.info.gp,
-		prx->module.info.exports, prx->module.info.exp_end, prx->module.info.imports, prx->module.info.imp_end);
-	return 1;
+	memcpy(mod->info.name, ((PspModuleInfo*)modinfo)->name, sizeof(mod->info.name));
+	return 0;
 }
 
 int PrxCreateFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
@@ -263,13 +254,16 @@ int PrxCreateFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
 int PrxLoadFromElf(PrxToolCtx* prx,FILE *fp){
 	assert(!elf_loadFromElfFile(&prx->elf, fp));
 	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
-	assert(PrxFillModule(prx));
-	assert(PrxLoadRelocs(prx));
-	assert(PrxFixupRelocs(prx, prx->base, prx->imm,prx->imm_count));
-	assert(PrxLoadExports(prx));
-	assert(PrxLoadImports(prx));
-	assert(PrxCreateFakeSections(&prx->elf,prx->elf.programs,prx->stubBottom));
-	assert(PrxBuildMaps(prx));
+	assert(!elf_loadModInfo(&prx->elf,&prx->module,prx->arg.modInfoName));
+	assert(!elf_loadRelocs(&prx->elf));
+	assert(!elf_fixupRelocs(&prx->elf, prx->base, prx->imm,prx->imm_count,&prx->vMem));
+	//assert(!PrxLoadExports(prx));
+	//fprintf(stderr,"%i\n",__LINE__);
+	//assert(!PrxLoadImports(prx));
+	//fprintf(stderr,"%i\n",__LINE__);
+	//assert(!PrxCreateFakeSections(&prx->elf,prx->elf.programs,prx->mod->info.exports - 4));
+	//fprintf(stderr,"%i\n",__LINE__);
+	//assert(!PrxBuildMaps(prx));
 	return 0;
 }
 

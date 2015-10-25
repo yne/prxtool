@@ -35,8 +35,8 @@ int output_symbols  (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	fprintf(stdout,"Removed %d symbols, leaving %d\n", symbolsCount - iSymCopyCount, iSymCopyCount);
 	fprintf(stdout,"String size %d/%d\n", symbolsCount - iSymCopyCount, iSymCopyCount);
 	qsort(pSymCopy, iSymCopyCount, sizeof(ElfSymbol), compare_symbols);
-	memcpy(fileHead.magic, SYMFILE_MAGIC, 4);
-	// memcpy(fileHead.modname, PrxGetModuleInfo()->name, PSP_MODULE_MAX_NAME);
+	memcpy(fileHead.magic, "SYMS", 4);
+	// memcpy(fileHead.modname, PrxGetModuleInfo()->name, PspModuleInfo.name);
 	typedef struct{
 		uint32_t name;
 		uint32_t addr;
@@ -68,14 +68,6 @@ int output_disasm   (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_xmldb    (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
-	fprintf(out_fp, "<?xml version=\"1.0\" ?>\n");
-	fprintf(out_fp, "<firmware title=\"%s\">\n", arg->dbTitle);
-	PrxDumpXML(prx,out_fp, arg->disopts);
-	fprintf(out_fp, "</firmware>\n");
-	return 0;
-}
-
 int output_mod      (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	// PrxGetModuleInfo(prx);
 	fprintf(stdout, "Module information\n");
@@ -86,7 +78,7 @@ int output_mod      (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 
 	fprintf(stdout, "\nExports:\n");
 	for(int ex = 0; ex < prx->module.exports_count; ex++)
-		fprintf(stdout, "Export %d, Name %s, Functions %d, Variables %d, flags %08X\n", ex, prx->module.exports[ex].name, prx->module.exports[ex].f_count, prx->module.exports[ex].v_count, prx->module.exports[ex].stub.flags);
+		fprintf(stdout, "Name %s, Functions %d, Variables %d, flags %08X\n", prx->module.exports[ex].name, prx->module.exports[ex].f_count, prx->module.exports[ex].v_count, prx->module.exports[ex].stub.flags);
 
 	fprintf(stdout, "\nImports:\n");
 	for(int im = 0; im < prx->module.imports_count; im++)

@@ -4,13 +4,13 @@
 typedef struct{
 	int        xmldis,aliased,verbose,help;
 	uint32_t   base,dataOff;
-	char       *print,*disopts,*dbTitle;
+	char       *print,*disopts,*dbTitle,*modInfoName;
 	struct{FILE*prx,*bin,*func,*nid,*instr;}in;
 	struct{FILE*idc,*map,*xml,*elf,*stub,*stub2,*dep,*mod,*pstub,*pstub2,*impexp,*ent,*disasm,*symbols,*xmldb;}out;
 }PrxToolArg;
 
 int parse_arg(int argc,char**argv,PrxToolArg*arg){
-	assertf(argv && argc && argc>1,"No arguments provided (use --help)\n");
+	assert(argc>1 && "No arguments provided (use --help)\n");
 	
 	//bind each arg struct to an ArgEntry, so we can handle they value and print help about them
 	typedef struct{void*argvoid;char*label,*type,*help;}ArgEntry;
@@ -40,6 +40,7 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 		ARG(aliased     ,"i" ,"Print aliases when using -f mode" ),
 		ARG(verbose     ,"i" ,"Be verbose"),
 		ARG(help        ,"i" ,"Print the Usage screen"),
+		ARG(modInfoName ,"s" ,"Name of the ModuleInfo section to lookup"),
 		ARG(print       ,"s" ,"What to print: Imp,eXp,Rel,Sec,sysLibexp "),
 		ARG(base        ,"i" ,"Relocate the PRX to a different address"),
 		ARG(dbTitle     ,"s" ,"XML disassembly database title" ),
@@ -66,7 +67,7 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 			if(cmds[c].label && !strncmp(cmds[c].label, argv[i]+2, strlen(cmds[c].label)))
 				value += 2+strlen((cmd = &cmds[c])->label)+1;
 		}
-		assertf(cmd,"Invalid argument %s\n", argv[i]);
+		assert(cmd && "Invalid argument\n");
 		// parse it value according to the type
 		// Integer : use 1 if no value provided
 		if(*cmd->type=='i')
@@ -77,7 +78,7 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 		// File : use stdin/stdout if no file specified
 		if(*cmd->type=='r' || *cmd->type=='w'){
 			*((FILE**) cmd->argvoid) = (value[-1]=='=')?fopen(value, cmd->type):(*cmd->type=='w'?stdin:stdout);
-			assertf(*((FILE**) cmd->argvoid),"Unable to open %s\n",value);
+			assert(*((FILE**) cmd->argvoid) && "Unable to open the file\n");
 		}
 	}
 	if(arg->help){

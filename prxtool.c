@@ -4,7 +4,7 @@
 
 #define PATH_MAX 4096
 #define assertf(cond,...) if(!(cond))return fprintf(stderr,__VA_ARGS__),-1;
-#define assert(cond)      if(!(cond))return fprintf(stderr,"%s error: %s\n",__func__, #cond),-1;
+#define assert(cond)      if(!(cond))return fprintf(stderr,"error in %s: %s\n", __func__, #cond),-1;
 #define countof(X) (sizeof(X)/sizeof(X[0]))
 
 #include "arg.c"
@@ -16,44 +16,42 @@
 #endif
 
 int main(int argc, char **argv){
-	fprintf(stdout, "PRXTool "PRXTOOL_VERSION" ("__DATE__") \n");
-	fprintf(stdout, "(c) TyRaNiD 2k6\n");
+	fprintf(stderr, "PRXTool "PRXTOOL_VERSION" ("__DATE__") \n(c) TyRaNiD 2k6\n");
 
-	PrxToolArg arg={.print="ixrl"};
-	assert(!parse_arg(argc,argv,&arg))
+	PrxToolCtx ctx={.arg={.print="ixrl",.modInfoName=".rodata.sceModuleInfo"}};
+	assert(!parse_arg(argc,argv,&ctx.arg))
 
-	PrxToolCtx prx={};
 	
-	if(arg.in.nid){
-		if(!db_nids_import(NULL,&prx.library_count,NULL,&prx.nid_count,arg.in.nid)){
-			prx.library=malloc(prx.library_count*sizeof(*prx.library));
-			prx.nids=malloc(prx.nid_count*sizeof(*prx.nids));
-			db_nids_import(prx.library,NULL,prx.nids,NULL,arg.in.nid);
+	if(ctx.arg.in.nid){
+		if(!db_nids_import(NULL,&ctx.library_count,NULL,&ctx.nid_count,ctx.arg.in.nid)){
+			ctx.library=malloc(ctx.library_count*sizeof(*ctx.library));
+			ctx.nids=malloc(ctx.nid_count*sizeof(*ctx.nids));
+			db_nids_import(ctx.library,NULL,ctx.nids,NULL,ctx.arg.in.nid);
 		}
-		fprintf(stderr,"loaded: %zu nids in %zu library\n",prx.nid_count,prx.library_count);
+		fprintf(stderr,"loaded: %zu nids in %zu library\n",ctx.nid_count,ctx.library_count);
 	}
-	if(arg.in.func){
-		if(!db_func_import(NULL,&prx.proto_count,arg.in.func)){
-			prx.proto=malloc(prx.proto_count*sizeof(prx.proto));
-			db_func_import(prx.proto,NULL,arg.in.func);
+	if(ctx.arg.in.func){
+		if(!db_func_import(NULL,&ctx.proto_count,ctx.arg.in.func)){
+			ctx.proto=malloc(ctx.proto_count*sizeof(ctx.proto));
+			db_func_import(ctx.proto,NULL,ctx.arg.in.func);
 		}
-		fprintf(stderr,"loaded: %zu prototypes\n",prx.proto_count);
+		fprintf(stderr,"loaded: %zu prototypes\n",ctx.proto_count);
 	}
-	if(arg.in.instr){
-		if(!db_instr_import(NULL,&prx.instr_count,NULL,&prx.macro_count,arg.in.instr)){
-			prx.instr=malloc(prx.instr_count*sizeof(*prx.instr));
-			prx.macro=malloc(prx.macro_count*sizeof(*prx.macro));
-			db_instr_import(prx.instr,NULL,prx.macro,NULL,arg.in.instr);
+	if(ctx.arg.in.instr){
+		if(!db_instr_import(NULL,&ctx.instr_count,NULL,&ctx.macro_count,ctx.arg.in.instr)){
+			ctx.instr=malloc(ctx.instr_count*sizeof(*ctx.instr));
+			ctx.macro=malloc(ctx.macro_count*sizeof(*ctx.macro));
+			db_instr_import(ctx.instr,NULL,ctx.macro,NULL,ctx.arg.in.instr);
 		}
-		fprintf(stderr,"loaded: %zu instructions + %zu macro\n",prx.instr_count,prx.macro_count);
+		fprintf(stderr,"loaded: %zu instructions + %zu macro\n",ctx.instr_count,ctx.macro_count);
 	}
-	if(arg.in.prx){
-		assert(!PrxLoadFromElf(&prx,arg.in.prx))
+	if(ctx.arg.in.prx){
+		assert(!PrxLoadFromElf(&ctx,ctx.arg.in.prx))
 	}
-	if(arg.in.bin){
-		assert(!PrxLoadFromBin(&prx,arg.in.bin))
+	if(ctx.arg.in.bin){
+		assert(!PrxLoadFromBin(&ctx,ctx.arg.in.bin))
 	}
-	#define OUT(A) if(arg.out.A)output_##A(&prx,arg.out.A,&arg);
+	#define OUT(A) if(ctx.arg.out.A)output_##A(&ctx,ctx.arg.out.A,&ctx.arg);
 	OUT(elf);
 	OUT(stub);
 	OUT(stub2);
@@ -63,7 +61,7 @@ int main(int argc, char **argv){
 	OUT(pstub2);
 	OUT(impexp);
 	OUT(symbols);
-	OUT(xmldb);
+	//OUT(xmldb);
 	OUT(ent);
 	OUT(disasm);
 	OUT(xml);
