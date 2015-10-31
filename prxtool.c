@@ -46,11 +46,12 @@ int main(int argc, char **argv){
 		fprintf(stderr,"loaded: %zu instructions + %zu macro\n",ctx.instr_count,ctx.macro_count);
 	}
 	if(ctx.arg.in.prx){
-		assert(!PrxLoadFromElf(&ctx,ctx.arg.in.prx))
+		assert(!prx_loadFromElf(&ctx,ctx.arg.in.prx))
 	}
 	if(ctx.arg.in.bin){
-		assert(!PrxLoadFromBin(&ctx,ctx.arg.in.bin))
+		assert(!prx_loadFromBin(&ctx,ctx.arg.in.bin))
 	}
+	return 0;
 	#define OUT(A) if(ctx.arg.out.A)output_##A(&ctx,ctx.arg.out.A,&ctx.arg);
 	OUT(elf);
 	OUT(stub);
@@ -60,7 +61,7 @@ int main(int argc, char **argv){
 	OUT(pstub);
 	OUT(pstub2);
 	OUT(impexp);
-	OUT(symbols);
+	OUT(symbol);
 	//OUT(xmldb);
 	OUT(ent);
 	OUT(disasm);

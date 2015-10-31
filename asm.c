@@ -190,8 +190,8 @@ DisasmOpt arg_disasmopts[DISASM_OPT_MAX] = {
 };
 
 SymbolType disasmResolveSymbol(unsigned int PC, char *name, int namelen){
-//	if(g_syms && g_syms[PC].symbols)
-//		return snprintf(name, namelen, "%s", g_syms[PC].symbols->name),g_syms[PC].symbols->type;
+//	if(g_syms && g_syms[PC].symbol)
+//		return snprintf(name, namelen, "%s", g_syms[PC].symbol->name),g_syms[PC].symbol->type;
 	return SYMBOL_NOSYM;
 }
 
@@ -215,7 +215,7 @@ SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
 }
 
 Symbol* disasmFindSymbol(unsigned int PC){
-	return NULL;//return g_syms ? g_syms[PC].symbols : NULL;
+	return NULL;//return g_syms ? g_syms[PC].symbol : NULL;
 }
 
 int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget, Instruction*inst, size_t inst_count){

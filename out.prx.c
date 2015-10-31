@@ -134,21 +134,21 @@ void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
 //	disasmSetSymbols(&prx->symbol);
 	disasmSetOpts(disopts, 1);
 
-	for(int iLoop = 0; iLoop < prx->elf.iSHCount; iLoop++){
-		if(prx->elf.sections[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
-			if((prx->elf.sections[iLoop].iSize > 0) && (prx->elf.sections[iLoop].type == SHT_PROGBITS)){
+	for(int iLoop = 0; iLoop < prx->elf.SH_count; iLoop++){
+		if(prx->elf.section[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
+			if((prx->elf.section[iLoop].iSize > 0) && (prx->elf.section[iLoop].type == SHT_PROGBITS)){
 				fprintf(fp, "\n; ==== Section %s - Address 0x%08X Size 0x%08X Flags 0x%04X\n", 
-						prx->elf.sections[iLoop].szName, prx->elf.sections[iLoop].iAddr + prx->base, 
-						prx->elf.sections[iLoop].iSize, prx->elf.sections[iLoop].flags);
-				if(prx->elf.sections[iLoop].flags & SHF_EXECINSTR){
-					PrxDisasm(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, prx->elf.sections[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr),prx->imm, prx->imm_count, prx->base);
+						prx->elf.section[iLoop].szName, prx->elf.section[iLoop].iAddr + prx->base, 
+						prx->elf.section[iLoop].iSize, prx->elf.section[iLoop].flags);
+				if(prx->elf.section[iLoop].flags & SHF_EXECINSTR){
+					prx_disasm(prx, fp, prx->elf.section[iLoop].iAddr + prx->base, prx->elf.section[iLoop].iSize, (uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.section[iLoop].iAddr),prx->imm, prx->imm_count, prx->base);
 				}else{
-					PrxDumpData(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, 
-							prx->elf.sections[iLoop].iSize,
-							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr));
-					PrxDumpStrings(prx, fp, prx->elf.sections[iLoop].iAddr + prx->base, 
-							prx->elf.sections[iLoop].iSize, 
-							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.sections[iLoop].iAddr));
+					PrxDumpData(prx, fp, prx->elf.section[iLoop].iAddr + prx->base, 
+							prx->elf.section[iLoop].iSize,
+							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.section[iLoop].iAddr));
+					PrxDumpStrings(prx, fp, prx->elf.section[iLoop].iAddr + prx->base, 
+							prx->elf.section[iLoop].iSize, 
+							(uint8_t*) VmemGetPtr(&prx->vMem, prx->elf.section[iLoop].iAddr));
 				}
 			}
 		}

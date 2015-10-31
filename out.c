@@ -4,11 +4,11 @@ int compare_symbols(const void *left, const void *right){
 	return ((int) ((ElfSymbol *) left)->value) - ((int) ((ElfSymbol *) right)->value);
 }
 
-int output_symbols  (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_symbol   (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	ElfSymbol *pSymbols=NULL;
-	int symbolsCount=0;//PrxGetSymbols(&pSymbols);
-	if(!symbolsCount)
-		return fprintf(stderr, "No symbols available"),1;
+	int symbol_count=0;//PrxGetSymbols(&pSymbols);
+	if(!symbol_count)
+		return fprintf(stderr, "No symbol available"),1;
 	
 	typedef struct{
 		char magic[4];
@@ -18,13 +18,13 @@ int output_symbols  (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 		uint32_t  strsize;
 	} __attribute__ ((packed)) SymfileHeader;
 	SymfileHeader fileHead;
-	ElfSymbol pSymCopy[symbolsCount];
+	ElfSymbol pSymCopy[symbol_count];
 
 	int iSymCopyCount = 0;
 	int iStrSize = 0;
 	int iStrPos  = 0;
 	// Calculate the sizes
-	for(int i = 0; i < symbolsCount; i++){
+	for(int i = 0; i < symbol_count; i++){
 		int type = ELF32_ST_TYPE(pSymbols[i].info);
 		if(((type == STT_FUNC) || (type == STT_OBJECT)) && (strlen(pSymbols[i].symname) > 0)){
 			memcpy(&pSymCopy[iSymCopyCount++], &pSymbols[i], sizeof(ElfSymbol));
@@ -32,8 +32,8 @@ int output_symbols  (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 		}
 	}
 
-	fprintf(stdout,"Removed %d symbols, leaving %d\n", symbolsCount - iSymCopyCount, iSymCopyCount);
-	fprintf(stdout,"String size %d/%d\n", symbolsCount - iSymCopyCount, iSymCopyCount);
+	fprintf(stdout,"Removed %d symbol, leaving %d\n", symbol_count - iSymCopyCount, iSymCopyCount);
+	fprintf(stdout,"String size %d/%d\n", symbol_count - iSymCopyCount, iSymCopyCount);
 	qsort(pSymCopy, iSymCopyCount, sizeof(ElfSymbol), compare_symbols);
 	memcpy(fileHead.magic, "SYMS", 4);
 	// memcpy(fileHead.modname, PrxGetModuleInfo()->name, PspModuleInfo.name);
@@ -87,7 +87,7 @@ int output_mod      (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 }
 
 int output_elf      (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){//TODO
-	if(!PrxToElf(prx,out_fp))
+	if(!prx_toElf(prx,out_fp))
 		return fprintf(stderr, "Failed to create a fixed up ELF\n"),1;
 	return 0;
 }
@@ -128,7 +128,7 @@ int output_impexp   (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 						pExport->funcs[i].addr, pExport->funcs[i].name);
 				if(arg->aliased){
 					Symbol pSym;
-					// PrxGetSymbolEntryFromAddr(pExport->funcs[i].addr,&pSym);
+					// prx_getSymbolEntryFromAddr(pExport->funcs[i].addr,&pSym);
 					if(pSym.alias > 0){
 						if(strcmp(pSym.name, pExport->funcs[i].name)){
 							fprintf(stdout, " => %s", pSym.name);
@@ -210,7 +210,7 @@ int output_stub     (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	fprintf(fp, "\tSTUB_START\t\"%s\",0x%08X,0x%08X\n", prx->module.exports->name, prx->module.exports->stub.flags, (prx->module.exports->f_count << 16) | 5);
 
 	for(int i = 0; i < prx->module.exports->f_count; i++){
-		Symbol *pSym = prx?PrxGetSymbolEntryFromAddr(prx,prx->module.exports->funcs[i].addr):NULL;
+		Symbol *pSym = prx?prx_getSymbolEntryFromAddr(prx,prx->module.exports->funcs[i].addr):NULL;
 		if((arg->aliased) && (pSym) && (pSym->alias > 0))
 			fprintf(fp, "\tSTUB_FUNC_WITH_ALIAS\t0x%08X,%s,%s\n", prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
@@ -277,7 +277,7 @@ int output_stub2    (PrxToolCtx* prx,FILE *out_fp,PrxToolArg* arg){
 
 	for(int i = 0; i < prx->module.exports->f_count; i++){
 		fprintf(fp, "#ifdef F_%s_%04d\n", prx->module.exports->name, i + 1);
-		Symbol *pSym = NULL; //pPrx?PrxGetSymbolEntryFromAddr(pPrx,prx->module.exports->funcs[i].addr)
+		Symbol *pSym = NULL; //pPrx?prx_getSymbolEntryFromAddr(pPrx,prx->module.exports->funcs[i].addr)
 		if((arg->aliased) && (pSym) && (pSym->alias > 0))
 			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", prx->module.exports->name, prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else

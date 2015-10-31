@@ -1,108 +1,100 @@
-//TODO
-void PrxBuildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t base){
+int prx_buildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t base){//TODO
 	// First map in imports and exports 
 	// If we have a symbol table then no point building from imports/exports 
-	if(prx->elf.symbols){
-		for(int i = 0; i < prx->elf.symbolsCount; i++){
-			int type = ELF32_ST_TYPE(prx->elf.symbols[i].info);
-			if((type == STT_FUNC) || (type == STT_OBJECT)){
-				Symbol *s = NULL;//symbol[prx->elf.symbols[i].value + base];
-				if(!s){
-					symbol[prx->elf.symbols[i].value + base]=(Symbol){
-						.addr = prx->elf.symbols[i].value + base,
-						.type = type == STT_FUNC?SYMBOL_FUNC:SYMBOL_DATA,
-						.type = SYMBOL_DATA,
-						.size = prx->elf.symbols[i].size,
-						//.name = prx->elf.symbols[i].symname,
-					};
-				}else{
-					//if(strcmp(s->name, prx->elf.symbols[i].symname))
-					//	s->alias.insert(s->alias.end(), prx->elf.symbols[i].symname);
-				}
+	if(prx->elf.symbol){
+		for(int i = 0; i < prx->elf.symbol_count; i++){
+			int type = ELF32_ST_TYPE(prx->elf.symbol[i].info);
+			if((type != STT_FUNC) && (type == STT_OBJECT))
+				continue;
+			Symbol *s = NULL;//symbol[prx->elf.symbol[i].value + base];
+			if(!s){
+				symbol[prx->elf.symbol[i].value + base]=(Symbol){
+					.addr = prx->elf.symbol[i].value + base,
+					.type = type == STT_FUNC?SYMBOL_FUNC:SYMBOL_DATA,
+					.type = SYMBOL_DATA,
+					.size = prx->elf.symbol[i].size,
+					//.name = prx->elf.symbol[i].symname,
+				};
+			}else{
+				//if(strcmp(s->name, prx->elf.symbol[i].symname))
+				//	s->alias.insert(s->alias.end(), prx->elf.symbol[i].symname);
 			}
 		}
-		return;
+		return 0;
 	}
 	for(int exp_cnt=0;exp_cnt<prx->module.exports_count;exp_cnt++){
 		PspEntries *pExport = &prx->module.exports[exp_cnt];
-		if(pExport->f_count > 0){
-			for(int iLoop = 0; iLoop < pExport->f_count; iLoop++){
-				Symbol *s = NULL;//symbol.symbols[pExport->funcs[iLoop].addr + base];
-				if(s){
-					//if(strcmp(s->name, pExport->funcs[iLoop].name))
-					//		s->alias.insert(s->alias.end(), pExport->funcs[iLoop].name);
-					//s->exported.insert(s->exported.end(), pExport);
-				}else{
-					symbol[pExport->funcs[iLoop].addr + base]=(Symbol){
-						.addr = pExport->funcs[iLoop].addr + base,
-						.type = SYMBOL_FUNC,
-						.size = 0,
-						//.name = pExport->funcs[iLoop].name,
-						//.exported.insert(s->exported.end(), pExport),
-					};
-				}
+		for(int iLoop = 0; iLoop < pExport->f_count; iLoop++){
+			Symbol *s = NULL;//symbol.symbol[pExport->funcs[iLoop].addr + base];
+			if(s){
+				//if(strcmp(s->name, pExport->funcs[iLoop].name))
+				//		s->alias.insert(s->alias.end(), pExport->funcs[iLoop].name);
+				//s->exported.insert(s->exported.end(), pExport);
+			}else{
+				symbol[pExport->funcs[iLoop].addr + base]=(Symbol){
+					.addr = pExport->funcs[iLoop].addr + base,
+					.type = SYMBOL_FUNC,
+					.size = 0,
+					//.name = pExport->funcs[iLoop].name,
+					//.exported.insert(s->exported.end(), pExport),
+				};
 			}
 		}
-		if(pExport->v_count > 0){
-			for(int iLoop = 0; iLoop < pExport->v_count; iLoop++){
-				Symbol *s = NULL;//symbol[pExport->vars[iLoop].addr + base];
-				if(s){
-					//if(strcmp(s->name, pExport->vars[iLoop].name))
-					//	s->alias.insert(s->alias.end(), pExport->vars[iLoop].name);
-					//s->exported.insert(s->exported.end(), pExport);
-				}else{
-					symbol[pExport->vars[iLoop].addr + base]=(Symbol){
-						.addr = pExport->vars[iLoop].addr + base,
-						.type = SYMBOL_DATA,
-						.size = 0,
-						//.name = pExport->vars[iLoop].name,
-						//.exported.insert(s->exported.end(), pExport),
-					};
-				}
+		for(int iLoop = 0; iLoop < pExport->v_count; iLoop++){
+			Symbol *s = NULL;//symbol[pExport->vars[iLoop].addr + base];
+			if(s){
+				//if(strcmp(s->name, pExport->vars[iLoop].name))
+				//	s->alias.insert(s->alias.end(), pExport->vars[iLoop].name);
+				//s->exported.insert(s->exported.end(), pExport);
+			}else{
+				symbol[pExport->vars[iLoop].addr + base]=(Symbol){
+					.addr = pExport->vars[iLoop].addr + base,
+					.type = SYMBOL_DATA,
+					.size = 0,
+					//.name = pExport->vars[iLoop].name,
+					//.exported.insert(s->exported.end(), pExport),
+				};
 			}
 		}
 	}
 	for(int i = 0; i < prx->module.imports_count ;i++){
 		PspEntries *pImport = &prx->module.imports[i];
-		if(pImport->f_count){
-			for(int iLoop = 0; iLoop < pImport->f_count; iLoop++){
-				symbol[pImport->funcs[iLoop].addr + base] = (Symbol){
-					.addr = pImport->funcs[iLoop].addr + base,
-					.type = SYMBOL_FUNC,
-					.size = 0,
-					//.name = pImport->funcs[iLoop].name,
-					//.imported.insert(s->imported.end(), pImport),
-				};
-			}
+		for(int iLoop = 0; iLoop < pImport->f_count; iLoop++){
+			symbol[pImport->funcs[iLoop].addr + base] = (Symbol){
+				.addr = pImport->funcs[iLoop].addr + base,
+				.type = SYMBOL_FUNC,
+				.size = 0,
+				//.name = pImport->funcs[iLoop].name,
+				//.imported.insert(s->imported.end(), pImport),
+			};
 		}
-		if(pImport->v_count){
-			for(int iLoop = 0; iLoop < pImport->v_count; iLoop++){
-				//imported.insert(s,s->imported.end(), pImport);
-				symbol[pImport->vars[iLoop].addr + base] = (Symbol){
-					.addr = pImport->vars[iLoop].addr + base,
-					.type = SYMBOL_DATA,
-					.size = 0,
-					//.name = pImport->vars[iLoop].name,
-				};
-			}
+		for(int iLoop = 0; iLoop < pImport->v_count; iLoop++){
+			//imported.insert(s,s->imported.end(), pImport);
+			symbol[pImport->vars[iLoop].addr + base] = (Symbol){
+				.addr = pImport->vars[iLoop].addr + base,
+				.type = SYMBOL_DATA,
+				.size = 0,
+				//.name = pImport->vars[iLoop].name,
+			};
 		}
 	}
-}
-
-int PrxFindFuncExtent(PrxToolCtx*prx,uint32_t dwStart, uint8_t *pTouchMap){
 	return 0;
 }
 
-void PrxMapFuncExtents(PrxToolCtx*prx,Symbol*symbol,size_t syms_count){
-	uint8_t*pTouchMap=calloc(prx->elf.iBinSize,sizeof(*pTouchMap));
+int prx_mapFuncExtent(PrxToolCtx*prx,uint32_t dwStart, uint8_t *pTouchMap){
+	return 0;
+}
+
+int prx_mapFuncExtents(PrxToolCtx*prx,Symbol*symbol,size_t syms_count){
+	uint8_t*pTouchMap=calloc(prx->elf.bin_count,sizeof(*pTouchMap));
 
 	for(int i=0;i<syms_count;i++)
 		if((symbol[i].type == SYMBOL_FUNC) && (symbol[i].size == 0))
-			symbol[i].size = PrxFindFuncExtent(prx, symbol[i].addr, pTouchMap)?:symbol[i].size;
+			symbol[i].size = prx_mapFuncExtent(prx, symbol[i].addr, pTouchMap)?:symbol[i].size;
+	return 0;
 }
 
-//TODO
-int PrxBuildMaps(PrxToolCtx*prx){
+int prx_buildMaps(PrxToolCtx*prx){//TODO
 /*
 	BuildSymbols(prx->symbol, prx->base);
 
@@ -143,16 +135,16 @@ int PrxBuildMaps(PrxToolCtx*prx){
 		start++;
 	}
 
-	// Build symbols for branches in the code 
-	for(int iLoop = 0; iLoop < prx->iSHCount; iLoop++){
-		if(prx->sections[iLoop].flags & SHF_EXECINSTR){
+	// Build symbol for branches in the code 
+	for(int iLoop = 0; iLoop < prx->SH_count; iLoop++){
+		if(prx->section[iLoop].flags & SHF_EXECINSTR){
 			uint32_t iILoop;
 			uint32_t dwAddr;
 			uint32_t *pInst;
-			dwAddr = prx->sections[iLoop].iAddr;
+			dwAddr = prx->section[iLoop].iAddr;
 			pInst  = (uint32_t*) VmemGetPtr(dwAddr);
 
-			for(iILoop = 0; iILoop < (prx->sections[iLoop].iSize / 4); iILoop++){
+			for(iILoop = 0; iILoop < (prx->section[iLoop].iSize / 4); iILoop++){
 				disasmAddBranchSymbols(LW(pInst[iILoop]), dwAddr + prx->base, prx->symbol, prx-instr, prx-instr_count);
 				dwAddr += 4;
 			}
@@ -179,9 +171,9 @@ int elf_loadModInfo(ElfCtx* elf,PspModule*mod,char*secname){
 	PspModuleInfo*modinfo = NULL;
 	uint32_t iAddr = 0;
 	ElfSection *pInfoSect = elf_findSection(elf, secname);
-	if(!pInfoSect && elf->iPHCount > 0){// Get from program headers 
-		iAddr = (elf->programs[0].iPaddr & 0x7FFFFFFF) - elf->programs[0].iOffset;
-		modinfo = (PspModuleInfo*)elf->pElfBin + iAddr;
+	if(!pInfoSect && elf->PH_count){// Get from program headers 
+		iAddr = (elf->program[0].iPaddr & 0x7FFFFFFF) - elf->program[0].iOffset;
+		modinfo = (PspModuleInfo*)elf->bin + iAddr;
 	}else{
 		iAddr = pInfoSect->iAddr;
 		modinfo = (PspModuleInfo*)pInfoSect->pData;
@@ -202,77 +194,73 @@ int elf_loadModInfo(ElfCtx* elf,PspModule*mod,char*secname){
 	return 0;
 }
 
-int PrxCreateFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
-	// If we have no section headers let's build some fake sections 
-	if(!elf->iSHCount)
+int elf_createFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
+	// If we have no section headers let's build some fake section 
+	if(!elf->SH_count)
 		return 1;
-	assert(elf->iPHCount >= 3)
+	assert(elf->PH_count >= 3)
 
-	elf->iSHCount = (p[2].type == PT_PRXRELOC)?6:5;
+	elf->SH_count = (p[2].type == PT_PRXRELOC)?6:5;
 	
 	ElfSection fake_sections[]={{},{
 		.type  = SHT_PROGBITS,
 		.flags = SHF_ALLOC | SHF_EXECINSTR,
 		.iAddr = p[0].iVaddr,
-		.pData = elf->pElf + p[0].iOffset,
+		.pData = elf->elf + p[0].iOffset,
 		.iSize = stubBtm,
 		.szName= ".text",
 	},{
 		.type  = SHT_PROGBITS,
 		.flags = SHF_ALLOC,
 		.iAddr = stubBtm,
-		.pData = elf->pElf + p[0].iOffset + stubBtm,
+		.pData = elf->elf + p[0].iOffset + stubBtm,
 		.iSize = p[0].iMemsz - stubBtm,
 		.szName=".rodata",
 	},{
 		.type  = SHT_PROGBITS,
 		.flags = SHF_ALLOC | SHF_WRITE,
 		.iAddr = p[1].iVaddr,
-		.pData = elf->pElf + p[1].iOffset,
+		.pData = elf->elf + p[1].iOffset,
 		.iSize = p[1].iFilesz,
 		.szName= ".data",
 	},{
 		.type  = SHT_NOBITS,
 		.flags = SHF_ALLOC | SHF_WRITE,
 		.iAddr = p[1].iVaddr + p[1].iFilesz,
-		.pData = elf->pElf + p[1].iOffset + p[1].iFilesz,
+		.pData = elf->elf + p[1].iOffset + p[1].iFilesz,
 		.iSize = p[1].iMemsz - p[1].iFilesz,
 		.szName= ".bss",
 	},{
 		.type  = SHT_PRXRELOC,
 		.flags = 0,
 		.iAddr = 0,
-		.pData = elf->pElf + p[2].iOffset,
+		.pData = elf->elf + p[2].iOffset,
 		.iSize = p[2].iFilesz,
 		.iInfo = 1,// Bind to section 1, not that is matters 
 		.szName= ".reloc",
 	}};
-	memcpy(elf->sections,fake_sections,elf->iSHCount*sizeof(*elf->sections));
+	memcpy(elf->section,fake_sections,elf->SH_count*sizeof(*elf->section));
 	return 1;
 }
 
-int PrxLoadFromElf(PrxToolCtx* prx,FILE *fp){
+int prx_loadFromElf(PrxToolCtx* prx,FILE *fp){
 	assert(!elf_loadFromElfFile(&prx->elf, fp));
-	prx->vMem = (Vmem){prx->elf.pElf, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
+	prx->vMem = (Vmem){prx->elf.elf, prx->elf.bin_count, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 	//fprintf(stderr,"pData %p, iSize %x, iBaseAddr 0x%08X, endian %d\n", prx->vMem.data, prx->vMem.size, prx->vMem.baseAddr, prx->vMem.endian);
 	assert(!elf_loadModInfo(&prx->elf,&prx->module,prx->arg.modInfoName));
 	assert(!elf_loadRelocs(&prx->elf));
-	assert(!elf_fixupRelocs(&prx->elf, prx->base, prx->imm,prx->imm_count,&prx->vMem));
-	fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!PrxLoadExports(prx));
-	fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!PrxLoadImports(prx));
-	fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!PrxCreateFakeSections(&prx->elf,prx->elf.programs,prx->module.info.exports - 4));
-	fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!PrxBuildMaps(prx));
+	assert(!elf_fixupRelocs(&prx->elf, prx->base, prx->imm,prx->imm_count,&prx->vMem));fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!prx_loadExports(prx));fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!prx_loadImports(prx));fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));fprintf(stderr,">>>%i\n",__LINE__);
+	assert(!prx_buildMaps(prx));
 	return 0;
 }
 
-int PrxLoadFromBin(PrxToolCtx* prx,FILE *fp){
+int prx_loadFromBin(PrxToolCtx* prx,FILE *fp){
 	assert(!elf_loadFromBinFile(&prx->elf, fp, prx->base));
-	prx->vMem = (Vmem){prx->elf.pElfBin, prx->elf.iBinSize, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
-	assert(PrxBuildMaps(prx));
+	prx->vMem = (Vmem){prx->elf.bin, prx->elf.bin_count, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
+	assert(prx_buildMaps(prx));
 	return 0;
 }
 

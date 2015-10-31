@@ -108,12 +108,13 @@ typedef struct{
 	uint32_t   base;
 }PrxToolCtx;
 
-#include "prx.impexp.c"
+#include "prx.import.c"
+#include "prx.export.c"
 #include "prx.reloc.c"
 #include "prx.load.c"
 #include "prx.output.c"
 #include "prx.disasm.c"
 
-Symbol *PrxGetSymbolEntryFromAddr(PrxToolCtx *pPrx,uint32_t dwAddr){
+Symbol *prx_getSymbolEntryFromAddr(PrxToolCtx *pPrx,uint32_t dwAddr){
 	return NULL;//prx->symbol[dwAddr];
 }

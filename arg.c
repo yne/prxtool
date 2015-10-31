@@ -6,7 +6,7 @@ typedef struct{
 	uint32_t   base,dataOff;
 	char       *print,*disopts,*dbTitle,*modInfoName;
 	struct{FILE*prx,*bin,*func,*nid,*instr;}in;
-	struct{FILE*idc,*map,*xml,*elf,*stub,*stub2,*dep,*mod,*pstub,*pstub2,*impexp,*ent,*disasm,*symbols,*xmldb;}out;
+	struct{FILE*idc,*map,*xml,*elf,*stub,*stub2,*dep,*mod,*pstub,*pstub2,*impexp,*ent,*disasm,*symbol,*xmldb;}out;
 }PrxToolArg;
 
 int parse_arg(int argc,char**argv,PrxToolArg*arg){
@@ -34,7 +34,7 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 		ARG(out.impexp  ,"w" ,"imports/exports"),
 		ARG(out.ent     ,"w" ,"entries"),
 		ARG(out.disasm  ,"w" ,"disassembly"),
-		ARG(out.symbols ,"w" ,"symbol file"),
+		ARG(out.symbol ,"w" ,"symbol file"),
 		ARG(out.xmldb   ,"w" ,"XML disassembly database"),
 		ARG(xmldis      ,"i" ,"Enable XML disassembly output mode"),
 		ARG(aliased     ,"i" ,"Print aliases when using -f mode" ),

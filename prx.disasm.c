@@ -1,5 +1,5 @@
 //TODO:use print callback to replace txt/xml output
-void PrxDisasm   (PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imm, size_t imm_count, uint32_t base){
+void prx_disasm   (PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imm, size_t imm_count, uint32_t base){
 	uint32_t *pInst = (uint32_t*) pData;
 	Symbol *lastFunc = NULL;
 	unsigned int lastFuncAddr = 0;

@@ -1,7 +1,7 @@
 ElfSection *elf_findSectionByAddr(ElfCtx*elf, unsigned int dwAddr){
-	if((!elf->sections) || (!elf->iSHCount) || (!elf->strtab))
+	if((!elf->section) || (!elf->SH_count) || (!elf->strtab))
 		return NULL;
-	for(ElfSection*s = elf->sections; s < elf->sections+elf->iSHCount; s++)
+	for(ElfSection*s = elf->section; s < elf->section+elf->SH_count; s++)
 		if((s->flags & SHF_ALLOC) && (dwAddr >= s->iAddr) && (dwAddr < (s->iAddr + s->iSize)))
 			return s;
 	return NULL;
@@ -17,7 +17,7 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 	if(!elf->reloc)
 		return 0;
 	// Fixup the elf file and output it to fp 
-	assert(elf->pElf);
+	assert(elf->elf);
 	assert(elf->header.PHnum && elf->header.PHentSize && elf->header.PHoff);
 	// We dont support ELF reloc as they are not very special 
 	assert(elf->header.type == ELF_PRX_TYPE);
@@ -25,12 +25,12 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 		ElfReloc *rel = &elf->reloc[iLoop];
 		int iOfsPH = rel->symbol & 0xFF;
 		int iValPH = (rel->symbol >> 8) & 0xFF;
-		if((iOfsPH >= elf->iPHCount) || (iValPH >= elf->iPHCount)){
+		if((iOfsPH >= elf->PH_count) || (iValPH >= elf->PH_count)){
 			fprintf(stdout,"Invalid relocation PH sets (%d, %d)\n", iOfsPH, iValPH);
 			continue;
 		}
-		uint32_t dwRealOfs = rel->offset + elf->programs[iOfsPH].iVaddr;
-		uint32_t dwCurrBase = base + elf->programs[iValPH].iVaddr;
+		uint32_t dwRealOfs = rel->offset + elf->program[iOfsPH].iVaddr;
+		uint32_t dwCurrBase = base + elf->program[iValPH].iVaddr;
 		uint32_t *pData = (uint32_t*) VmemGetPtr(vMem, dwRealOfs);
 		if(!pData){
 			fprintf(stdout,"Invalid offset for relocation (%08X)\n", dwRealOfs);
@@ -41,7 +41,7 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 			case R_MIPS_HI16: {
 				int base = iLoop;
 				int lowaddr, hiaddr, addr;
-				int ofsph = elf->programs[iOfsPH].iVaddr;
+				int ofsph = elf->program[iOfsPH].iVaddr;
 				
 				uint32_t inst = LW(*pData);
 				addr = ((inst & 0xFFFF) << 16) + dwCurrBase;
@@ -116,12 +116,12 @@ int elf_fixupRelocs(ElfCtx* elf,uint32_t base, Imm* imm, size_t imm_count,Vmem*v
 				uint32_t offs2 = 0;
 				while (++iLoop < elf->reloc_count){
 					rel2 = &elf->reloc[iLoop];
-					if (rel2->type == R_MIPS_X_JAL26 && (base + elf->programs[(rel2->symbol >> 8) & 0xFF].iVaddr) == dwCurrBase)
+					if (rel2->type == R_MIPS_X_JAL26 && (base + elf->program[(rel2->symbol >> 8) & 0xFF].iVaddr) == dwCurrBase)
 						break;
 				}
 
 				if (iLoop < elf->reloc_count) {
-					offs2 = rel2->offset + elf->programs[rel2->symbol & 0xFF].iVaddr;
+					offs2 = rel2->offset + elf->program[rel2->symbol & 0xFF].iVaddr;
 					off = LW(*(uint32_t*) VmemGetPtr(vMem, offs2));
 				}
 
