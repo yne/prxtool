@@ -1,4 +1,4 @@
-int elf_getSize(PrxToolCtx* prx,size_t *iTotal, size_t *iSectCount, size_t *iStrSize){
+int elf_getSize(PrxCtx* prx,size_t *iTotal, size_t *iSectCount, size_t *iStrSize){
 	// Sect count 2 for NULL and string section 
 	*iSectCount = 2;
 	*iTotal = 0;
@@ -15,7 +15,7 @@ int elf_getSize(PrxToolCtx* prx,size_t *iTotal, size_t *iSectCount, size_t *iStr
 	return 0;
 }
 
-int prx_outputheader(PrxToolCtx* prx,FILE *fp, size_t iSectCount){
+int prx_outputheader(PrxCtx* prx,FILE *fp, size_t iSectCount){
 	Elf32_Ehdr hdr={.e_class = 1,.e_data = 1,.e_idver = 1};
 	SW(hdr.e_magic, ELF_MAGIC);
 	SH(hdr.e_type, ELF_MIPS_TYPE);
@@ -36,7 +36,7 @@ int prx_outputheader(PrxToolCtx* prx,FILE *fp, size_t iSectCount){
 	return 0;
 }
 
-int prx_outputSections(PrxToolCtx* prx,FILE *fp, size_t iElfHeadSize, size_t iSectCount, size_t iStrSize){
+int prx_outputSections(PrxCtx* prx,FILE *fp, size_t iElfHeadSize, size_t iSectCount, size_t iStrSize){
 	// Write NULL section 
 	Elf32_Shdr shdr={};
 	assert(fwrite(&shdr, 1, sizeof(shdr), fp) == sizeof(shdr));
@@ -80,7 +80,7 @@ int prx_outputSections(PrxToolCtx* prx,FILE *fp, size_t iElfHeadSize, size_t iSe
 	return 0;
 }
 
-int prx_toElf(PrxToolCtx* prx,FILE *fp){
+int prx_toElf(PrxCtx* prx,FILE *fp){
 	size_t iElfHeadSize = 0,iSectCount = 0,iStrSize = 0;
 	assert(fp && prx->elf.elf);
 	assert(!elf_getSize(prx, &iElfHeadSize, &iSectCount, &iStrSize));

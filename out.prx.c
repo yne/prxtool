@@ -1,5 +1,5 @@
 
-void PrxPrintRow(PrxToolCtx* prx,FILE *fp, const uint32_t* row, int32_t row_size, uint32_t addr){
+void PrxPrintRow(PrxCtx* prx,FILE *fp, const uint32_t* row, int32_t row_size, uint32_t addr){
 	char buffer[512],*p = buffer;
 	sprintf(p, "0x%08X - ", addr);
 	p += strlen(p);
@@ -25,12 +25,12 @@ void PrxPrintRow(PrxToolCtx* prx,FILE *fp, const uint32_t* row, int32_t row_size
 	for(int i = 0; i < 16; i++){
 		if(i < row_size){
 			if((row[i] >= 32) && (row[i] < 127)){
-				if(prx->isXmlDump && (row[i] == '<')){
-					strcpy(p, "&lt;");
-					p += strlen(p);
-				}else{
+				//if(prx->isXmlDump && (row[i] == '<')){
+				//	strcpy(p, "&lt;");
+				//	p += strlen(p);
+				//}else{
 					*p++ = row[i];
-				}
+				//}
 			}else{
 				*p++ =  '.';
 			}
@@ -42,7 +42,7 @@ void PrxPrintRow(PrxToolCtx* prx,FILE *fp, const uint32_t* row, int32_t row_size
 	fprintf(fp, "%s\n", buffer);
 }
 
-void PrxDumpData(PrxToolCtx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
+void PrxDumpData(PrxCtx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
 	fprintf(fp, "           - 00 01 02 03 | 04 05 06 07 | 08 09 0A 0B | 0C 0D 0E 0F - 0123456789ABCDEF\n");
 	fprintf(fp, "-------------------------------------------------------------------------------------\n");
 	uint32_t row[16]={};
@@ -51,9 +51,8 @@ void PrxDumpData(PrxToolCtx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsi
 		row[row_size] = pData[i];
 		row_size++;
 		if(row_size == 16){
-			if(prx->isXmlDump){
-				fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr & ~15);
-			}
+			//if(prx->isXmlDump)
+			//	fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr & ~15);
 			PrxPrintRow(prx, fp, row, row_size, dwAddr);
 			dwAddr += 16;
 			row_size = 0;
@@ -61,14 +60,13 @@ void PrxDumpData(PrxToolCtx* prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsi
 		}
 	}
 	if(row_size > 0){
-		if(prx->isXmlDump){
-			fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr & ~15);
-		}
+		//if(prx->isXmlDump)
+		//	fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr & ~15);
 		PrxPrintRow(prx, fp, row, row_size, dwAddr);
 	}
 }
 
-int PrxReadString(PrxToolCtx* prx,uint32_t dwAddr, char*str, int unicode, uint32_t *dwRet){
+int PrxReadString(PrxCtx* prx,uint32_t dwAddr, char*str, int unicode, uint32_t *dwRet){
 	int iSize = 0;//VmemGetSize(dwAddr);
 	int iRealLen = 0;
 
@@ -93,9 +91,9 @@ int PrxReadString(PrxToolCtx* prx,uint32_t dwAddr, char*str, int unicode, uint32
 		}
 		if(isspace(ch) || ((ch >= 32) && (ch < 127))){
 			if((ch >= 32) && (ch < 127)){
-				if((prx->isXmlDump) && (ch == '<'))
-					strcpy(str,"&lt;");
-				else
+				//if((prx->isXmlDump) && (ch == '<'))
+				//	strcpy(str,"&lt;");
+				//else
 					strncpy(str,(const char*)&ch,unicode?2:1);
 				iRealLen++;
 			}else{
@@ -110,7 +108,7 @@ int PrxReadString(PrxToolCtx* prx,uint32_t dwAddr, char*str, int unicode, uint32
 	return 0;
 }
 
-void PrxDumpStrings(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
+void PrxDumpStrings(PrxCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData){
 	if(iSize <= MINIMUM_STRING)return;
 	char* curr = "";
 	int head_printed = 0;
@@ -130,10 +128,10 @@ void PrxDumpStrings(PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, un
 	}
 }
 
-void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
+void PrxDump(PrxCtx*prx,FILE *fp, const char *disopts){
 //	disasmSetSymbols(&prx->symbol);
 	disasmSetOpts(disopts, 1);
-
+/*
 	for(int iLoop = 0; iLoop < prx->elf.SH_count; iLoop++){
 		if(prx->elf.section[iLoop].flags & (SHF_EXECINSTR | SHF_ALLOC)){
 			if((prx->elf.section[iLoop].iSize > 0) && (prx->elf.section[iLoop].type == SHT_PROGBITS)){
@@ -153,5 +151,6 @@ void PrxDump(PrxToolCtx*prx,FILE *fp, const char *disopts){
 			}
 		}
 	}
+	*/
 	//disasmSetSymbols(NULL);
 }

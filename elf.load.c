@@ -1,13 +1,13 @@
 // Build a binary image of the elf file in memory
 // Really should build the binary image from program headers if no section headers
 
-int elf_loadFileToMem(ElfCtx*elf, FILE *fp, size_t *file_size, uint8_t**file_buffer){
+int elf_loadFileToMem(ElfCtx*elf, FILE *fp){
 	fseek(fp, 0, SEEK_END);
-	*file_size = ftell(fp);
+	elf->elf_count = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
-	assert(*file_size >= sizeof(Elf32_Ehdr));
-	assert(*file_buffer = malloc(*file_size));
-	assert(fread(*file_buffer, 1, *file_size, fp) == *file_size);
+	assert(elf->elf_count >= sizeof(Elf32_Ehdr));
+	assert(elf->elf = malloc(elf->elf_count));
+	assert(fread(elf->elf, 1, elf->elf_count, fp) == elf->elf_count);
 	fclose(fp);
 	return 0;
 }
@@ -110,7 +110,8 @@ int elf_loadSections(ElfCtx*elf){
 }
 
 int elf_loadSymbols(ElfCtx*elf){
-	#define VALID_NAME (pSymtab->iLink && (pSymtab->iLink < elf->SH_count) && (sym->type == SHT_STRTAB) && (s->name < sym->iSize))
+	#define VALID_NAME (pSymtab->iLink && (pSymtab->iLink < elf->SH_count)\
+	                && (sym->type == SHT_STRTAB) && (s->name < sym->iSize))
 	ElfSection *pSymtab = elf_findSection(elf, ".symtab");
 	if(!pSymtab)
 		return 0;
@@ -343,7 +344,7 @@ int elf_loadRelocsSCE(ElfCtx*elf,ElfReloc *pRelocs){
 			}
 			uint32_t part2type[]={0,R_MIPS_LO16,R_MIPS_32,R_MIPS_26,R_MIPS_X_HI16,R_MIPS_LO16,R_MIPS_X_J26,R_MIPS_X_JAL26};
 			lastpart2 = part2;
-			assert(part2<countof(part2type));
+			assert(part2<(sizeof(part2type)/sizeof(part2type[0])));
 			if(pRelocs)pRelocs[iCurrRel]=(ElfReloc){
 				.secname = NULL,
 				.base   = part2==4?addend:0,
@@ -366,11 +367,10 @@ int elf_loadRelocsSCE(ElfCtx*elf,ElfReloc *pRelocs){
 
 int elf_loadRelocs(ElfCtx*elf){
 	elf->reloc_count = elf_loadRelocsSTD(elf,NULL)+elf_loadRelocsSCE(elf,NULL);
-	assert(elf->reloc_count);
-	
-	elf->reloc=calloc(elf->reloc_count,sizeof(*elf->reloc));
+	if(!elf->reloc_count)
+		return 0;
+	elf->reloc = calloc(elf->reloc_count,sizeof(*elf->reloc));
 	assert(elf->reloc);
-	
 	size_t cout = 0;
 	cout += elf_loadRelocsSTD (elf, &elf->reloc[cout]);
 	cout += elf_loadRelocsSCE (elf, &elf->reloc[cout]);
@@ -379,20 +379,17 @@ int elf_loadRelocs(ElfCtx*elf){
 }
 
 int elf_loadFromElfFile(ElfCtx*elf, FILE *fp){
-	return 0;
-	assert(!elf_loadFileToMem(elf, fp, &elf->elf_count, &elf->elf));
+	assert(!elf_loadFileToMem(elf,fp));
 	assert(!elf_loadHeader(elf));
 	assert(!elf_loadPrograms(elf));
 	assert(!elf_loadSections(elf));
 	assert(!elf_loadSymbols(elf));
 	assert(!elf_buildBinaryImage(elf));
-//	elf_dumpHeader(elf,stderr);
-//	elf_dumpPrograms(elf,stderr);
-//	elf_dumpSections(elf,stderr);
+	return 0;
 }
 
 int elf_loadFromBinFile(ElfCtx*elf, FILE *fp, unsigned int dwDataBase){
-	assert(!elf_loadFileToMem(elf, fp, &elf->bin_count, &elf->bin))
+	assert(!elf_loadFileToMem(elf, fp))
 	assert(!elf_buildFakeSections(elf, dwDataBase))
 	return 0;
 }

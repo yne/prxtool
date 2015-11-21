@@ -22,6 +22,7 @@ typedef enum {
 typedef struct{
 	uint32_t name;
 	uint32_t flags;
+	uint8_t size;
 	uint32_t counts;
 	uint32_t exports;
 }PspModuleExport;
@@ -29,10 +30,12 @@ typedef struct{
 typedef struct{
 	uint32_t name;
 	uint32_t flags;
-	uint32_t counts;
+	uint8_t  size;
+	uint8_t  vars_count;
+	uint16_t funcs_count;
 	uint32_t nids;
 	uint32_t funcs;
-	uint32_t vars;
+	uint32_t vars;//may not be present
 }PspModuleImport;
 
 typedef struct{
@@ -44,7 +47,7 @@ typedef struct{
 	uint32_t imports;
 	uint32_t imp_end;
 }PspModuleInfo;
-
+//<Should me removed ?>
 typedef struct{
 	char name[128];
 	uint32_t nid;
@@ -62,28 +65,14 @@ typedef struct{
 	PspModuleExport export;
 	PspEntry funcs[2000],vars[255];
 }PspEntries;
+//<Should me removed ?>
 
 typedef struct{
 	PspModuleInfo info;
 	uint32_t addr;
-	PspEntries *exports,*imports;
-	size_t exports_count,imports_count;
+	PspEntries *exports;size_t exports_count;
+	PspEntries *imports;size_t imports_count;
 }PspModule;
-
-typedef struct{
-	char magic[4];
-	char modname[sizeof(((PspModuleInfo){}).name)];
-	uint32_t  symcount;
-	uint32_t  strstart;
-	uint32_t  strsize;
-} __attribute__ ((packed)) SymfileHeader;
-
-typedef struct{
-	uint32_t name;
-	uint32_t addr;
-	uint32_t size;
-} __attribute__((packed))SymfileEntry;
-
 
 #include "vmem.c"
 #include "asm.c"
@@ -93,20 +82,15 @@ typedef struct{
 #include "db_instr.c"
 
 typedef struct{
-	PrxToolArg arg;
 	ElfCtx     elf;
 	PspModule  module;
 	Vmem       vMem;
-	Library    *library;size_t library_count;
-	Nid        *nids   ;size_t nid_count;
-	Protoype   *proto  ;size_t proto_count;
-	Instruction*macro  ;size_t macro_count;
-	Instruction*instr  ;size_t instr_count;
-	Symbol     *symbol ;size_t symbol_count;
-	Imm        *imm    ;size_t imm_count;
-	int        isXmlDump;
+	Library    *libs  ;size_t libs_count;
+	Nid        *nids  ;size_t nids_count;
+	Symbol     *symbol;size_t symbol_count;
+	Imm        *imm   ;size_t imm_count;
 	uint32_t   base;
-}PrxToolCtx;
+}PrxCtx;
 
 #include "prx.import.c"
 #include "prx.export.c"
@@ -115,6 +99,6 @@ typedef struct{
 #include "prx.output.c"
 #include "prx.disasm.c"
 
-Symbol *prx_getSymbolEntryFromAddr(PrxToolCtx *pPrx,uint32_t dwAddr){
+Symbol *prx_getSymbolEntryFromAddr(PrxCtx *pPrx,uint32_t dwAddr){
 	return NULL;//prx->symbol[dwAddr];
 }

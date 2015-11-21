@@ -1,4 +1,4 @@
-int prx_loadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
+int prx_loadExport(PrxCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	assert(pExport);
 	PspEntries pLib = (PspEntries){
 		.addr = addr,
@@ -19,7 +19,7 @@ int prx_loadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 		strcpy(pLib.name, pName);
 	}
 
-	fprintf(stderr,"Found export library '%s'\n", pLib.name);
+	fprintf(stderr,"Found export libs '%s'\n", pLib.name);
 	fprintf(stderr,"Flags %08X, counts %08X, exports %08X\n", pLib.export.flags, pLib.export.counts, pLib.export.exports);
 	pLib.v_count = (pLib.export.counts >> 8) & 0xFF;
 	pLib.f_count = (pLib.export.counts >> 16) & 0xFFFF;
@@ -33,7 +33,7 @@ int prx_loadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	for(PspEntry*f=pLib.funcs;f<pLib.funcs+pLib.f_count;f++){
 	// We will fix up the names later 
 		f->nid = VmemGetU32(&prx->vMem,expAddr);
-		strcpy(f->name, db_nids_getFunctionName(prx->nids,prx->library_count, pLib.name, f->nid));
+		strcpy(f->name, db_nids_getFunctionName(prx->nids,prx->libs_count, pLib.name, f->nid));
 		f->type = PSP_ENTRY_FUNC;
 		f->addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
 		f->nid_addr = expAddr; 
@@ -45,7 +45,7 @@ int prx_loadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	for(PspEntry*v=pLib.vars;v<pLib.vars+pLib.v_count;v++){
 		// We will fix up the names later 
 		v->nid = VmemGetU32(&prx->vMem,expAddr);
-		strcpy(v->name, db_nids_getFunctionName(prx->nids,prx->library_count, pLib.name, v->nid));
+		strcpy(v->name, db_nids_getFunctionName(prx->nids,prx->libs_count, pLib.name, v->nid));
 		v->type = PSP_ENTRY_FUNC;
 		v->addr = VmemGetU32(&prx->vMem,expAddr + (sizeof(uint32_t) * (pLib.v_count + pLib.f_count)));
 		v->nid_addr = expAddr; 
@@ -64,7 +64,7 @@ int prx_loadExport(PrxToolCtx* prx,PspModuleExport *pExport, uint32_t addr){
 	return pLib.export.counts & 0xFF;
 }
 
-int prx_loadExports(PrxToolCtx* prx){
+int prx_loadExports(PrxCtx* prx){
 	assert(!prx->module.exports);
 	assert(prx->module.info.exports);
 

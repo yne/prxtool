@@ -138,11 +138,11 @@ typedef enum{
 }SymbolType;
 
 typedef struct{
-	uint32_t addr;
 	SymbolType type;
+	uint32_t addr;
 	size_t size;
 	char name[32];
-	uint32_t*refs;//TODO
+	uint32_t refs[32];//TODO
 	char alias[32][32];//TODO
 	PspEntries*exported,*imported;//TODO
 }Symbol;
@@ -237,35 +237,29 @@ int disasmIsBranch(unsigned int opcode, unsigned int PC, unsigned int *dwTarget,
 }
 
 void disasmAddBranchSymbols(unsigned int opcode, unsigned int PC, Symbol*symbol, size_t*sym_count, Instruction*inst, size_t inst_count){
-	SymbolType type;
 	unsigned int addr;
-	char buf[128];
-
 	int insttype = disasmIsBranch(opcode, PC, &addr, inst, inst_count);
-	if(insttype != 0){
-		if(insttype & (INSTR_TYPE_B | INSTR_TYPE_JUMP)){
-			snprintf(buf, sizeof(buf), "loc_%08X", addr);
-			type = SYMBOL_LOCAL;
-		}else{
-			snprintf(buf, sizeof(buf), "sub_%08X", addr);
-			type = SYMBOL_FUNC;
-		}
+	if(!insttype)return;
+	
+	SymbolType type = insttype & (INSTR_TYPE_B | INSTR_TYPE_JUMP)?SYMBOL_LOCAL:SYMBOL_FUNC;
+	
+	char buf[128];
+	snprintf(buf, sizeof(buf), "loc_%08X", addr);
 
-		Symbol *s = &symbol[addr];
-		if(!s){
-			//s = Symbol;
-			s->addr = addr;
-			s->type = type;
-			s->size = 0;
-			//s->name = buf;
-			//s->refs.insert(s->refs.end(), PC);
-			//symbol[addr] = s;
-		}else{
-			if((s->type != SYMBOL_FUNC) && (type == SYMBOL_FUNC)){
-				s->type = SYMBOL_FUNC;
-			}
-			//s->refs.insert(s->refs.end(), PC);
+	Symbol *s = &symbol[addr];
+	if(!s){
+		//s = Symbol;
+		s->addr = addr;
+		s->type = type;
+		s->size = 0;
+		//s->name = buf;
+		//s->refs.insert(s->refs.end(), PC);
+		//symbol[addr] = s;
+	}else{
+		if((s->type != SYMBOL_FUNC) && (type == SYMBOL_FUNC)){
+			s->type = SYMBOL_FUNC;
 		}
+		//s->refs.insert(s->refs.end(), PC);
 	}
 }
 

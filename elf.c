@@ -35,7 +35,14 @@ ElfSection* elf_findSection(ElfCtx*elf, const char *szName){
 	return NULL;
 }
 
-
+uint32_t elf_translate (ElfCtx*elf, uint32_t vaddr){
+	for (ElfProgram*p=elf->program;p<elf->program+elf->PH_count;p++) {
+		if (p->type != PT_LOAD) continue;
+		if ((vaddr >= p->iVaddr) && (vaddr < p->iVaddr+p->iMemsz) && (vaddr < p->iVaddr+p->iFilesz))
+			return vaddr - p->iVaddr + p->iOffset;
+	}
+	return 0;
+}
 #include "endianness.c"
 #include "elf.dump.c"
 #include "elf.load.c"

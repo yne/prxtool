@@ -1,5 +1,6 @@
 //TODO:use print callback to replace txt/xml output
-void prx_disasm   (PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imm, size_t imm_count, uint32_t base){
+void prx_disasm   (PrxCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, unsigned char *pData, Imm* imm, size_t imm_count, uint32_t base,
+	Protoype*proto,size_t proto_count,Instruction*macro,size_t macro_count,Instruction*instr,size_t instr_count){
 	uint32_t *pInst = (uint32_t*) pData;
 	Symbol *lastFunc = NULL;
 	unsigned int lastFuncAddr = 0;
@@ -12,11 +13,11 @@ void prx_disasm   (PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 					fprintf(fp, "; Subroutine %s - Address 0x%08X ", s->name, dwAddr);
 				if(s->alias){
 					fprintf(fp, "- Aliases: ");
-					for(uint32_t i = 0; s->alias[i][0] && i < countof(s->alias); i++)
+					for(uint32_t i = 0; s->alias[i][0] && i < (sizeof(s->alias)/sizeof(s->alias[0])); i++)
 						fprintf(fp, "%s ", s->alias[i]);
 				}
 				fprintf(fp, "\n");
-				Protoype *t = db_func_find(prx->proto,prx->proto_count,s->name);
+				Protoype *t = db_func_find(proto,proto_count,s->name);
 				if(t)
 					fprintf(fp, "; Prototype: %s (*)(%s)\n", t->ret, t->args);
 				if(s->size > 0){
@@ -41,16 +42,16 @@ void prx_disasm   (PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 					}
 				}
 				*/
-				if(prx->isXmlDump)
-					fprintf(fp, "<a name=\"%s\">%s:</a>\n", s->name, s->name);
-				else
+				//if(prx->isXmlDump)
+				//	fprintf(fp, "<a name=\"%s\">%s:</a>\n", s->name, s->name);
+				//else
 					fprintf(fp, "%s:", s->name);
 			}
 			if(s->type == SYMBOL_LOCAL){
 				fprintf(fp, "\n");
-				if(prx->isXmlDump)
-					fprintf(fp, "<a name=\"%s\">%s:</a>\n", s->name, s->name);
-				else
+				//if(prx->isXmlDump)
+				//	fprintf(fp, "<a name=\"%s\">%s:</a>\n", s->name, s->name);
+				//else
 					fprintf(fp, "%s:", s->name);
 			}
 			/*
@@ -129,16 +130,15 @@ void prx_disasm   (PrxToolCtx*prx,FILE *fp, uint32_t dwAddr, uint32_t iSize, uns
 
 			Symbol *s = disasmFindSymbol(dwJump);
 			if(s){
-				Protoype *t = db_func_find(prx->proto,prx->proto_count,s->name);
+				Protoype *t = db_func_find(proto,proto_count,s->name);
 				if(t)
 					fprintf(fp, "; Call - %s %s(%s)\n", t->ret, t->name, t->args);
 			}
 		}
 
-		if(prx->isXmlDump){
-			fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr);
-		}
-		fprintf(fp, "\t%-40s\n", disasmInstruction(inst, dwAddr, NULL, NULL, 0, prx->macro, prx->macro_count, prx->instr, prx->instr_count));
+		//if(prx->isXmlDump)
+		//	fprintf(fp, "<a name=\"0x%08X\"></a>", dwAddr);
+		fprintf(fp, "\t%-40s\n", disasmInstruction(inst, dwAddr, NULL, NULL, 0, macro, macro_count, instr, instr_count));
 		dwAddr += 4;
 		if((lastFunc != NULL) && (dwAddr >= lastFuncAddr)){
 			fprintf(fp, "\n; End Subroutine %s\n", lastFunc->name);

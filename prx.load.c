@@ -1,4 +1,4 @@
-int prx_buildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t base){//TODO
+int prx_buildSymbols(PrxCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t base){//TODO
 	// First map in imports and exports 
 	// If we have a symbol table then no point building from imports/exports 
 	if(prx->elf.symbol){
@@ -81,11 +81,11 @@ int prx_buildSymbols(PrxToolCtx* prx,Symbol *symbol,size_t *syms_count, uint32_t
 	return 0;
 }
 
-int prx_mapFuncExtent(PrxToolCtx*prx,uint32_t dwStart, uint8_t *pTouchMap){
+int prx_mapFuncExtent(PrxCtx*prx,uint32_t dwStart, uint8_t *pTouchMap){
 	return 0;
 }
 
-int prx_mapFuncExtents(PrxToolCtx*prx,Symbol*symbol,size_t syms_count){
+int prx_mapFuncExtents(PrxCtx*prx,Symbol*symbol,size_t syms_count){
 	uint8_t*pTouchMap=calloc(prx->elf.bin_count,sizeof(*pTouchMap));
 
 	for(int i=0;i<syms_count;i++)
@@ -94,89 +94,53 @@ int prx_mapFuncExtents(PrxToolCtx*prx,Symbol*symbol,size_t syms_count){
 	return 0;
 }
 
-int prx_buildMaps(PrxToolCtx*prx){//TODO
-/*
-	BuildSymbols(prx->symbol, prx->base);
-
-	Imms::iterator start = prx->imm.begin();
-	Imms::iterator end = prx->imm.end();
-
-	while(start != end){
-		Imm *imm;
-		uint32_t inst;
-
-		imm = prx->imm[(*start).first];
-		inst = VmemGetU32(imm->target - prx->base);
-		if(imm->text){
-			Symbol *s;
-
-			s = prx->symbol[imm->target];
-			if(s == NULL){
-				s = new Symbol;
-				char name[128];
-				// Hopefully most proto will start with a SP assignment 
-				if((inst >> 16) == 0x27BD){
-					snprintf(name, sizeof(name), "sub_%08X", imm->target);
-					s->type = SYMBOL_FUNC;
-				}else{
-					snprintf(name, sizeof(name), "loc_%08X", imm->target);
-					s->type = SYMBOL_LOCAL;
-				}
-				s->addr = imm->target;
-				s->size = 0;
-				s->refs.insert(s->refs.end(), imm->addr);
-				s->name = name;
-				prx->symbol[imm->target] = s;
-			}else{
-				s->refs.insert(s->refs.end(), imm->addr);
-			}
+int prx_buildMaps(PrxCtx*prx, Instruction*instr, size_t instr_count){//TODO:refs
+	for(Imm *imm = prx->imm; imm < prx->imm+prx->symbol_count; imm++){
+		uint32_t inst = VmemGetU32(&prx->vMem,imm->target - prx->base);
+		if(!imm->text)
+			continue;
+		if(!prx->symbol[imm->target].type){
+			prx->symbol[imm->target] = (Symbol){
+				.type = (inst >> 16) == 0x27BD?SYMBOL_FUNC:SYMBOL_LOCAL,
+				.addr = imm->target,
+				.size = 0,
+			};
+			snprintf(prx->symbol[imm->target].name, sizeof((Symbol){}.name), "%s_%08X",prx->symbol[imm->target].type==SYMBOL_FUNC?"sub":"loc",imm->target);
 		}
-
-		start++;
+		//s->refs.insert(s->refs.end(), imm->addr);
 	}
 
 	// Build symbol for branches in the code 
-	for(int iLoop = 0; iLoop < prx->SH_count; iLoop++){
-		if(prx->section[iLoop].flags & SHF_EXECINSTR){
-			uint32_t iILoop;
-			uint32_t dwAddr;
-			uint32_t *pInst;
-			dwAddr = prx->section[iLoop].iAddr;
-			pInst  = (uint32_t*) VmemGetPtr(dwAddr);
+	for(int i = 0; i < prx->elf.SH_count; i++){
+		if(!(prx->elf.section[i].flags & SHF_EXECINSTR))
+			continue;
+		uint32_t dwAddr = prx->elf.section[i].iAddr;
+		uint32_t *pInst = (uint32_t*) VmemGetPtr(&prx->vMem,dwAddr);
 
-			for(iILoop = 0; iILoop < (prx->section[iLoop].iSize / 4); iILoop++){
-				disasmAddBranchSymbols(LW(pInst[iILoop]), dwAddr + prx->base, prx->symbol, prx-instr, prx-instr_count);
-				dwAddr += 4;
-			}
-		}
+		for(uint32_t j = 0; j < (prx->elf.section[i].iSize / 4); j++,dwAddr += 4)
+			disasmAddBranchSymbols(LW(pInst[j]), dwAddr + prx->base, prx->symbol,&prx->symbol_count, instr, instr_count);
 	}
 
-	if(prx->symbol[prx->header.entry + prx->base] == NULL){
-		Symbol *s;
-		s = new Symbol;
-		// Hopefully most proto will start with a SP assignment 
-		s->type = SYMBOL_FUNC;
-		s->addr = prx->header.entry + prx->base;
-		s->size = 0;
-		s->name = "_start";
-		prx->symbol[prx->header.entry + prx->base] = s;
-	}
-
-	MapFuncExtents(prx->symbol);
-*/
-	return 1;
+	if(!prx->symbol[prx->elf.header.entry + prx->base].type)
+		prx->symbol[prx->elf.header.entry + prx->base] = (Symbol){
+			.type = SYMBOL_FUNC,
+			.addr = prx->elf.header.entry + prx->base,
+			.size = 0,
+			.name = "_start",
+		};
+	return 0;
 }
 
 int elf_loadModInfo(ElfCtx* elf,PspModule*mod,char*secname){
 	PspModuleInfo*modinfo = NULL;
 	uint32_t iAddr = 0;
-	ElfSection *pInfoSect = elf_findSection(elf, secname);
-	if(!pInfoSect && elf->PH_count){// Get from program headers 
+	ElfSection *modInfoSec = elf_findSection(elf, secname);
+	if(modInfoSec){
+		iAddr = modInfoSec->iAddr;
+		modinfo = (PspModuleInfo*)modInfoSec->pData;
+	}else if(elf->PH_count){//If no ModInfo section found => use PH
 		iAddr = (elf->program[0].iPaddr & 0x7FFFFFFF) - elf->program[0].iOffset;
 		modinfo = (PspModuleInfo*)elf->bin + iAddr;
-	}else{
-		iAddr = pInfoSect->iAddr;
-		modinfo = (PspModuleInfo*)pInfoSect->pData;
 	}
 	assert(modinfo);
 	*mod=(PspModule){
@@ -243,24 +207,37 @@ int elf_createFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
 	return 1;
 }
 
-int prx_loadFromElf(PrxToolCtx* prx,FILE *fp){
+int prx_loadFromElf(PrxCtx* prx,FILE *fp, Instruction*inst, size_t inst_count,char*modInfoName){
 	assert(!elf_loadFromElfFile(&prx->elf, fp));
 	prx->vMem = (Vmem){prx->elf.elf, prx->elf.bin_count, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 	//fprintf(stderr,"pData %p, iSize %x, iBaseAddr 0x%08X, endian %d\n", prx->vMem.data, prx->vMem.size, prx->vMem.baseAddr, prx->vMem.endian);
-	assert(!elf_loadModInfo(&prx->elf,&prx->module,prx->arg.modInfoName));
+	assert(!elf_loadModInfo(&prx->elf,&prx->module,modInfoName));
 	assert(!elf_loadRelocs(&prx->elf));
-	assert(!elf_fixupRelocs(&prx->elf, prx->base, prx->imm,prx->imm_count,&prx->vMem));fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!prx_loadExports(prx));fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!prx_loadImports(prx));fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));fprintf(stderr,">>>%i\n",__LINE__);
-	assert(!prx_buildMaps(prx));
+	elf_dump(&prx->elf,stderr);
+	//assert(!elf_fixupRelocs(&prx->elf, prx->base, prx->imm,prx->imm_count,&prx->vMem));
+	PspModuleInfo*i=&prx->module.info;
+	fprintf(stderr,"\n[PRX]\nAddr:%08X %.*s Flags:%08X GP:%08X Imp:%X..%X Exp:%X..%X\n",prx->module.addr,
+		sizeof(i->name),i->name,i->flags, i->gp, i->imports, i->imp_end, i->exports, i->exp_end);
+	
+	assert(!prx_loadImports(prx));
+	fprintf(stderr,">>>IMPORT\n");
+	return 0;
+	assert(!prx_loadExports(prx));
+	fprintf(stderr,">>>EXPORT:OK\n",__LINE__);
+	assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));
+	fprintf(stderr,">>>FAKESEC\n",__LINE__);
+	assert(!prx_buildSymbols(prx,prx->symbol,&prx->symbol_count, prx->base));
+	assert(!prx_buildMaps(prx,inst,inst_count));
+	assert(!prx_mapFuncExtents(prx,prx->symbol,prx->symbol_count));
 	return 0;
 }
 
-int prx_loadFromBin(PrxToolCtx* prx,FILE *fp){
+int prx_loadFromBin(PrxCtx* prx,FILE *fp, Instruction*inst, size_t inst_count){
 	assert(!elf_loadFromBinFile(&prx->elf, fp, prx->base));
 	prx->vMem = (Vmem){prx->elf.bin, prx->elf.bin_count, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
-	assert(prx_buildMaps(prx));
+	assert(!prx_buildSymbols(prx,prx->symbol,&prx->symbol_count, prx->base));
+	assert(!prx_buildMaps(prx,inst,inst_count));
+	assert(!prx_mapFuncExtents(prx,prx->symbol,prx->symbol_count));
 	return 0;
 }
 
