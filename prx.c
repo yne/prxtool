@@ -14,16 +14,22 @@
 
 #define MINIMUM_STRING 4
 
-typedef enum {
-	PSP_ENTRY_FUNC = 0,
-	PSP_ENTRY_VAR = 1
-}PspEntryType;
+typedef struct{
+	uint32_t data_addr;
+	uint32_t nid_addr;
+}PspModuleFunction;
+
+typedef struct{
+	uint32_t data_addr;//{type:6,data:26}
+	uint32_t nid_addr;
+}PspModuleVariable;
 
 typedef struct{
 	uint32_t name;
 	uint32_t flags;
-	uint8_t size;
-	uint32_t counts;
+	uint8_t  size;
+	uint8_t  vars_count;
+	uint16_t funcs_count;
 	uint32_t exports;
 }PspModuleExport;
 
@@ -33,21 +39,27 @@ typedef struct{
 	uint8_t  size;
 	uint8_t  vars_count;
 	uint16_t funcs_count;
-	uint32_t nids;
-	uint32_t funcs;
-	uint32_t vars;//may not be present
+	uint32_t nids;//uint32_t*
+	uint32_t funcs;//PspModuleFunction*
+	uint32_t vars;//PspModuleVariable*(optional)
 }PspModuleImport;
 
 typedef struct{
 	uint32_t flags;
 	char name[28];
 	uint32_t gp;
-	uint32_t exports;
+	uint32_t exports;//PspModuleExport*
 	uint32_t exp_end;
-	uint32_t imports;
+	uint32_t imports;//PspModuleImport*
 	uint32_t imp_end;
 }PspModuleInfo;
+
 //<Should me removed ?>
+typedef enum {
+	PSP_ENTRY_FUNC = 0,
+	PSP_ENTRY_VAR = 1
+}PspEntryType;
+
 typedef struct{
 	char name[128];
 	uint32_t nid;
@@ -69,9 +81,16 @@ typedef struct{
 
 typedef struct{
 	PspModuleInfo info;
+	PspModuleExport*exps;size_t exps_count;
+	PspModuleImport*imps;size_t imps_count;
+	PspModuleFunction*impfuncs;size_t impfuncs_count;
+	PspModuleVariable*impvars ;size_t impvars_count;
+	PspModuleFunction*expfuncs;size_t expfuncs_count;
+	PspModuleVariable*expvars ;size_t expvars_count;
 	uint32_t addr;
 	PspEntries *exports;size_t exports_count;
 	PspEntries *imports;size_t imports_count;
+
 }PspModule;
 
 #include "vmem.c"

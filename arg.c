@@ -40,7 +40,6 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 		ARG(out.xmldb   ,"fw" ,"XML disassembly database"),
 		ARG(xmldis      ,"i"  ,"Enable XML disassembly output mode"),
 		ARG(aliased     ,"i"  ,"Print aliases when using -f mode" ),
-		ARG(verbose     ,"i"  ,"Be verbose"),
 		ARG(help        ,"i"  ,"Print the Usage screen"),
 		ARG(modInfoName ,"s"  ,"Name of the ModuleInfo section to lookup"),
 		ARG(print       ,"s"  ,"What to print: Imp,eXp,Rel,Sec,sysLibexp "),

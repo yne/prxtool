@@ -219,12 +219,19 @@ int prx_loadFromElf(PrxCtx* prx,FILE *fp, Instruction*inst, size_t inst_count,ch
 	fprintf(stderr,"\n[PRX]\nAddr:%08X %.*s Flags:%08X GP:%08X Imp:%X..%X Exp:%X..%X\n",prx->module.addr,
 		sizeof(i->name),i->name,i->flags, i->gp, i->imports, i->imp_end, i->exports, i->exp_end);
 	
-	assert(!prx_loadImports(prx));
-	fprintf(stderr,">>>IMPORT\n");
+	assert(!prx_loadImports(prx,
+		prx->module.imps,&prx->module.imps_count,
+		prx->module.impfuncs,&prx->module.impfuncs_count,
+		prx->module.impvars,&prx->module.impvars_count));
+
+	assert(!prx_loadExports(prx,
+		prx->module.exps,&prx->module.exps_count,
+		prx->module.expfuncs,&prx->module.expfuncs_count,
+		prx->module.expvars,&prx->module.expvars_count));
+	
 	return 0;
-	assert(!prx_loadExports(prx));
 	fprintf(stderr,">>>EXPORT:OK\n",__LINE__);
-	assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));
+	//assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));
 	fprintf(stderr,">>>FAKESEC\n",__LINE__);
 	assert(!prx_buildSymbols(prx,prx->symbol,&prx->symbol_count, prx->base));
 	assert(!prx_buildMaps(prx,inst,inst_count));
@@ -241,3 +248,31 @@ int prx_loadFromBin(PrxCtx* prx,FILE *fp, Instruction*inst, size_t inst_count){
 	return 0;
 }
 
+int prx_dumpImports(PrxCtx* prx){
+#if 0
+	for(PspModuleImport*imp = prx->module.imports; imp < prx->module.imports+prx->module.imports_count; imp++)
+		fprintf(stderr,"%08X %i %i %i %08X %08X %08X %s@%X\n",
+			imp->flags,
+			imp->size,
+			imp->vars_count,
+			imp->funcs_count,
+			imp->nids,
+			imp->funcs,
+			imp->vars,
+			prx->elf.elf[elf_translate(&prx->elf,imp->name)],
+			imp->name);
+	//*pos += imp->size*4;
+	return 0;
+	
+	assert(!module->imports);
+	assert(module->info.imports);
+	
+	for(uint32_t pos = module->info.imports;module->info.imp_end - pos;)
+		assert(!prx_loadImport(prx,(PspModuleImport*)prx->elf.elf[elf_translate(&prx->elf,pos)],&pos))
+	for(uint32_t count,current = module->info.imports;module->info.imp_end - current >= sizeof(PspModuleImport);current += (count * sizeof(uint32_t))){
+		fprintf(stderr,">>>>%08X\n",module->info.imports);
+		assert(count = prx_loadImport2(prx, VmemGetPtr(&prx->vMem,current), current))
+	}
+#endif
+	return 0;
+}

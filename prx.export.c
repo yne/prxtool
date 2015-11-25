@@ -1,4 +1,5 @@
 int prx_loadExport(PrxCtx* prx,PspModuleExport *pExport, uint32_t addr){
+#if 0
 	assert(pExport);
 	PspEntries pLib = (PspEntries){
 		.addr = addr,
@@ -52,24 +53,28 @@ int prx_loadExport(PrxCtx* prx,PspModuleExport *pExport, uint32_t addr){
 		fprintf(stderr,"Found export nid:0x%08X var:0x%08X name:%s\n", v->nid, v->addr, v->name);
 		expAddr += 4;
 	}
-	fprintf(stderr,">>> %i\n",__LINE__);
-	if(!prx->module.exports){
-		prx->module.exports = &pLib;
-	}else{
-		// Search for the end of the list
-		//while(PspEntries* prx->module.exports;pExport->next;pExport = pExport->next)
-		//pExport->next = pLib;
-	}
 
 	return pLib.export.counts & 0xFF;
+#endif
+	return 0;
 }
 
-int prx_loadExports(PrxCtx* prx){
+int prx_loadExports(PrxCtx* prx,PspModuleExport*exps,size_t*exps_count,PspModuleFunction*expfuncs,size_t*expfuncs_count,PspModuleVariable*expvars,size_t*expvars_count){
 	assert(!prx->module.exports);
-	assert(prx->module.info.exports);
-
-	uint32_t addr = prx->module.info.exports;
-	for(uint32_t count=0;(prx->module.info.exp_end - addr) >= sizeof(PspModuleExport);addr += (count * sizeof(uint32_t)))
-		assert(count = prx_loadExport(prx, (PspModuleExport*) VmemGetPtr(&prx->vMem,addr), addr));
+	assert(prx->module.info.exports<=prx->module.info.exp_end);
+	
+	PspModuleExport*exp = (PspModuleExport*)&prx->elf.elf[elf_translate(&prx->elf,prx->module.info.exports)];
+	PspModuleExport*end = (PspModuleExport*)&prx->elf.elf[elf_translate(&prx->elf,prx->module.info.exp_end)];
+	for(uint32_t*exp_ = (uint32_t*)exp;exp->size && (exp<end);exp_+=exp->size,exp=(PspModuleExport*)exp_){
+		fprintf(stderr,"exp:%i %i %i %0x\n",exp->size,exp->vars_count,exp->funcs_count,exp->exports);
+		*expfuncs_count+=exp->funcs_count;
+		*expvars_count+=exp->vars_count;
+		if(expfuncs)
+			for(int i=0;i<exp->funcs_count;i++)
+				expfuncs[i]=(PspModuleFunction){};
+		if(expvars)
+			for(int i=0;i<exp->vars_count;i++)
+				expvars[i]=(PspModuleVariable){};
+	}
 	return 0;
 }
