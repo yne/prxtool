@@ -30,7 +30,7 @@ typedef struct{
 	uint8_t  size;
 	uint8_t  vars_count;
 	uint16_t funcs_count;
-	uint32_t exports;
+	uint32_t nids;
 }PspModuleExport;
 
 typedef struct{
@@ -80,14 +80,17 @@ typedef struct{
 //<Should me removed ?>
 
 typedef struct{
+	uint32_t addr;
 	PspModuleInfo info;
+
 	PspModuleExport*exps;size_t exps_count;
+	PspModuleFunction*expfuncs;size_t expfuncs_count;
+	PspModuleVariable*expvars ;size_t expvars_count;
+
 	PspModuleImport*imps;size_t imps_count;
 	PspModuleFunction*impfuncs;size_t impfuncs_count;
 	PspModuleVariable*impvars ;size_t impvars_count;
-	PspModuleFunction*expfuncs;size_t expfuncs_count;
-	PspModuleVariable*expvars ;size_t expvars_count;
-	uint32_t addr;
+
 	PspEntries *exports;size_t exports_count;
 	PspEntries *imports;size_t imports_count;
 
