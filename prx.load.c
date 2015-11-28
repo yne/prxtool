@@ -268,7 +268,6 @@ int prx_loadFromElf(PrxCtx* prx,FILE *fp, Instruction*inst, size_t inst_count,ch
 	prx->module.expvars=calloc(prx->module.expvars_count,sizeof(PspModuleVariable));
 	assert(!prx_loadExports(prx,prx->module.exps,NULL,prx->module.expfuncs,NULL,prx->module.expvars,NULL));
 	
-	prx_dump(prx,stderr);
 	return 0;
 	//assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));
 	fprintf(stderr,">>>FAKESEC\n",__LINE__);

@@ -58,7 +58,6 @@ int main(int argc, char **argv){
 	if(arg.in.bin){
 		assert(!prx_loadFromBin(&prx,arg.in.bin,instr,instr_count))
 	}
-	return 0;
 	#define OUT(A) if(arg.out.A)output_##A(&prx,arg.out.A,&arg);
 	OUT(elf);
 	OUT(stub);

@@ -4,25 +4,25 @@ int prx_loadExports(PrxCtx* prx,PspModuleExport*exps,size_t*exps_count,PspModule
 	
 	PspModuleExport*cur = (PspModuleExport*)&prx->elf.elf[elf_translate(&prx->elf,prx->module.info.exports)];
 	PspModuleExport*end = (PspModuleExport*)&prx->elf.elf[elf_translate(&prx->elf,prx->module.info.exp_end)];
+	int e=0,f=0,v=0;
 	for(uint32_t*exp_ = (uint32_t*)cur;cur->size && (cur<end);exp_+=cur->size,cur=(PspModuleExport*)exp_){
-		if(expfuncs_count)
+		if(exps_count && expfuncs_count && expvars_count){
 			(*expfuncs_count)+=cur->funcs_count;
-		if(expvars_count)
 			(*expvars_count)+=cur->vars_count;
-		if(exps_count)
 			(*exps_count)++;
-		if(exps)
-			(*exps)=*cur;
-		if(expfuncs)
+		}
+		if(exps && expfuncs && expvars){
+			exps[e++]=*cur;
+			printf(">>>%i\n",e);
 			for(int i=0;i<cur->funcs_count;i++)
-				expfuncs[i]=(PspModuleFunction){
-					*((uint32_t*)(prx->elf.elf+elf_translate(&prx->elf,cur->nids))),
+				expfuncs[f++]=(PspModuleFunction){
+					cur->nids,cur->nids
 				};
-		if(expvars)
 			for(int i=0;i<cur->vars_count;i++)
-				expvars[i]=(PspModuleVariable){
-					*((uint32_t*)(prx->elf.elf+elf_translate(&prx->elf,cur->nids))),
+				expvars[v]=(PspModuleVariable){
+					cur->nids,cur->nids//*((uint32_t*)(prx->elf.elf+elf_translate(&prx->elf,cur->nids))),
 				};
+		}
 	}
 	return 0;
 }

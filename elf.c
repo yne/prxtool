@@ -34,7 +34,6 @@ ElfSection* elf_findSection(ElfCtx*elf, const char *szName){
 			return &elf->section[i];
 	return NULL;
 }
-
 uint32_t elf_translate (ElfCtx*elf, uint32_t vaddr){
 	for (ElfProgram*p=elf->program;p<elf->program+elf->PH_count;p++) {
 		if (p->type != PT_LOAD) continue;
@@ -43,6 +42,9 @@ uint32_t elf_translate (ElfCtx*elf, uint32_t vaddr){
 	}
 	return 0;
 }
+
+#define elf_at(ELF,ADDR) (&(ELF).elf+elf_translate(&(ELF),ADDR))
+
 #include "endianness.c"
 #include "elf.dump.c"
 #include "elf.load.c"

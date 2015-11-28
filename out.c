@@ -69,21 +69,7 @@ int output_disasm   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 }
 
 int output_mod      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
-	// PrxGetModuleInfo(prx);
-	fprintf(stdout, "Module information\n");
-	fprintf(stdout, "Name:    %s\n", prx->module.info.name);
-	fprintf(stdout, "Attrib:  %04X\n", prx->module.info.flags & 0xFFFF);
-	fprintf(stdout, "Version: %d.%d\n", (prx->module.info.flags >> 24) & 0xFF, (prx->module.info.flags >> 16) & 0xFF);
-	fprintf(stdout, "GP:      %08X\n", prx->module.info.gp);
-
-	fprintf(stdout, "\nExports:\n");
-	for(int ex = 0; ex < prx->module.exports_count; ex++)
-		fprintf(stdout, "Name %s, Functions %d, Variables %d, flags %08X\n", prx->module.exports[ex].name, prx->module.exports[ex].f_count, prx->module.exports[ex].v_count, prx->module.exports[ex].stub.flags);
-
-	fprintf(stdout, "\nImports:\n");
-	for(int im = 0; im < prx->module.imports_count; im++)
-		fprintf(stdout, "Import %d, Name %s, Functions %d, Variables %d, flags %08X\n", im, prx->module.imports[im].name, prx->module.imports[im].f_count, prx->module.imports[im].v_count, prx->module.imports[im].stub.flags);
-	return 0;
+	return prx_dump(prx,stderr);
 }
 
 int output_elf      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){//TODO
