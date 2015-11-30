@@ -1,7 +1,8 @@
 language: c
 compiler: gcc
-script:$CC -std=c99 -coverage prxtool.c -o prxtool -DVERSION=\"$(git describe --dirty --always --tags)\"
-before_install:
-  - pip install --user codecov
+script:
+  - $CC -std=c99 -coverage prxtool.c -o prxtool -DVERSION=\"$(git describe --dirty --always --tags)\"
+  - ./prxtool
+  - gcov prxtool.c
 after_success:
-  - codecov
+  - bash <(curl -s https://codecov.io/bash)
