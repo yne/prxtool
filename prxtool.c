@@ -58,19 +58,19 @@ int main(int argc, char **argv){
 	if(arg.in.bin){
 		assert(!prx_loadFromBin(&prx,arg.in.bin,instr,instr_count))
 	}
-	#define OUT(A) if(arg.out.A)output_##A(&prx,arg.out.A,&arg);
+	#define OUT(A,...) if(arg.out.A)output_##A(&prx,arg.out.A, ##__VA_ARGS__);
 	OUT(elf);
-	OUT(stub);
-	OUT(stub2);
+	OUT(stub,&arg);
+	OUT(stub2,&arg);
 	OUT(dep);
 	OUT(mod);
 	OUT(pstub);
 	OUT(pstub2);
-	OUT(impexp);
+	OUT(impexp,&arg);
 	OUT(symbol);
 	//OUT(xmldb);
 	OUT(ent);
-	OUT(disasm);
+	OUT(disasm,&arg);
 	OUT(xml);
 	OUT(map);
 	OUT(idc);

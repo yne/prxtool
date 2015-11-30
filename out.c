@@ -4,7 +4,7 @@ int compare_symbols(const void *left, const void *right){
 	return ((int) ((ElfSymbol *) left)->value) - ((int) ((ElfSymbol *) right)->value);
 }
 
-int output_symbol   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_symbol   (PrxCtx* prx,FILE *out_fp){
 	ElfSymbol *pSymbols=NULL;
 	int symbol_count=0;//PrxGetSymbols(&pSymbols);
 	if(!symbol_count)
@@ -68,25 +68,25 @@ int output_disasm   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_mod      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_mod      (PrxCtx* prx,FILE *out_fp){
 	return prx_dump(prx,stderr);
 }
 
-int output_elf      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){//TODO
+int output_elf      (PrxCtx* prx,FILE *out_fp){//TODO
 	if(!prx_toElf(prx,out_fp))
 		return fprintf(stderr, "Failed to create a fixed up ELF\n"),1;
 	return 0;
 }
 
-int output_xml      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_xml      (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_map      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_map      (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_idc      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_idc      (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
@@ -163,7 +163,7 @@ int output_impexp   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_dep      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_dep      (PrxCtx* prx,FILE *out_fp){
 	char path[PATH_MAX];
 	int i = 0;
 	fprintf(stdout, "Dependency list\n");
@@ -208,7 +208,7 @@ int output_stub     (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_ent      (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_ent      (PrxCtx* prx,FILE *out_fp){
 	fprintf(stdout,"Library %s\n", prx->module.exports->name);
 	
 	fprintf(out_fp, "PSP_EXPORT_START(%s, 0x%04X, 0x%04X)\n", prx->module.exports->name, prx->module.exports->stub.flags & 0xFFFF, prx->module.exports->stub.flags >> 16);
@@ -274,7 +274,7 @@ int output_stub2    (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_pstub    (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_pstub    (PrxCtx* prx,FILE *out_fp){
 	fprintf(stdout, "Dependency list\n");
 	// PrxGetExports(&prx,&pHead);
 	for(PspEntries*pHead=prx->module.exports;pHead;){
@@ -285,7 +285,7 @@ int output_pstub    (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_pstub2   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_pstub2   (PrxCtx* prx,FILE *out_fp){
 	fprintf(stdout, "Dependency list\n");
 	// PrxGetExports(&prx,&pHead);
 	for(PspEntries*pHead=prx->module.exports;pHead;){
@@ -296,7 +296,7 @@ int output_pstub2   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_ents     (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_ents     (PrxCtx* prx,FILE *out_fp){
 	fprintf(out_fp, "# Export file automatically generated with prxtool\n");
 	fprintf(out_fp, "PSP_BEGIN_EXPORTS\n\n");
 	fprintf(stdout, "Dependency list\n");
@@ -308,7 +308,7 @@ int output_ents     (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	return 0;
 }
 
-int output_stubs_xml(PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_stubs_xml(PrxCtx* prx,FILE *out_fp){
 /*
 	for(Library *pLib = pNids->libs;pLib;){
 		// Convery the Library into a valid PspEntries
