@@ -63,8 +63,8 @@ int output_symbol   (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_disasm   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
-	PrxDump(prx,out_fp, arg->disopts);
+int output_disasm   (PrxCtx* prx,FILE *out_fp,char* disopts){
+	PrxDump(prx,out_fp, disopts);
 	return 0;
 }
 
@@ -90,7 +90,7 @@ int output_idc      (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_impexp   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_impexp   (PrxCtx* prx,FILE *out_fp,int aliased){
 	PspModule pMod;
 	// PrxGetModuleInfo(&pMod);
 	fprintf(stdout, "Module information\n");
@@ -112,7 +112,7 @@ int output_impexp   (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 
 				fprintf(stdout, "0x%08X [0x%08X] - %s", pExport->funcs[i].nid, 
 						pExport->funcs[i].addr, pExport->funcs[i].name);
-				if(arg->aliased){
+				if(aliased){
 					Symbol pSym;
 					// prx_getSymbolEntryFromAddr(pExport->funcs[i].addr,&pSym);
 					if(pSym.alias > 0){
@@ -178,7 +178,7 @@ int output_dep      (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_stub     (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_stub     (PrxCtx* prx,FILE *out_fp,int aliased){
 	fprintf(stdout,"Library %s\n", prx->module.exports->name);
 	if(prx->module.exports->v_count != 0)
 		fprintf(stderr, "%s: Stub output does not currently support variables\n", prx->module.exports->name);
@@ -197,7 +197,7 @@ int output_stub     (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 
 	for(int i = 0; i < prx->module.exports->f_count; i++){
 		Symbol *pSym = prx?prx_getSymbolEntryFromAddr(prx,prx->module.exports->funcs[i].addr):NULL;
-		if((arg->aliased) && (pSym) && (pSym->alias > 0))
+		if((aliased) && (pSym) && (pSym->alias > 0))
 			fprintf(fp, "\tSTUB_FUNC_WITH_ALIAS\t0x%08X,%s,%s\n", prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
 			fprintf(fp, "\tSTUB_FUNC\t0x%08X,%s\n", prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name);
@@ -233,7 +233,7 @@ int output_ent      (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_stub2    (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
+int output_stub2    (PrxCtx* prx,FILE *out_fp,int aliased){
 	fprintf(stdout,"Library %s\n", prx->module.exports->name);
 	if(!prx->module.exports->v_count)
 		fprintf(stderr, "%s: Stub output does not currently support variables\n", prx->module.exports->name);
@@ -264,7 +264,7 @@ int output_stub2    (PrxCtx* prx,FILE *out_fp,PrxToolArg* arg){
 	for(int i = 0; i < prx->module.exports->f_count; i++){
 		fprintf(fp, "#ifdef F_%s_%04d\n", prx->module.exports->name, i + 1);
 		Symbol *pSym = NULL; //pPrx?prx_getSymbolEntryFromAddr(pPrx,prx->module.exports->funcs[i].addr)
-		if((arg->aliased) && (pSym) && (pSym->alias > 0))
+		if(aliased && (pSym) && (pSym->alias > 0))
 			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", prx->module.exports->name, prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
 			fprintf(fp, "\tIMPORT_FUNC\t\"%s\",0x%08X,%s\n", prx->module.exports->name, prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name);

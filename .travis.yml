@@ -1,3 +1,7 @@
 language: c
 compiler: gcc
-script: $CC -std=c99 prxtool.c -o prxtool -DVERSION=\"$(git describe --dirty --always --tags)\"
+script:$CC -std=c99 -coverage prxtool.c -o prxtool -DVERSION=\"$(git describe --dirty --always --tags)\"
+before_install:
+  - pip install --user codecov
+after_success:
+  - codecov

@@ -6,9 +6,9 @@
 #define assert(cond) if(!(cond))return fprintf(stderr,"error in %s: %s\n", __func__, #cond),-1;
 #define foreach(Type,name,list) for(Type name = list; name < list+list##_count; name++)
 
-#include "arg.c"
 #include "prx.c"
 #include "out.c"
+#include "arg.c"
 
 #ifndef PRXTOOL_VERSION
 #define PRXTOOL_VERSION ""
@@ -60,17 +60,17 @@ int main(int argc, char **argv){
 	}
 	#define OUT(A,...) if(arg.out.A)output_##A(&prx,arg.out.A, ##__VA_ARGS__);
 	OUT(elf);
-	OUT(stub,&arg);
-	OUT(stub2,&arg);
+	OUT(stub,arg.aliased);
+	OUT(stub2,arg.aliased);
 	OUT(dep);
 	OUT(mod);
 	OUT(pstub);
 	OUT(pstub2);
-	OUT(impexp,&arg);
+	OUT(impexp,arg.aliased);
 	OUT(symbol);
 	//OUT(xmldb);
 	OUT(ent);
-	OUT(disasm,&arg);
+	OUT(disasm,arg.disopts);
 	OUT(xml);
 	OUT(map);
 	OUT(idc);
