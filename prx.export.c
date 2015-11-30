@@ -13,16 +13,28 @@ int prx_loadExports(PrxCtx* prx,PspModuleExport*exps,size_t*exps_count,PspModule
 		}
 		if(exps && expfuncs && expvars){
 			exps[e++]=*cur;
-			printf(">>>%i\n",e);
 			for(int i=0;i<cur->funcs_count;i++)
 				expfuncs[f++]=(PspModuleFunction){
-					cur->nids,cur->nids
+					elf_at(&prx->elf,cur->exports)[i],
+					elf_at(&prx->elf,cur->exports)[cur->funcs_count+cur->vars_count+i]
 				};
 			for(int i=0;i<cur->vars_count;i++)
-				expvars[v]=(PspModuleVariable){
-					cur->nids,cur->nids//*((uint32_t*)(prx->elf.elf+elf_translate(&prx->elf,cur->nids))),
+				expvars[v++]=(PspModuleVariable){
+					elf_at(&prx->elf,cur->exports)[cur->funcs_count+i],
+					elf_at(&prx->elf,cur->exports)[cur->funcs_count*2+cur->vars_count+i]
 				};
 		}
 	}
 	return 0;
 }
+/*
+syslib
+	Functions:
+		NID: 0xD632ACDB  VADDR: 0x00000008 NAME: module_start
+	Variables:
+		NID: 0xF01D73A7  VADDR: 0x00000080 NAME: module_info
+
+MyExportLibName
+	Functions:
+		NID: 0x19CB347B  VADDR: 0x00000000
+*/

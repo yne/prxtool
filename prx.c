@@ -20,7 +20,7 @@ typedef struct{
 }PspModuleFunction;
 
 typedef struct{
-	uint32_t data_addr;//{type:6,data:26}
+	uint32_t data_addr;//type:6,data:26
 	uint32_t nid_addr;
 }PspModuleVariable;
 
@@ -30,7 +30,7 @@ typedef struct{
 	uint8_t  size;
 	uint8_t  vars_count;
 	uint16_t funcs_count;
-	uint32_t nids;
+	uint32_t exports;//Nid...,PspModuleVariable...,PspModuleFunction...
 }PspModuleExport;
 
 typedef struct{

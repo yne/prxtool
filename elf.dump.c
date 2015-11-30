@@ -1,9 +1,9 @@
 void elf_dumpHeader(ElfCtx*elf, FILE*stream){
 	ElfHeader*h = &elf->header;
 	fprintf(stream,"\n[ELF]\n");
-	fprintf(stream,"Type: %04X, Start 0x%X,Flags %08X\n",h->type,h->entry,h->flags);
-	fprintf(stream,"Programs: %2d*%dB at %X\n",      h->PHnum,h->PHentSize,h->PHoff);
-	fprintf(stream,"Sections: %2d*%dB at %X (str at %d)\n",h->SHnum,h->SHentSize,h->SHoff,h->SHstrIndex);
+	fprintf(stream,"Type:%04X (%s), Start:0x%X Flags:%08X\n",h->type,h->type==ELF_MIPS_TYPE?"ELF":"PRX",h->entry,h->flags);
+	fprintf(stream,"Programs: %2d*%dB at %04X\n",      h->PHnum,h->PHentSize,h->PHoff);
+	fprintf(stream,"Sections: %2d*%dB at %04X (.strtab at %d)\n",h->SHnum,h->SHentSize,h->SHoff,h->SHstrIndex);
 }
 
 void elf_dumpPrograms(ElfCtx*elf,FILE*stream){

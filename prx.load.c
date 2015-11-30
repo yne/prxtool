@@ -209,7 +209,7 @@ int elf_createFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
 
 int prx_dumpInfo(PrxCtx* prx,FILE *stream){
 	PspModuleInfo*i=&prx->module.info;
-	fprintf(stream,"\n[PRX]\nAddr:%08X %.*s Flags:%08X GP:%08X Imp:%X..%X Exp:%X..%X\n",prx->module.addr,
+	fprintf(stream,"\n[ModuleInfo]\nAddr:%08X %.*s Flags:%08X GP:%08X Imp:%X..%X Exp:%X..%X\n",prx->module.addr,
 		sizeof(i->name),i->name,i->flags, i->gp, i->imports, i->imp_end, i->exports, i->exp_end);
 	return 0;
 }
@@ -228,15 +228,15 @@ int prx_dumpImports(PrxCtx* prx,FILE *stream){
 }
 
 int prx_dumpExports(PrxCtx* prx,FILE *stream){
-	fprintf(stream,"\n[ExportedLibs]\nflags    sz var func nids name\n");
+	fprintf(stream,"\n[ExportedLibs]\nflags    sz var func addr name\n");
 	for(PspModuleExport*e=prx->module.exps;e<prx->module.exps+prx->module.exps_count;e++)
-		fprintf(stream,"%08X %2i %3i %4i %04X %s\n",e->flags,e->size,e->vars_count,e->funcs_count,e->nids,elf_translate(&prx->elf,e->name)?(char*)&prx->elf.elf[elf_translate(&prx->elf,e->name)]:"syslib");
+		fprintf(stream,"%08X %2i %3i %4i %04X %s\n",e->flags,e->size,e->vars_count,e->funcs_count,e->exports,elf_translate(&prx->elf,e->name)?(char*)&prx->elf.elf[elf_translate(&prx->elf,e->name)]:"syslib");
 	fprintf(stream,"[ExportedFuncs]\n");
 	for(PspModuleFunction*f=prx->module.expfuncs;f<prx->module.expfuncs+prx->module.expfuncs_count;f++)
-		fprintf(stream,"%08X at %08X from lib#%i\n",f->data_addr,f->nid_addr,0);
+		fprintf(stream,"%08X at %08X as lib#%i\n",f->data_addr,f->nid_addr,0);
 	fprintf(stream,"[ExportedVars]\n");
 	for(PspModuleVariable*v=prx->module.expvars;v<prx->module.expvars+prx->module.expvars_count;v++)
-		fprintf(stream,"%08X at %08X from lib#%i\n",v->data_addr,v->nid_addr,0);
+		fprintf(stream,"%08X at %08X as lib#%i\n",v->data_addr,v->nid_addr,0);
 	return 0;
 }
 
@@ -248,7 +248,7 @@ int prx_dump(PrxCtx* prx,FILE *stream){
 	return 0;
 }
 
-int prx_loadFromElf(PrxCtx* prx,FILE *fp, Instruction*inst, size_t inst_count,char*modInfoName){
+int prx_loadFromElf(PrxCtx* prx,FILE *fp,Instruction*inst, size_t inst_count,char*modInfoName){
 	assert(!elf_loadFromElfFile(&prx->elf, fp));
 	prx->vMem = (Vmem){prx->elf.elf, prx->elf.bin_count, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
 	//fprintf(stderr,"pData %p, iSize %x, iBaseAddr 0x%08X, endian %d\n", prx->vMem.data, prx->vMem.size, prx->vMem.baseAddr, prx->vMem.endian);
@@ -263,13 +263,13 @@ int prx_loadFromElf(PrxCtx* prx,FILE *fp, Instruction*inst, size_t inst_count,ch
 	assert(!prx_loadImports(prx,prx->module.imps,NULL,prx->module.impfuncs,NULL,prx->module.impvars,NULL));
 	
 	assert(!prx_loadExports(prx,NULL,&prx->module.exps_count,	NULL,&prx->module.expfuncs_count,NULL,&prx->module.expvars_count));
-	prx->module.exps=calloc(prx->module.imps_count,sizeof(PspModuleExport));
+	prx->module.exps=calloc(prx->module.exps_count,sizeof(PspModuleExport));
 	prx->module.expfuncs=calloc(prx->module.expfuncs_count,sizeof(PspModuleFunction));
 	prx->module.expvars=calloc(prx->module.expvars_count,sizeof(PspModuleVariable));
 	assert(!prx_loadExports(prx,prx->module.exps,NULL,prx->module.expfuncs,NULL,prx->module.expvars,NULL));
 	
 	return 0;
-	//assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));
+	assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));
 	fprintf(stderr,">>>FAKESEC\n",__LINE__);
 	assert(!prx_buildSymbols(prx,prx->symbol,&prx->symbol_count, prx->base));
 	assert(!prx_buildMaps(prx,inst,inst_count));

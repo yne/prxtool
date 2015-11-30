@@ -4,25 +4,26 @@ int prx_loadImports(PrxCtx* prx,PspModuleImport*imps,size_t*imps_count,PspModule
 	
 	PspModuleImport*cur = (PspModuleImport*)&prx->elf.elf[elf_translate(&prx->elf,prx->module.info.imports)];
 	PspModuleImport*end = (PspModuleImport*)&prx->elf.elf[elf_translate(&prx->elf,prx->module.info.imp_end)];
+	int imp=0,f=0,v=0;
 	for(uint32_t*imp_ = (uint32_t*)cur;cur->size && (cur<end);imp_+=cur->size,cur=(PspModuleImport*)imp_){
-		if( impfuncs_count)
+		if(imps_count && impfuncs_count && impvars_count){
 			(*impfuncs_count)+=cur->funcs_count;
-		if( impvars_count)
 			(*impvars_count)+=cur->vars_count;
-		if( imps_count)
 			(*imps_count)++;
-		if( imps)
-			(*imps)=*cur;
-		if(impfuncs)
+		}
+		if(imps && impfuncs && impvars){
+			imps[imp++]=*cur;
 			for(int i=0;i<cur->funcs_count;i++)
-				impfuncs[i]=(PspModuleFunction){
-					*((uint32_t*)(prx->elf.elf+elf_translate(&prx->elf,cur->nids))),
+				impfuncs[f++]=(PspModuleFunction){
+					elf_at(&prx->elf,cur->nids)[i],
+					cur->funcs+(i*4)
 				};
-		if(impvars)
 			for(int i=0;i<cur->vars_count;i++)
-				impvars[i]=(PspModuleVariable){
-					*((uint32_t*)(prx->elf.elf+elf_translate(&prx->elf,cur->nids))),
+				impvars[v++]=(PspModuleVariable){
+					elf_at(&prx->elf,cur->nids)[cur->funcs_count+i],
+					cur->vars+(i*4)
 				};
+		}
 	}
 	return 0;
 }
