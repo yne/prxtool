@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include <unistd.h>
+//#include <unistd.h>
 #include <stdint.h>
 
-#define PATH_MAX 4096
+//#define PATH_MAX 4096
 #define assert(cond) if(!(cond))return fprintf(stderr,"error in %s: %s\n", __func__, #cond),-1;
 #define foreach(Type,name,list) for(Type name = list; name < list+list##_count; name++)
 

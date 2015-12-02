@@ -27,14 +27,3 @@ int prx_loadExports(PrxCtx* prx,PspModuleExport*exps,size_t*exps_count,PspModule
 	}
 	return 0;
 }
-/*
-syslib
-	Functions:
-		NID: 0xD632ACDB  VADDR: 0x00000008 NAME: module_start
-	Variables:
-		NID: 0xF01D73A7  VADDR: 0x00000080 NAME: module_info
-
-MyExportLibName
-	Functions:
-		NID: 0x19CB347B  VADDR: 0x00000000
-*/

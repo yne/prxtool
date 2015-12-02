@@ -69,7 +69,7 @@ typedef struct{
 }PspEntry;
 
 typedef struct{
-	char name[128],file[PATH_MAX];
+	char name[128],file[256];
 	uint32_t addr;
 	uint16_t f_count;
 	uint8_t v_count;

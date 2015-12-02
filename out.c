@@ -1,3 +1,4 @@
+#include <limits.h>
 #include "out.prx.c"
 
 int compare_symbols(const void *left, const void *right){

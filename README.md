@@ -13,7 +13,18 @@ Installation
 
 To compile `prxtool`, run:
 
-    cc prxtool.c
+    c99 prxtool.c
+
+Testing
+-------
+
+The `/tests/` folder contain samples prx from pspsdk and from Sony
+(with randomized section content to avoid copyright infringement).
+
+Additional resources
+--------------------
+The `/res/` folder contain the 5.00 psplibdoc in .xml and .yml format
+along with function and instruction list file in .tsv format.
 
 License
 -------

@@ -25,12 +25,14 @@ void PrxPrintRow(PrxCtx* prx,FILE *fp, const uint32_t* row, int32_t row_size, ui
 	for(int i = 0; i < 16; i++){
 		if(i < row_size){
 			if((row[i] >= 32) && (row[i] < 127)){
-				//if(prx->isXmlDump && (row[i] == '<')){
-				//	strcpy(p, "&lt;");
-				//	p += strlen(p);
-				//}else{
-					*p++ = row[i];
-				//}
+				#if 0
+				if(prx->isXmlDump && (row[i] == '<')){
+					strcpy(p, "&lt;");
+					p += strlen(p);
+				}else{
+					// *p++ = row[i];
+				}
+				#endif
 			}else{
 				*p++ =  '.';
 			}
