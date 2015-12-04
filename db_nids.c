@@ -3,7 +3,7 @@
 #include <limits.h>
 
 typedef struct{
-	char prx[PATH_MAX];
+	char prx[128];
 	char prx_name[64];
 	char lib_name[64];
 	int  flags;

@@ -1,7 +1,7 @@
 int prx_dumpInfo(PrxCtx* prx,FILE *stream){
 	PspModuleInfo*i=&prx->module.info;
 	fprintf(stream,"\n[ModuleInfo]\nAddr:%X %.*s Flags:%08X GP:%X Imp:%X..%X Exp:%X..%X\n",prx->module.addr,
-		sizeof(i->name),i->name,i->flags, i->gp, i->imports, i->imp_end, i->exports, i->exp_end);
+		(int)sizeof(i->name),i->name,i->flags, i->gp, i->imports, i->imp_end, i->exports, i->exp_end);
 	return 0;
 }
 
