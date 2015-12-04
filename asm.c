@@ -144,7 +144,6 @@ typedef struct{
 	char name[32];
 	uint32_t refs[32];//TODO
 	char alias[32][32];//TODO
-	PspEntries*exported,*imported;//TODO
 }Symbol;
 
 typedef struct{
@@ -198,6 +197,7 @@ SymbolType disasmResolveSymbol(unsigned int PC, char *name, int namelen){
 SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
 //	if(!g_syms)
 		return SYMBOL_NOSYM;
+#if 0
 	Symbol *s = NULL;//g_syms[PC];
 	if((!s) || (!s->imported))
 		return SYMBOL_NOSYM;
@@ -212,6 +212,7 @@ SymbolType disasmResolveRef(unsigned int PC, char *name, int namelen){
 	}
 	snprintf(name, namelen, "/%s/%s/nid:0x%08X", pImp->file, pImp->name, nid);
 	return s->type;
+#endif
 }
 
 Symbol* disasmFindSymbol(unsigned int PC){

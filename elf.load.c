@@ -70,7 +70,9 @@ int elf_loadPrograms(ElfCtx*elf){
 
 int elf_loadSections(ElfCtx*elf){
 	assert(elf->elf);
-	assert(elf->header.SHoff && elf->header.SHnum && elf->header.SHentSize);
+	if(!elf->header.SHnum)
+		return 0;
+	assert(elf->header.SHoff && elf->header.SHentSize);
 	
 	elf->SH_count = elf->header.SHnum;
 	elf->section = calloc(elf->SH_count,sizeof(*elf->section));

@@ -1,5 +1,4 @@
 int prx_loadImports(PrxCtx* prx,PspModuleImport*imps,size_t*imps_count,PspModuleFunction*impfuncs,size_t*impfuncs_count,PspModuleVariable*impvars,size_t*impvars_count){
-	assert(!prx->module.imports);
 	assert(prx->module.info.imports<=prx->module.info.imp_end);
 	
 	PspModuleImport*cur = (PspModuleImport*)&prx->elf.elf[elf_translate(&prx->elf,prx->module.info.imports)];

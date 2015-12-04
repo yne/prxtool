@@ -91,125 +91,32 @@ int output_idc      (PrxCtx* prx,FILE *out_fp){
 	return 0;
 }
 
-int output_impexp   (PrxCtx* prx,FILE *out_fp,int aliased){
-	PspModule pMod;
-	// PrxGetModuleInfo(&pMod);
-	fprintf(stdout, "Module information\n");
-	fprintf(stdout, "Name:    %s\n", pMod.info.name);
-	fprintf(stdout, "Attrib:  %04X\n", pMod.info.flags & 0xFFFF);
-	fprintf(stdout, "Version: %d.%d\n", (pMod.info.flags >> 24) & 0xFF, (pMod.info.flags >> 16) & 0xFF);
-	fprintf(stdout, "GP:      %08X\n", pMod.info.gp);
-
-	fprintf(stdout, "\nExports:\n");
-	
-	int count = 0;
-	for(PspEntries *pExport = pMod.exports;pExport;){
-		fprintf(stdout, "Export %d, Name %s, Functions %d, Variables %d, flags %08X\n", 
-				count++, pExport->name, pExport->f_count, pExport->v_count, pExport->stub.flags);
-
-		if(pExport->f_count > 0){
-			fprintf(stdout, "Functions:\n");
-			for(int i = 0; i < pExport->f_count; i++){
-
-				fprintf(stdout, "0x%08X [0x%08X] - %s", pExport->funcs[i].nid, 
-						pExport->funcs[i].addr, pExport->funcs[i].name);
-				if(aliased){
-					Symbol pSym;
-					// prx_getSymbolEntryFromAddr(pExport->funcs[i].addr,&pSym);
-					if(pSym.alias > 0){
-						if(strcmp(pSym.name, pExport->funcs[i].name)){
-							fprintf(stdout, " => %s", pSym.name);
-						}else{
-							fprintf(stdout, " => %s", *(pSym.alias));
-						}
-					}
-				}
-				fprintf(stdout, "\n");
-			}
-		}
-
-		if(pExport->v_count > 0){
-			fprintf(stdout, "Variables:\n");
-			for(int i = 0; i < pExport->v_count; i++){
-				fprintf(stdout, "0x%08X [0x%08X] - %s\n", pExport->vars[i].nid, 
-						pExport->vars[i].addr, pExport->vars[i].name);
-			}
-		}
-	}
-
-	fprintf(stdout, "\nImports:\n");
-	count = 0;
-	for(PspEntries *pImport = pMod.imports;pImport;){
-		fprintf(stdout, "Import %d, Name %s, Functions %d, Variables %d, flags %08X\n", 
-				count++, pImport->name, pImport->f_count, pImport->v_count, pImport->stub.flags);
-
-		if(pImport->f_count > 0){
-			fprintf(stdout, "Functions:\n");
-			for(int i = 0; i < pImport->f_count; i++){
-				fprintf(stdout, "0x%08X [0x%08X] - %s\n", 
-						pImport->funcs[i].nid, pImport->funcs[i].addr, 
-						pImport->funcs[i].name);
-			}
-		}
-
-		if(pImport->v_count > 0){
-			fprintf(stdout, "Variables:\n");
-			for(int i = 0; i < pImport->v_count; i++){
-				fprintf(stdout, "0x%08X [0x%08X] - %s\n", 
-						pImport->vars[i].nid, pImport->vars[i].addr, 
-						pImport->vars[i].name);
-			}
-		}
-	}
-	return 0;
-}
-
-int output_dep      (PrxCtx* prx,FILE *out_fp){
-	char path[PATH_MAX];
-	int i = 0;
-	fprintf(stdout, "Dependency list\n");
-	// PrxGetImports(&pHead);
-	for(PspEntries*pHead=NULL;pHead;){
-		if(strlen(pHead->file) > 0)
-			strcpy(path, pHead->file);
-		else
-			snprintf(path, PATH_MAX, "Unknown (%s)", pHead->name);
-		fprintf(stdout, "Dependency %d for%s: %s\n", i++, pHead->name, path);
-	}
-	return 0;
-}
-
 int output_stub     (PrxCtx* prx,FILE *out_fp,int aliased){
+#if 0
 	fprintf(stdout,"Library %s\n", prx->module.exports->name);
 	if(prx->module.exports->v_count != 0)
 		fprintf(stderr, "%s: Stub output does not currently support variables\n", prx->module.exports->name);
 
-	char szPath[PATH_MAX];
-	//strcpy(szPath, file);
-	strcat(szPath, prx->module.exports->name);
-	strcat(szPath, ".S");
-
-	FILE *fp = fopen(szPath, "w");
-	if(!fp)
-		return fprintf(stderr, "Unable to Open %s\n",szPath),1;
-	fprintf(fp, "\t.set noreorder\n\n");
-	fprintf(fp, "#include \"pspstub.s\"\n\n");
-	fprintf(fp, "\tSTUB_START\t\"%s\",0x%08X,0x%08X\n", prx->module.exports->name, prx->module.exports->stub.flags, (prx->module.exports->f_count << 16) | 5);
+	fprintf(out_fp, "\t.set noreorder\n\n");
+	fprintf(out_fp, "#include \"pspstub.s\"\n\n");
+	fprintf(out_fp, "\tSTUB_START\t\"%s\",0x%08X,0x%08X\n", prx->module.exports->name, prx->module.exports->stub.flags, (prx->module.exports->f_count << 16) | 5);
 
 	for(int i = 0; i < prx->module.exports->f_count; i++){
-		Symbol *pSym = prx?prx_getSymbolEntryFromAddr(prx,prx->module.exports->funcs[i].addr):NULL;
+		Symbol *pSym = prx_getSymbolEntryFromAddr(prx,prx->module.exports->funcs[i].addr);
 		if((aliased) && (pSym) && (pSym->alias > 0))
-			fprintf(fp, "\tSTUB_FUNC_WITH_ALIAS\t0x%08X,%s,%s\n", prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
+			fprintf(out_fp, "\tSTUB_FUNC_WITH_ALIAS\t0x%08X,%s,%s\n", prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
-			fprintf(fp, "\tSTUB_FUNC\t0x%08X,%s\n", prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name);
+			fprintf(out_fp, "\tSTUB_FUNC           \t0x%08X,%s   \n", prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name);
 	}
 
-	fprintf(fp, "\tSTUB_END\n");
-	fclose(fp);
+	fprintf(out_fp, "\tSTUB_END\n");
+	fclose(out_fp);
+#endif
 	return 0;
 }
 
 int output_ent      (PrxCtx* prx,FILE *out_fp){
+#if 0
 	fprintf(stdout,"Library %s\n", prx->module.exports->name);
 	
 	fprintf(out_fp, "PSP_EXPORT_START(%s, 0x%04X, 0x%04X)\n", prx->module.exports->name, prx->module.exports->stub.flags & 0xFFFF, prx->module.exports->stub.flags >> 16);
@@ -231,69 +138,40 @@ int output_ent      (PrxCtx* prx,FILE *out_fp){
 			fprintf(out_fp, "PSP_EXPORT_VAR_NID(%s, 0x%08X)\n", prx->module.exports->vars[i].name, prx->module.exports->vars[i].nid);
 	}
 	fprintf(out_fp, "PSP_EXPORT_END\n\n");
+#endif
 	return 0;
 }
 
 int output_stub2    (PrxCtx* prx,FILE *out_fp,int aliased){
+#if 0
 	fprintf(stdout,"Library %s\n", prx->module.exports->name);
 	if(!prx->module.exports->v_count)
 		fprintf(stderr, "%s: Stub output does not currently support variables\n", prx->module.exports->name);
 
-	char szPath[PATH_MAX];
-	//strcpy(szPath, file);
-	strcat(szPath, prx->module.exports->name);
-	strcat(szPath, ".S");
+	fprintf(out_fp, "\t.set noreorder\n\n");
+	fprintf(out_fp, "#include \"pspimport.s\"\n\n");
 
-	FILE *fp = fopen(szPath, "w");
-	
-	if(!fp)
-		return fprintf(stderr, "Unable to Open %s\n",szPath),1;
-	
-	fprintf(fp, "\t.set noreorder\n\n");
-	fprintf(fp, "#include \"pspimport.s\"\n\n");
-
-	fprintf(fp, "// Build List\n");
-	fprintf(fp, "// %s_0000.o ", prx->module.exports->name);
+	fprintf(out_fp, "// Build List\n");
+	fprintf(out_fp, "// %s_0000.o ", prx->module.exports->name);
 	for(int i = 0; i < prx->module.exports->f_count; i++)
-		fprintf(fp, "%s_%04d.o ", prx->module.exports->name, i + 1);
-	fprintf(fp, "\n\n");
+		fprintf(out_fp, "%s_%04d.o ", prx->module.exports->name, i + 1);
+	fprintf(out_fp, "\n\n");
 
-	fprintf(fp, "#ifdef F_%s_0000\n", prx->module.exports->name);
-	fprintf(fp, "\tIMPORT_START\t\"%s\",0x%08X\n", prx->module.exports->name, prx->module.exports->stub.flags);
-	fprintf(fp, "#endif\n");
+	fprintf(out_fp, "#ifdef F_%s_0000\n", prx->module.exports->name);
+	fprintf(out_fp, "\tIMPORT_START\t\"%s\",0x%08X\n", prx->module.exports->name, prx->module.exports->stub.flags);
+	fprintf(out_fp, "#endif\n");
 
 	for(int i = 0; i < prx->module.exports->f_count; i++){
-		fprintf(fp, "#ifdef F_%s_%04d\n", prx->module.exports->name, i + 1);
+		fprintf(out_fp, "#ifdef F_%s_%04d\n", prx->module.exports->name, i + 1);
 		Symbol *pSym = NULL; //pPrx?prx_getSymbolEntryFromAddr(pPrx,prx->module.exports->funcs[i].addr)
 		if(aliased && (pSym) && (pSym->alias > 0))
-			fprintf(fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", prx->module.exports->name, prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
+			fprintf(out_fp, "\tIMPORT_FUNC_WITH_ALIAS\t\"%s\",0x%08X,%s,%s\n", prx->module.exports->name, prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name, strcmp(pSym->name, prx->module.exports->funcs[i].name)?pSym->name:pSym->alias[0]);
 		else
-			fprintf(fp, "\tIMPORT_FUNC\t\"%s\",0x%08X,%s\n", prx->module.exports->name, prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name);
-		fprintf(fp, "#endif\n");
+			fprintf(out_fp, "\tIMPORT_FUNC\t\"%s\",0x%08X,%s\n", prx->module.exports->name, prx->module.exports->funcs[i].nid, prx->module.exports->funcs[i].name);
+		fprintf(out_fp, "#endif\n");
 	}
-	fclose(fp);
-	return 0;
-}
-
-int output_pstub    (PrxCtx* prx,FILE *out_fp){
-	fprintf(stdout, "Dependency list\n");
-	// PrxGetExports(&prx,&pHead);
-	for(PspEntries*pHead=prx->module.exports;pHead;){
-		if(strcmp(pHead->name, PSP_SYSTEM_EXPORT)){
-				//write_stub("", pHead, NULL);
-		}
-	}
-	return 0;
-}
-
-int output_pstub2   (PrxCtx* prx,FILE *out_fp){
-	fprintf(stdout, "Dependency list\n");
-	// PrxGetExports(&prx,&pHead);
-	for(PspEntries*pHead=prx->module.exports;pHead;){
-		if(strcmp(pHead->name, PSP_SYSTEM_EXPORT)){
-				//write_stub_new("", pHead, NULL);
-		}
-	}
+	fclose(out_fp);
+#endif
 	return 0;
 }
 
@@ -303,7 +181,7 @@ int output_ents     (PrxCtx* prx,FILE *out_fp){
 	fprintf(stdout, "Dependency list\n");
 	
 	// PrxGetExports(&prx,&pHead);
-	for(PspEntries*pHead=prx->module.exports;pHead;)
+	//for(PspEntries*pHead=prx->module.exports;pHead;)
 		;//write_ent(pHead, out_fp);
 	fprintf(out_fp, "PSP_END_EXPORTS\n");
 	return 0;

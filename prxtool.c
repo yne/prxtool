@@ -62,11 +62,7 @@ int main(int argc, char **argv){
 	OUT(elf);
 	OUT(stub,arg.aliased);
 	OUT(stub2,arg.aliased);
-	OUT(dep);
 	OUT(mod);
-	OUT(pstub);
-	OUT(pstub2);
-	OUT(impexp,arg.aliased);
 	OUT(symbol);
 	//OUT(xmldb);
 	OUT(ent);

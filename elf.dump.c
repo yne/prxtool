@@ -48,7 +48,7 @@ void elf_dumpRelocs(ElfCtx* elf,FILE*stream){
 		return;
 	fprintf(stream,"\n[Relocations]\nType      Symbol Offset Info Sections\n", elf->reloc_count);
 	for(ElfReloc*rel = elf->reloc; rel < elf->reloc+elf->reloc_count; rel++)
-		fprintf(stream,"%d:%-7s %6d %06X %04X %s\n", rel->type,
+		fprintf(stream,"%2d:%-7s %6d %06X %04X %s\n", rel->type,
 			rel->type<16?g_szRelTypes[rel->type]:"?", rel->symbol,rel->offset, rel->info, rel->secname);
 }
 

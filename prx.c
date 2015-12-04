@@ -54,31 +54,6 @@ typedef struct{
 	uint32_t imp_end;
 }PspModuleInfo;
 
-//<Should me removed ?>
-typedef enum {
-	PSP_ENTRY_FUNC = 0,
-	PSP_ENTRY_VAR = 1
-}PspEntryType;
-
-typedef struct{
-	char name[128];
-	uint32_t nid;
-	PspEntryType type;
-	uint32_t addr;
-	uint32_t nid_addr;
-}PspEntry;
-
-typedef struct{
-	char name[128],file[256];
-	uint32_t addr;
-	uint16_t f_count;
-	uint8_t v_count;
-	PspModuleImport stub;
-	PspModuleExport export;
-	PspEntry funcs[2000],vars[255];
-}PspEntries;
-//<Should me removed ?>
-
 typedef struct{
 	uint32_t addr;
 	PspModuleInfo info;
@@ -90,10 +65,6 @@ typedef struct{
 	PspModuleImport*imps;size_t imps_count;
 	PspModuleFunction*impfuncs;size_t impfuncs_count;
 	PspModuleVariable*impvars ;size_t impvars_count;
-
-	PspEntries *exports;size_t exports_count;
-	PspEntries *imports;size_t imports_count;
-
 }PspModule;
 
 #include "vmem.c"
@@ -120,6 +91,7 @@ typedef struct{
 #include "prx.load.c"
 #include "prx.output.c"
 #include "prx.disasm.c"
+#include "prx.dump.c"
 
 Symbol *prx_getSymbolEntryFromAddr(PrxCtx *pPrx,uint32_t dwAddr){
 	return NULL;//prx->symbol[dwAddr];
