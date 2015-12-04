@@ -3,6 +3,8 @@ compiler: gcc
 script:
   - $CC -std=c99 -coverage prxtool.c -o prxtool -DVERSION=\"$(git describe --dirty --always --tags)\"
   - ./prxtool
+  - ./prxtool --help
+  - ./prxtool --in.nid=res/psplibdoc.xml --in.func=res/functions.tsv --in.instr=res/instructions.tsv --in.prx=tests/test.prx --out.mod
   - gcov prxtool.c
 after_success:
   - bash <(curl -s https://codecov.io/bash)

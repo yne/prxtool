@@ -1,6 +1,7 @@
 PRXTool
 =======
 [![Build Status](https://api.travis-ci.org/yne/prxtool.svg)](https://travis-ci.org/yne/prxtool)
+[![Coverage](https://codecov.io/github/yne/prxtool/coverage.svg?branch=master)](https://codecov.io/github/yne/prxtool?branch=master)
 
 This is a simple tool to manipulate Sony PSP(tm) PRX files. Prxtool can:
 
