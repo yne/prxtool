@@ -360,7 +360,7 @@ int elf_loadRelocsSCE(ElfCtx*elf,ElfReloc *pRelocs){
 			temp1 = (temp1 >> (16 - part1s)) & 0xFFFF;
 			temp2 = (cmd << (16 - (part1s + nbits + part2s))) & 0xFFFF;
 			temp2 = (temp2 >> (16 - part2s)) & 0xFFFF;
-			fprintf(stdout,"CMD=0x%04X I1=0x%02X I2=0x%02X PART1=0x%02X PART2=0x%02X\n", cmd, temp1, temp2, part1, part2);
+			//fprintf(stdout,"CMD=0x%04X I1=0x%02X I2=0x%02X PART1=0x%02X PART2=0x%02X\n", cmd, temp1, temp2, part1, part2);
 			iCurrRel++;
 		}
 	}

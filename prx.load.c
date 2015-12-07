@@ -142,7 +142,7 @@ int elf_loadModInfo(ElfCtx* elf,PspModule*mod,char*secname){
 		modinfo = (PspModuleInfo*)modInfoSec->pData;
 	}else if(elf->PH_count){//If no ModInfo section found => use PH
 		iAddr = (elf->program[0].iPaddr & 0x7FFFFFFF) - elf->program[0].iOffset;
-		modinfo = (PspModuleInfo*)elf->bin + iAddr;
+		modinfo = (PspModuleInfo*)(elf->bin + iAddr);
 	}
 	assert(modinfo);
 	*mod=(PspModule){
@@ -156,7 +156,7 @@ int elf_loadModInfo(ElfCtx* elf,PspModule*mod,char*secname){
 			.imp_end = LW(modinfo->imp_end),
 		}
 	};
-	memcpy(mod->info.name, ((PspModuleInfo*)modinfo)->name, sizeof(mod->info.name));
+	memcpy(mod->info.name, modinfo->name, sizeof(mod->info.name));
 	return 0;
 }
 
@@ -212,7 +212,6 @@ int elf_createFakeSections(ElfCtx*elf,ElfProgram*p,uint32_t stubBtm){
 int prx_loadFromElf(PrxCtx* prx,FILE *fp,Instruction*inst, size_t inst_count,char*modInfoName){
 	assert(!elf_loadFromElfFile(&prx->elf, fp));
 	prx->vMem = (Vmem){prx->elf.elf, prx->elf.bin_count, prx->elf.baseAddr, MEM_LITTLE_ENDIAN};
-	//fprintf(stderr,"pData %p, iSize %x, iBaseAddr 0x%08X, endian %d\n", prx->vMem.data, prx->vMem.size, prx->vMem.baseAddr, prx->vMem.endian);
 	assert(!elf_loadModInfo(&prx->elf,&prx->module,modInfoName));
 	assert(!elf_loadRelocs(&prx->elf));
 	//assert(!elf_fixupRelocs(&prx->elf, prx->base, prx->imm,prx->imm_count,&prx->vMem));
@@ -228,10 +227,9 @@ int prx_loadFromElf(PrxCtx* prx,FILE *fp,Instruction*inst, size_t inst_count,cha
 	prx->module.expfuncs=calloc(prx->module.expfuncs_count,sizeof(PspModuleFunction));
 	prx->module.expvars=calloc(prx->module.expvars_count,sizeof(PspModuleVariable));
 	assert(!prx_loadExports(prx,prx->module.exps,NULL,prx->module.expfuncs,NULL,prx->module.expvars,NULL));
-	
+
 	return 0;
 	assert(!elf_createFakeSections(&prx->elf,prx->elf.program,prx->module.info.exports - 4));
-	fprintf(stderr,">>>FAKESEC\n",__LINE__);
 	assert(!prx_buildSymbols(prx,prx->symbol,&prx->symbol_count, prx->base));
 	assert(!prx_buildMaps(prx,inst,inst_count));
 	assert(!prx_mapFuncExtents(prx,prx->symbol,prx->symbol_count));

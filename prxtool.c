@@ -2,13 +2,12 @@
 //#include <unistd.h>
 #include <stdint.h>
 
-//#define PATH_MAX 4096
 #define assert(cond) if(!(cond))return fprintf(stderr,"error in %s: %s\n", __func__, #cond),-1;
 #define foreach(Type,name,list) for(Type name = list; name < list+list##_count; name++)
 
 #include "prx.c"
-#include "out.c"
-#include "arg.c"
+#include "prxtool.out.c"
+#include "prxtool.arg.c"
 
 #ifndef PRXTOOL_VERSION
 #define PRXTOOL_VERSION ""
@@ -19,7 +18,7 @@ int main(int argc, char **argv){
 
 	
 	PrxToolArg arg = {.print="ixrl",.modInfoName=".rodata.sceModuleInfo"};
-	assert(!parse_arg(argc,argv,&arg))
+	assert(!arg_parse(argc,argv,&arg))
 
 	Library    *libs=NULL;size_t libs_count=0;
 	Nid        *nids=NULL;size_t nids_count=0;
@@ -60,13 +59,13 @@ int main(int argc, char **argv){
 	}
 	#define OUT(A,...) if(arg.out.A)output_##A(&prx,arg.out.A, ##__VA_ARGS__);
 	OUT(elf);
-	OUT(stub,arg.aliased);
-	OUT(stub2,arg.aliased);
+	OUT(S  ,arg.aliased);
+	OUT(exp);
 	OUT(mod);
-	OUT(symbol);
-	//OUT(xmldb);
-	OUT(ent);
-	OUT(disasm,arg.disopts);
+	OUT(sym);
+	OUT(xml);
+	OUT(htm);
+	OUT(asm,arg.disopts);
 	OUT(xml);
 	OUT(map);
 	OUT(idc);

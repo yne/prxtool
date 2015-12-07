@@ -8,10 +8,10 @@ typedef struct{
 	uint32_t   base,dataOff;
 	char       *print,*disopts,*dbTitle,*modInfoName;
 	struct{FILE*prx,*bin,*func,*nid,*instr;}in;
-	struct{FILE*idc,*map,*xml,*elf,*stub,*stub2,*dep,*mod,*pstub,*pstub2,*impexp,*ent,*disasm,*symbol,*xmldb;}out;
+	struct{FILE*idc,*map,*htm,*elf,*S,*dep,*mod,*exp,*asm,*sym,*xml;}out;
 }PrxToolArg;
 
-int parse_arg(int argc,char**argv,PrxToolArg*arg){
+int arg_parse(int argc,char**argv,PrxToolArg*arg){
 	if(argc<2 || !argv)//print usage if no argument provided
 		argc=2,argv=(char*[]){"prx","--help"};
 	//bind each arg struct to an ArgEntry, so we can handle they value and print help about them
@@ -25,19 +25,14 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 		ARG(in.nid      ,"fr" ,"NIDs list (XML,YML)"),
 		ARG(out.idc     ,"fw" ,"IDC file"),
 		ARG(out.map     ,"fw" ,"MAP file"),
-		ARG(out.xml     ,"fw" ,"XML file"),
+		ARG(out.htm     ,"fw" ,"HTM file"),
 		ARG(out.elf     ,"fwb","ELF file"),
-		ARG(out.stub    ,"fw" ,"stub file (old) files from an XML"),
-		ARG(out.stub2   ,"fw" ,"stub file (new) files from an XML"),
-		ARG(out.dep     ,"fw" ,"stub file (old) files from an XML exports" ),
-		ARG(out.mod     ,"fw" ,"stub file (new) files from an XML exports"),
-		ARG(out.pstub   ,"fw" ,"dependencies"),
-		ARG(out.pstub2  ,"fw" ,"information"),
-		ARG(out.impexp  ,"fw" ,"imports/exports"),
-		ARG(out.ent     ,"fw" ,"entries"),
-		ARG(out.disasm  ,"fw" ,"disassembly"),
-		ARG(out.symbol  ,"fw" ,"symbol file"),
-		ARG(out.xmldb   ,"fw" ,"XML disassembly database"),
+		ARG(out.S       ,"fw" ,"Stub file"),
+		ARG(out.exp     ,"fw" ,"Export file" ),
+		ARG(out.mod     ,"fw" ,"PRX Information"),
+		ARG(out.asm     ,"fw" ,"disassembly"),
+		ARG(out.sym     ,"fw" ,"symbol file"),
+		ARG(out.xml     ,"fw" ,"XML database"),
 		ARG(xmldis      ,"i"  ,"Enable XML disassembly output mode"),
 		ARG(aliased     ,"i"  ,"Print aliases when using -f mode" ),
 		ARG(help        ,"i"  ,"Print the Usage screen"),
@@ -74,10 +69,11 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 		if(*cmd->type=='s')// String : use empty string if no value provided
 			*((char**) cmd->argvoid) = value[-1]=='='?value:"";
 		if(*cmd->type=='f'){// File : use std-in/out if no file specified
-			*((FILE**) cmd->argvoid) = value[-1]=='='?fopen(value, cmd->type+1):(cmd->type[1]=='w'?stdin:stdout);
-			assert(*((FILE**) cmd->argvoid) && "Unable to open the file\n");
+			*((FILE**) cmd->argvoid) = value[-1]=='='?fopen(value, cmd->type+1):(cmd->type[1]=='w'?stdout:stdin);
+			assert(*((FILE**)cmd->argvoid) && "Unable to open the file\n");
 		}
 	}
+	
 	if(arg->help){
 		fprintf(stderr, "Usage: %s [[--option=]value ...] \nOptions:\n",argv[0]);
 		for(int i = 0; i < sizeof(cmds)/sizeof(*cmds); i++){
@@ -86,7 +82,7 @@ int parse_arg(int argc,char**argv,PrxToolArg*arg){
 			if(ent->type[0]=='i')
 				snprintf(argbuf,sizeof(argbuf),"--%s=%i",ent->label,*(int*)ent->argvoid);
 			if(*ent->type=='s')
-				snprintf(argbuf,sizeof(argbuf),"--%s=\"%s\"",ent->label,*(char**)(ent->argvoid)?:"");
+				snprintf(argbuf,sizeof(argbuf),"--%s=%s",ent->label,*(char**)(ent->argvoid)?:"");
 			if(*ent->type=='f')
 				snprintf(argbuf,sizeof(argbuf),"--%s=%s",ent->label,*(char**)(ent->argvoid)?"...":"<File>");
 			fprintf(stderr,"%-*s %s\n",(int)sizeof(argbuf)-1,argbuf, ent->help);
