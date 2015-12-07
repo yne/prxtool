@@ -54,5 +54,4 @@ uint32_t*elf_at(ElfCtx*elf, uint32_t vaddr){
 //#define elf_at(ELF,ADDR) (&(ELF).elf+elf_translate(&(ELF),ADDR))
 
 #include "endianness.c"
-#include "elf.dump.c"
 #include "elf.load.c"

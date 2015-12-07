@@ -91,7 +91,6 @@ typedef struct{
 #include "prx.load.c"
 #include "prx.output.c"
 #include "prx.disasm.c"
-#include "prx.dump.c"
 
 Symbol *prx_getSymbolEntryFromAddr(PrxCtx *pPrx,uint32_t dwAddr){
 	return NULL;//prx->symbol[dwAddr];
