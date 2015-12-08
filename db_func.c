@@ -37,7 +37,7 @@ int db_func_import(Protoype *func,size_t*count,FILE* fp){
 		i++;
 		if(count)*count=i;//count mode
 	}
-	return fclose(fp);
+	return 0;
 }
 
 Protoype *db_func_find(Protoype *func,size_t func_count,const char *name){

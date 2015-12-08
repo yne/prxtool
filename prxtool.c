@@ -29,6 +29,7 @@ int main(int argc, char **argv){
 			db_nids_import(libs,NULL,nids,NULL,arg.in.nid);
 		}
 		fprintf(stderr,"loaded: %zu nids in %zu libs\n",nids_count,libs_count);
+		fclose(arg.in.nid);
 	}
 	
 	Protoype   *proto=NULL;size_t proto_count=0;
@@ -38,6 +39,7 @@ int main(int argc, char **argv){
 			db_func_import(proto,NULL,arg.in.func);
 		}
 		fprintf(stderr,"loaded: %zu prototypes\n",proto_count);
+		fclose(arg.in.func);
 	}
 	
 	Instruction*macro=NULL;size_t macro_count=0;
@@ -49,7 +51,9 @@ int main(int argc, char **argv){
 			db_instr_import(instr,NULL,macro,NULL,arg.in.instr);
 		}
 		fprintf(stderr,"loaded: %zu instructions + %zu macro\n",instr_count,macro_count);
+		fclose(arg.in.instr);
 	}
+
 	PrxCtx prx = {};
 	if(arg.in.prx){
 		assert(!prx_loadFromElf(&prx,arg.in.prx,instr,instr_count,arg.modInfoName))
