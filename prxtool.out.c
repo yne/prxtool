@@ -133,7 +133,7 @@ int output_mod(PrxCtx* prx,FILE *out){
 	if(prx->module.exps_count){
 		fprintf(out,"\n[ExportedLibs]\nflags    sz var func offset name\n");
 		for(PspModuleExport*e=prx->module.exps;e<prx->module.exps+prx->module.exps_count;e++)
-			fprintf(out,"%08X %2i %3i %4i %06X %s\n",e->flags,e->size,e->vars_count,e->funcs_count,e->exports,elf_translate(&prx->elf,e->name)?(char*)&prx->elf.elf[elf_translate(&prx->elf,e->name)]:"syslib");
+			fprintf(out,"%08X %2i %3i %4i %06X %s\n",e->flags,e->size,e->vars_count,e->funcs_count,e->exports,e->name?(char*)elf_at(&prx->elf,e->name):"syslib");
 	}
 	if(prx->module.expfuncs_count){
 		fprintf(out,"\n[ExportedFuncs]\nNids     Offset\n");
